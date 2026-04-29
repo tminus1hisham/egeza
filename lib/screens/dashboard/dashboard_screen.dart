@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../blocs/app_bloc.dart';
 import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
-import '../../widgets/app_widgets.dart';
+import '../../models/vehicle.dart';
+import '../../models/parking_session.dart';
 import 'wallet_screen.dart';
 import 'active_session_screen.dart';
 
@@ -25,217 +27,280 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: BlocBuilder<AppBloc, AppState>(
-        builder: (context, state) {
-          if (state.isLoading) {
-            return const Center(child: CircularProgressIndicator(color: AppColors.primary));
-          }
-          return CustomScrollView(
-            slivers: [
-              _buildAppBar(state),
-              SliverToBoxAdapter(child: _buildBody(context, state)),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildAppBar(AppState state) {
-    return SliverAppBar(
-      pinned: false,
-      floating: true,
-      backgroundColor: AppColors.background,
-      elevation: 0,
-      automaticallyImplyLeading: false,
-      flexibleSpace: FlexibleSpaceBar(
-        background: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
-            child: Row(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF2F4F3),
+        body: BlocBuilder<AppBloc, AppState>(
+          builder: (context, state) {
+            if (state.isLoading) {
+              return const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              );
+            }
+            return Column(
               children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: AppColors.accentLight,
-                  child: Text(
-                    state.userName.substring(0, 1),
-                    style: GoogleFonts.poppins(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
+                // ── Teal header + wallet card ──────────────────────────
+                _buildHeader(context, state),
+
+                // ── Scrollable body ────────────────────────────────────
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 24),
+                        _buildQuickActions(context),
+                        const SizedBox(height: 24),
+                        _buildVehicles(state),
+                        const SizedBox(height: 24),
+                        _buildRecentSessions(context, state),
+                        const SizedBox(height: 32),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Good morning 👋',
-                        style: GoogleFonts.poppins(fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                      Text(
-                        state.userName,
-                        style: GoogleFonts.poppins(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: const Icon(Icons.notifications_outlined, size: 20, color: AppColors.textPrimary),
-                ),
               ],
-            ),
-          ),
+            );
+          },
         ),
       ),
-      expandedHeight: 70,
     );
   }
 
-  Widget _buildBody(BuildContext context, AppState state) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 20),
-          _buildBalanceCard(context, state),
-          const SizedBox(height: 28),
-          SectionLabel(
-            label: 'My Vehicles',
-            action: '+ Add',
-            onAction: () {},
-          ),
-          const SizedBox(height: 14),
-          _buildVehiclesList(state),
-          const SizedBox(height: 28),
-          SectionLabel(
-            label: 'Recent Sessions',
-            action: 'See all',
-            onAction: () {},
-          ),
-          const SizedBox(height: 14),
-          _buildSessionsList(context, state),
-          const SizedBox(height: 100),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBalanceCard(BuildContext context, AppState state) {
+  // ─────────────────────────────────────────────────────────────────────────
+  // HEADER (teal bg + wallet balance card merged)
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildHeader(BuildContext context, AppState state) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.primaryDark,
-        borderRadius: BorderRadius.circular(24),
-        image: const DecorationImage(
-          image: AssetImage('assets/images/card_bg.png'),
-          fit: BoxFit.cover,
-          opacity: 0.05,
+      decoration: const BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Wallet Balance',
-                style: GoogleFonts.poppins(color: Colors.white60, fontSize: 13),
+              // greeting row
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Good morning 🔥',
+                          style: GoogleFonts.poppins(
+                            color: Colors.white.withValues(alpha: 0.75),
+                            fontSize: 13,
+                          ),
+                        ),
+                        Text(
+                          state.userName,
+                          style: GoogleFonts.poppins(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.notifications_outlined,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ],
               ),
-              const Spacer(),
+              const SizedBox(height: 20),
+
+              // wallet balance card (slightly different shade)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
+                  color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(
-                  'Active',
-                  style: GoogleFonts.poppins(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Wallet Balance',
+                          style: GoogleFonts.poppins(
+                            color: Colors.white.withValues(alpha: 0.75),
+                            fontSize: 13,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const WalletScreen()),
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.add, color: Colors.white, size: 14),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Top Up',
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'KES ${state.walletBalance.toStringAsFixed(0).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',')}',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        const Icon(Icons.check_circle, color: Color(0xFF7DDFB0), size: 14),
+                        const SizedBox(width: 5),
+                        Text(
+                          '1 of ${state.vehicles.length} cars on AutoPay',
+                          style: GoogleFonts.poppins(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(width: 4, height: 4, decoration: const BoxDecoration(color: Colors.white54, shape: BoxShape.circle)),
+                        const SizedBox(width: 8),
+                        Text(
+                          'M-Pesa linked',
+                          style: GoogleFonts.poppins(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // QUICK ACTIONS
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildQuickActions(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(
-            'KES ${state.walletBalance.toStringAsFixed(0)}',
+            'Quick Actions',
             style: GoogleFonts.poppins(
-              color: Colors.white,
-              fontSize: 34,
+              fontSize: 15,
               fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            'Available for parking & tolls',
-            style: GoogleFonts.poppins(color: Colors.white54, fontSize: 12),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const WalletScreen()),
-                  ),
-                  child: Container(
-                    height: 42,
+          const SizedBox(height: 12),
+
+          // Pay Parking wide card
+          GestureDetector(
+            onTap: () {},
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+              decoration: BoxDecoration(
+                color: AppColors.primaryDark,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
-                      color: AppColors.accent,
+                      color: Colors.white.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Center(
-                      child: Text(
-                        'Top Up',
-                        style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
+                    child: const Icon(Icons.credit_card_rounded, color: Colors.white, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Pay Parking',
+                          style: GoogleFonts.poppins(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
+                        Text(
+                          'Enter plate to initiate payment',
+                          style: GoogleFonts.poppins(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
+                  const Icon(Icons.chevron_right_rounded, color: Colors.white54, size: 22),
+                ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Container(
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'History',
-                      style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // 3 small action tiles
+          Row(
+            children: [
+              Expanded(child: _quickTile(Icons.account_balance_wallet_outlined, 'Top Up', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WalletScreen())))),
+              const SizedBox(width: 10),
+              Expanded(child: _quickTile(Icons.directions_car_outlined, 'Add Car', onTap: () {})),
+              const SizedBox(width: 10),
+              Expanded(child: _quickTile(Icons.history_rounded, 'History', onTap: () {})),
             ],
           ),
         ],
@@ -243,86 +308,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildVehiclesList(AppState state) {
-    if (state.vehicles.isEmpty) {
-      return _buildEmptyVehicle();
-    }
-    return SizedBox(
-      height: 90,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: state.vehicles.length + 1,
-        itemBuilder: (context, index) {
-          if (index == state.vehicles.length) return _buildAddVehicleCard();
-          final v = state.vehicles[index];
-          return Container(
-            width: 200,
-            margin: const EdgeInsets.only(right: 12),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.accentLight,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.directions_car_rounded, color: AppColors.primary, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        v.plateNumber,
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      Text(
-                        '${v.make} ${v.model}',
-                        style: GoogleFonts.poppins(fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildAddVehicleCard() {
+  Widget _quickTile(IconData icon, String label, {required VoidCallback onTap}) {
     return GestureDetector(
-      onTap: () {},
+      onTap: onTap,
       child: Container(
-        width: 70,
-        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border, style: BorderStyle.solid, width: 1.5),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
         ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.add_rounded, color: AppColors.primary, size: 22),
-            const SizedBox(height: 4),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.accentLight,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: AppColors.primary, size: 20),
+            ),
+            const SizedBox(height: 8),
             Text(
-              'Add',
-              style: GoogleFonts.poppins(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.w600),
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
             ),
           ],
         ),
@@ -330,118 +344,341 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildEmptyVehicle() {
+  // ─────────────────────────────────────────────────────────────────────────
+  // MY VEHICLES
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildVehicles(AppState state) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'My Vehicles',
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              GestureDetector(
+                onTap: () {},
+                child: Text(
+                  '+ Add Vehicle',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...state.vehicles.map((v) => _vehicleTile(v)),
+          if (state.vehicles.isEmpty)
+            _emptyVehicle(),
+        ],
+      ),
+    );
+  }
+
+  Widget _vehicleTile(Vehicle v) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
       ),
-      child: Center(
-        child: Column(
-          children: [
-            const Icon(Icons.directions_car_outlined, color: AppColors.textMuted, size: 32),
-            const SizedBox(height: 8),
-            Text('No vehicles yet', style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSecondary)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSessionsList(BuildContext context, AppState state) {
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: state.recentSessions.length,
-      separatorBuilder: (_, _i) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final session = state.recentSessions[index];
-        return GestureDetector(
-          onTap: () {
-            if (session.isActive) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => ActiveSessionScreen(session: session)),
-              );
-            }
-          },
-          child: Container(
-            padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
+              color: AppColors.accentLight,
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Row(
+            child: const Icon(Icons.directions_car_rounded, color: AppColors.primary, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: session.isActive ? AppColors.accentLight : AppColors.background,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.local_parking_rounded,
-                    color: session.isActive ? AppColors.primary : AppColors.textMuted,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        session.locationName,
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          Text(
-                            session.vehicle.plateNumber,
-                            style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary),
-                          ),
-                          const SizedBox(width: 8),
-                          StatusBadge(
-                            label: session.isActive ? 'Active Now' : 'Completed',
-                            isActive: session.isActive,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                Row(
                   children: [
                     Text(
-                      'KES ${session.cost.toStringAsFixed(0)}',
+                      v.plateNumber,
                       style: GoogleFonts.poppins(
+                        fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        fontSize: 14,
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(width: 8),
+                    _autoPayBadge(v.autoPayEnabled),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      margin: const EdgeInsets.only(right: 5),
+                      decoration: BoxDecoration(
+                        color: v.autoPayEnabled ? AppColors.success : AppColors.error,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                     Text(
-                      session.isActive ? 'Per hour' : 'Total',
-                      style: GoogleFonts.poppins(fontSize: 11, color: AppColors.textMuted),
+                      '${v.make} ${v.model} · ${v.type}',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
               ],
             ),
           ),
-        );
-      },
+          const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
+        ],
+      ),
     );
+  }
+
+  Widget _autoPayBadge(bool active) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: active ? AppColors.accentLight : const Color(0xFFF0F0F0),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: active ? AppColors.accent : const Color(0xFFD0D0D0),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (active) ...[
+            const Icon(Icons.check_circle_rounded, size: 11, color: AppColors.success),
+            const SizedBox(width: 3),
+          ],
+          Text(
+            active ? 'AutoPay' : 'No AutoPay',
+            style: GoogleFonts.poppins(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: active ? AppColors.success : AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyVehicle() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Center(
+        child: Text(
+          'No vehicles added yet',
+          style: GoogleFonts.poppins(color: AppColors.textSecondary, fontSize: 13),
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // RECENT SESSIONS
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildRecentSessions(BuildContext context, AppState state) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Recent Sessions',
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              GestureDetector(
+                onTap: () {},
+                child: Text(
+                  'View all',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: state.recentSessions.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Center(
+                      child: Text(
+                        'No recent sessions',
+                        style: GoogleFonts.poppins(color: AppColors.textSecondary, fontSize: 13),
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: state.recentSessions.length,
+                    separatorBuilder: (_, idx) => const Divider(height: 1, indent: 64, color: Color(0xFFF0F4F2)),
+                    itemBuilder: (context, i) => _sessionTile(context, state.recentSessions[i]),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sessionTile(BuildContext context, ParkingSession session) {
+    final duration = session.endTime != null
+        ? session.endTime!.difference(session.startTime)
+        : DateTime.now().difference(session.startTime);
+    final h = duration.inHours;
+    final m = duration.inMinutes % 60;
+    final durationStr = h > 0 ? '${h}h ${m}m' : '${m}m';
+
+    final dayStr = _dayLabel(session.startTime);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: session.isActive
+          ? () => Navigator.push(context, MaterialPageRoute(builder: (ctx) => ActiveSessionScreen(session: session)))
+          : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.accentLight,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.location_on_outlined, color: AppColors.primary, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    session.locationName,
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      _platePill(session.vehicle.plateNumber),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.access_time_rounded, size: 12, color: AppColors.textMuted),
+                      const SizedBox(width: 3),
+                      Text(durationStr, style: GoogleFonts.poppins(fontSize: 11, color: AppColors.textSecondary)),
+                      const SizedBox(width: 6),
+                      Text(dayStr, style: GoogleFonts.poppins(fontSize: 11, color: AppColors.textSecondary)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  'KES ${session.cost.toStringAsFixed(0)}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                session.isActive
+                    ? Row(children: [
+                        Container(width: 6, height: 6, decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle)),
+                        const SizedBox(width: 4),
+                        Text('Active', style: GoogleFonts.poppins(fontSize: 11, color: AppColors.success, fontWeight: FontWeight.w600)),
+                      ])
+                    : Row(children: [
+                        const Icon(Icons.check_circle_rounded, size: 13, color: AppColors.success),
+                        const SizedBox(width: 3),
+                        Text('Paid', style: GoogleFonts.poppins(fontSize: 11, color: AppColors.success, fontWeight: FontWeight.w600)),
+                      ]),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _platePill(String plate) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.accentLight,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.4), width: 1),
+      ),
+      child: Text(
+        plate,
+        style: GoogleFonts.poppins(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: AppColors.primary,
+        ),
+      ),
+    );
+  }
+
+  String _dayLabel(DateTime dt) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final sessionDay = DateTime(dt.year, dt.month, dt.day);
+    final diff = today.difference(sessionDay).inDays;
+    if (diff == 0) return 'Today';
+    if (diff == 1) return 'Yesterday';
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return days[dt.weekday - 1];
   }
 }

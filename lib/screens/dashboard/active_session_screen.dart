@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/parking_session.dart';
-import '../../widgets/app_widgets.dart';
 import '../../widgets/primary_button.dart';
+import '../../widgets/app_widgets.dart';
 
 class ActiveSessionScreen extends StatefulWidget {
   final ParkingSession session;
@@ -50,7 +50,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          // Dark hero header
+          // Dark teal hero header
           Container(
             color: AppColors.primaryDark,
             child: SafeArea(
@@ -69,11 +69,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                         Expanded(
                           child: Text(
                             'Active Session',
-                            style: GoogleFonts.poppins(
-                              color: Colors.white,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: GoogleFonts.poppins(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
                           ),
                         ),
                         const StatusBadge(label: 'Active Now', isActive: true),
@@ -86,14 +82,9 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 6),
-                    // Big timer
                     Text(
                       'KES ${_accruedCost.toStringAsFixed(2)}',
-                      style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontSize: 44,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: GoogleFonts.poppins(color: Colors.white, fontSize: 44, fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -101,7 +92,6 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                       style: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
                     ),
                     const SizedBox(height: 20),
-                    // Plate chip
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
@@ -119,7 +109,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
             ),
           ),
 
-          // Details panel
+          // Details
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
@@ -128,17 +118,14 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                 children: [
                   Text('Session Details', style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
                   const SizedBox(height: 14),
-                  _buildDetailRow('Rate', 'KES ${widget.session.cost.toStringAsFixed(0)}/hr'),
-                  _buildDetailRow('Started', _formatTime(widget.session.startTime)),
-                  _buildDetailRow('Location', widget.session.locationName),
-                  _buildDetailRow('Vehicle', '${widget.session.vehicle.make} ${widget.session.vehicle.model}'),
+                  _detailRow('Rate', 'KES ${widget.session.cost.toStringAsFixed(0)}/hr'),
+                  _detailRow('Started', _formatTime(widget.session.startTime)),
+                  _detailRow('Location', widget.session.locationName),
+                  _detailRow('Vehicle', '${widget.session.vehicle.make} ${widget.session.vehicle.model}'),
                   const SizedBox(height: 28),
                   Container(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.accentLight,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                    decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(14)),
                     child: Row(
                       children: [
                         const Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 20),
@@ -153,10 +140,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                     ),
                   ),
                   const SizedBox(height: 28),
-                  PrimaryButton(
-                    text: 'End Session & Pay',
-                    onPressed: () => _showEndDialog(context),
-                  ),
+                  PrimaryButton(text: 'End Session & Pay', onPressed: () => _showEndDialog(context)),
                 ],
               ),
             ),
@@ -166,12 +150,10 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _detailRow(String label, String value) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.divider)),
-      ),
+      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.divider))),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -183,18 +165,14 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   }
 
   String _formatTime(DateTime dt) {
-    final h = dt.hour.toString().padLeft(2, '0');
-    final m = dt.minute.toString().padLeft(2, '0');
-    return '$h:$m';
+    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
   void _showEndDialog(BuildContext context) {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -210,7 +188,10 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
-            PrimaryButton(text: 'Confirm & Pay', onPressed: () { Navigator.pop(context); Navigator.pop(context); }),
+            PrimaryButton(
+              text: 'Confirm & Pay',
+              onPressed: () { Navigator.pop(context); Navigator.pop(context); },
+            ),
             const SizedBox(height: 10),
             TextButton(
               onPressed: () => Navigator.pop(context),

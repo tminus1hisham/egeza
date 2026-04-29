@@ -14,38 +14,56 @@ class AppBloc extends Bloc<AppEvent, AppState> {
 
   void _onLoadDashboardData(LoadDashboardData event, Emitter<AppState> emit) {
     emit(state.copyWith(isLoading: true));
-    
-    // Simulate loading data
-    final mockVehicle = Vehicle(
+
+    final vehicle1 = const Vehicle(
       plateNumber: 'KBZ 123A',
-      type: 'Sedan',
-      make: 'Honda',
-      model: 'Civic',
+      type: 'SUV 4×4',
+      make: 'Toyota',
+      model: 'Prado',
       autoPayEnabled: true,
     );
-    
+
+    final vehicle2 = const Vehicle(
+      plateNumber: 'KBC 456B',
+      type: 'SUV',
+      make: 'Honda',
+      model: 'CR-V',
+      autoPayEnabled: false,
+    );
+
     final mockSessions = [
       ParkingSession(
         id: '1',
-        locationName: 'Sarit Centre Parking',
-        startTime: DateTime.now().subtract(const Duration(hours: 3, minutes: 30)),
-        cost: 150.0,
-        vehicle: mockVehicle,
-        isActive: true,
+        locationName: 'Garden City Mall',
+        startTime: DateTime.now().subtract(const Duration(hours: 1, minutes: 43)),
+        endTime: DateTime.now().subtract(const Duration(minutes: 2)),
+        cost: 180.0,
+        vehicle: vehicle1,
+        isActive: false,
       ),
       ParkingSession(
         id: '2',
-        locationName: 'Westgate Mall',
-        startTime: DateTime.now().subtract(const Duration(days: 1, hours: 2)),
+        locationName: 'Two Rivers Mall',
+        startTime: DateTime.now().subtract(const Duration(days: 1, hours: 2, minutes: 35)),
         endTime: DateTime.now().subtract(const Duration(days: 1)),
-        cost: 200.0,
-        vehicle: mockVehicle,
+        cost: 290.0,
+        vehicle: vehicle2,
+        isActive: false,
+      ),
+      ParkingSession(
+        id: '3',
+        locationName: 'Westgate Shopping Centre',
+        startTime: DateTime.now().subtract(const Duration(days: 2, hours: 1, minutes: 30)),
+        endTime: DateTime.now().subtract(const Duration(days: 2)),
+        cost: 150.0,
+        vehicle: vehicle1,
         isActive: false,
       ),
     ];
 
+
     emit(state.copyWith(
-      vehicles: [mockVehicle],
+      vehicles: [vehicle1, vehicle2],
       recentSessions: mockSessions,
       isLoading: false,
     ));
@@ -80,7 +98,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
       }
       return session;
     }).toList();
-    
+
     emit(state.copyWith(recentSessions: updatedSessions));
   }
 }
