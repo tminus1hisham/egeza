@@ -1,10 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../widgets/primary_button.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-class WalletScreen extends StatelessWidget {
-  const WalletScreen({Key? key}) : super(key: key);
+class WalletScreen extends StatefulWidget {
+  const WalletScreen({super.key});
+
+  @override
+  State<WalletScreen> createState() => _WalletScreenState();
+}
+
+class _WalletScreenState extends State<WalletScreen> {
+  int _selectedAmount = 1000;
+  int _selectedMethod = 0;
+
+  final List<Map<String, dynamic>> _methods = [
+    {'icon': Icons.phone_android_rounded, 'title': 'M-Pesa', 'sub': '0712 *** ***'},
+    {'icon': Icons.credit_card_rounded, 'title': 'Credit / Debit Card', 'sub': '**** 1234'},
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -13,160 +26,144 @@ class WalletScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textPrimary, size: 20),
-          onPressed: () => Navigator.pop(context),
+        leading: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            margin: const EdgeInsets.only(left: 16),
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: const Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: AppColors.textPrimary),
+          ),
         ),
         title: Text(
           'Top Up Wallet',
-          style: GoogleFonts.poppins(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w600,
-            fontSize: 18,
-          ),
+          style: GoogleFonts.poppins(color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 17),
         ),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Enter Amount',
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 16),
+            // Amount input card
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
+                color: AppColors.primaryDark,
+                borderRadius: BorderRadius.circular(20),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'KES',
-                    style: GoogleFonts.poppins(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextFormField(
-                      initialValue: '1,000',
-                      keyboardType: TextInputType.number,
-                      style: GoogleFonts.poppins(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                  Text('Enter Amount', style: GoogleFonts.poppins(color: Colors.white60, fontSize: 13)),
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text('KES', style: GoogleFonts.poppins(color: Colors.white60, fontSize: 18, fontWeight: FontWeight.w500)),
+                      const SizedBox(width: 10),
+                      Text(
+                        _selectedAmount.toString(),
+                        style: GoogleFonts.poppins(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w700),
                       ),
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        filled: false,
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 32),
-            Text(
-              'Payment Method',
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildPaymentMethod(
-              icon: Icons.phone_android,
-              title: 'M-Pesa',
-              subtitle: '0712 *** ***',
-              isSelected: true,
-            ),
+            const SizedBox(height: 20),
+
+            // Quick amounts
+            Text('Quick Select', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
             const SizedBox(height: 12),
-            _buildPaymentMethod(
-              icon: Icons.credit_card,
-              title: 'Credit / Debit Card',
-              subtitle: '**** **** **** 1234',
-              isSelected: false,
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [500, 1000, 2000, 5000].map((amount) {
+                final selected = _selectedAmount == amount;
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedAmount = amount),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: selected ? AppColors.primary : AppColors.surface,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: selected ? AppColors.primary : AppColors.border),
+                    ),
+                    child: Text(
+                      'KES $amount',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: selected ? Colors.white : AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 28),
+
+            Text('Payment Method', style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+            const SizedBox(height: 14),
+            ...List.generate(_methods.length, (i) {
+              final m = _methods[i];
+              final selected = _selectedMethod == i;
+              return GestureDetector(
+                onTap: () => setState(() => _selectedMethod = i),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: selected ? AppColors.primary : AppColors.border,
+                      width: selected ? 2 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: selected ? AppColors.accentLight : AppColors.background,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(m['icon'] as IconData, color: selected ? AppColors.primary : AppColors.textSecondary, size: 22),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(m['title'] as String, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: AppColors.textPrimary, fontSize: 14)),
+                            Text(m['sub'] as String, style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary)),
+                          ],
+                        ),
+                      ),
+                      if (selected)
+                        const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 22),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: 32),
             PrimaryButton(
-              text: 'Top Up & Continue',
-              onPressed: () {
-                // Handle top up
-                Navigator.pop(context);
-              },
+              text: 'Top Up KES $_selectedAmount',
+              onPressed: () => Navigator.pop(context),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildPaymentMethod({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool isSelected,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isSelected ? AppColors.primary : AppColors.border,
-          width: isSelected ? 2 : 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isSelected ? AppColors.primaryLight.withOpacity(0.1) : AppColors.background,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: isSelected ? AppColors.primary : AppColors.textSecondary),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (isSelected)
-            const Icon(Icons.check_circle, color: AppColors.primary),
-        ],
       ),
     );
   }

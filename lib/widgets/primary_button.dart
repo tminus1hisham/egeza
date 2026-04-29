@@ -1,67 +1,53 @@
 import 'package:flutter/material.dart';
-import '../core/theme/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/theme/app_colors.dart';
 
 class PrimaryButton extends StatelessWidget {
   final String text;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final bool isLoading;
   final bool isOutlined;
-  final Widget? icon;
+  final double? width;
 
   const PrimaryButton({
-    Key? key,
+    super.key,
     required this.text,
     required this.onPressed,
     this.isLoading = false,
     this.isOutlined = false,
-    this.icon,
-  }) : super(key: key);
+    this.width,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final textColor = isOutlined ? AppColors.primary : AppColors.textLight;
-    final backgroundColor = isOutlined ? Colors.transparent : AppColors.primary;
-
     return SizedBox(
-      width: double.infinity,
-      height: 56,
+      width: width ?? double.infinity,
+      height: 52,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor,
-          foregroundColor: textColor,
+          backgroundColor: isOutlined ? Colors.transparent : AppColors.primary,
+          foregroundColor: isOutlined ? AppColors.primary : AppColors.textLight,
           elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: isOutlined ? const BorderSide(color: AppColors.primary, width: 2) : BorderSide.none,
-          ),
+          side: isOutlined ? const BorderSide(color: AppColors.primary, width: 1.5) : null,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
         onPressed: isLoading ? null : onPressed,
         child: isLoading
-            ? SizedBox(
-                height: 24,
-                width: 24,
+            ? const SizedBox(
+                height: 20,
+                width: 20,
                 child: CircularProgressIndicator(
-                  color: textColor,
+                  color: Colors.white,
                   strokeWidth: 2,
                 ),
               )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (icon != null) ...[
-                    icon!,
-                    const SizedBox(width: 8),
-                  ],
-                  Text(
-                    text,
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: textColor,
-                    ),
-                  ),
-                ],
+            : Text(
+                text,
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: isOutlined ? AppColors.primary : AppColors.textLight,
+                ),
               ),
       ),
     );

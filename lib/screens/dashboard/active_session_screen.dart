@@ -1,120 +1,222 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/parking_session.dart';
+import '../../widgets/app_widgets.dart';
 import '../../widgets/primary_button.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-class ActiveSessionScreen extends StatelessWidget {
+class ActiveSessionScreen extends StatefulWidget {
   final ParkingSession session;
-
   const ActiveSessionScreen({super.key, required this.session});
 
   @override
-  Widget build(BuildContext context) {
-    final duration = DateTime.now().difference(session.startTime);
-    final hours = duration.inHours.toString().padLeft(2, '0');
-    final minutes = (duration.inMinutes % 60).toString().padLeft(2, '0');
-    final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
+  State<ActiveSessionScreen> createState() => _ActiveSessionScreenState();
+}
 
+class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
+  late Timer _timer;
+  late Duration _elapsed;
+
+  @override
+  void initState() {
+    super.initState();
+    _elapsed = DateTime.now().difference(widget.session.startTime);
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      setState(() => _elapsed = DateTime.now().difference(widget.session.startTime));
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  String get _formattedTime {
+    final h = _elapsed.inHours.toString().padLeft(2, '0');
+    final m = (_elapsed.inMinutes % 60).toString().padLeft(2, '0');
+    final s = (_elapsed.inSeconds % 60).toString().padLeft(2, '0');
+    return '$h:$m:$s';
+  }
+
+  double get _accruedCost {
+    return (_elapsed.inMinutes / 60) * widget.session.cost;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textPrimary, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Active Session',
-          style: GoogleFonts.poppins(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w600,
-            fontSize: 18,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: AppColors.primaryDark,
-                borderRadius: BorderRadius.circular(24),
+      body: Column(
+        children: [
+          // Dark hero header
+          Container(
+            color: AppColors.primaryDark,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            'Active Session',
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const StatusBadge(label: 'Active Now', isActive: true),
+                      ],
+                    ),
+                    const SizedBox(height: 28),
+                    Text(
+                      widget.session.locationName,
+                      style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 6),
+                    // Big timer
+                    Text(
+                      'KES ${_accruedCost.toStringAsFixed(2)}',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 44,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Duration: $_formattedTime',
+                      style: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
+                    ),
+                    const SizedBox(height: 20),
+                    // Plate chip
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: Text(
+                        '${widget.session.vehicle.plateNumber}  •  ${widget.session.vehicle.make}',
+                        style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
               ),
+            ),
+          ),
+
+          // Details panel
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.local_parking, color: AppColors.textLight, size: 48),
-                  const SizedBox(height: 16),
-                  Text(
-                    session.locationName,
-                    style: GoogleFonts.poppins(
-                      color: AppColors.textLight,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
+                  Text('Session Details', style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                  const SizedBox(height: 14),
+                  _buildDetailRow('Rate', 'KES ${widget.session.cost.toStringAsFixed(0)}/hr'),
+                  _buildDetailRow('Started', _formatTime(widget.session.startTime)),
+                  _buildDetailRow('Location', widget.session.locationName),
+                  _buildDetailRow('Vehicle', '${widget.session.vehicle.make} ${widget.session.vehicle.model}'),
+                  const SizedBox(height: 28),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.accentLight,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Cost will be automatically deducted from your Park IQ wallet when you end this session.',
+                            style: GoogleFonts.poppins(fontSize: 12, color: AppColors.primary, height: 1.5),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${session.vehicle.plateNumber} • ${session.vehicle.make}',
-                    style: GoogleFonts.poppins(
-                      color: AppColors.textLight.withValues(alpha: 0.8),
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  Text(
-                    'Current Session',
-                    style: GoogleFonts.poppins(
-                      color: AppColors.textLight.withValues(alpha: 0.8),
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '$hours:$minutes:$seconds',
-                    style: GoogleFonts.poppins(
-                      color: AppColors.textLight,
-                      fontSize: 40,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  const SizedBox(height: 28),
+                  PrimaryButton(
+                    text: 'End Session & Pay',
+                    onPressed: () => _showEndDialog(context),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 40),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Accrued Cost',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                Text(
-                  'KES ${session.cost.toStringAsFixed(0)}',
-                  style: GoogleFonts.poppins(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.divider)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSecondary)),
+          Text(value, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+        ],
+      ),
+    );
+  }
+
+  String _formatTime(DateTime dt) {
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
+  void _showEndDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 20),
+            Text('End Session?', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+            const SizedBox(height: 8),
+            Text(
+              'KES ${_accruedCost.toStringAsFixed(2)} will be deducted from your wallet.',
+              style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSecondary),
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 40),
-            PrimaryButton(
-              text: 'End Session & Pay',
-              onPressed: () {
-                // Handle end session logic
-                Navigator.pop(context);
-              },
+            const SizedBox(height: 24),
+            PrimaryButton(text: 'Confirm & Pay', onPressed: () { Navigator.pop(context); Navigator.pop(context); }),
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel', style: GoogleFonts.poppins(color: AppColors.textSecondary)),
             ),
+            const SizedBox(height: 8),
           ],
         ),
       ),

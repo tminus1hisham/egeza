@@ -9,7 +9,7 @@ void main() {
 }
 
 class ParkIQApp extends StatelessWidget {
-  const ParkIQApp({Key? key}) : super(key: key);
+  const ParkIQApp({super.key});
 
   @override
   Widget build(BuildContext context) {

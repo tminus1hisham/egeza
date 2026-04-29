@@ -1,28 +1,28 @@
 import 'package:flutter/material.dart';
-import '../core/theme/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/theme/app_colors.dart';
 
-class CustomTextField extends StatelessWidget {
+class AppTextField extends StatelessWidget {
   final String label;
-  final String hintText;
-  final bool isPassword;
-  final TextInputType keyboardType;
-  final Widget? prefixIcon;
-  final Widget? suffixIcon;
+  final String? hint;
   final TextEditingController? controller;
+  final bool obscure;
+  final TextInputType keyboardType;
+  final Widget? suffix;
+  final Widget? prefix;
   final String? Function(String?)? validator;
 
-  const CustomTextField({
-    Key? key,
+  const AppTextField({
+    super.key,
     required this.label,
-    required this.hintText,
-    this.isPassword = false,
-    this.keyboardType = TextInputType.text,
-    this.prefixIcon,
-    this.suffixIcon,
+    this.hint,
     this.controller,
+    this.obscure = false,
+    this.keyboardType = TextInputType.text,
+    this.suffix,
+    this.prefix,
     this.validator,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -32,25 +32,22 @@ class CustomTextField extends StatelessWidget {
         Text(
           label,
           style: GoogleFonts.poppins(
-            fontSize: 14,
+            fontSize: 12,
             fontWeight: FontWeight.w500,
-            color: AppColors.textPrimary,
+            color: AppColors.textSecondary,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         TextFormField(
           controller: controller,
-          obscureText: isPassword,
+          obscureText: obscure,
           keyboardType: keyboardType,
           validator: validator,
-          style: GoogleFonts.poppins(
-            fontSize: 14,
-            color: AppColors.textPrimary,
-          ),
+          style: GoogleFonts.poppins(fontSize: 14, color: AppColors.textPrimary),
           decoration: InputDecoration(
-            hintText: hintText,
-            prefixIcon: prefixIcon,
-            suffixIcon: suffixIcon,
+            hintText: hint,
+            suffixIcon: suffix,
+            prefixIcon: prefix,
           ),
         ),
       ],
