@@ -37,6 +37,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     context.read<AppBloc>().add(LoadDashboardData());
   }
 
+  Future<void> _onRefresh() async {
+    context.read<AppBloc>().add(LoadDashboardData());
+    await Future.delayed(const Duration(milliseconds: 800));
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -54,17 +59,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 _buildHeader(context, state),
                 Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 24),
-                        _buildQuickActions(context),
-                        const SizedBox(height: 24),
-                        _buildVehicles(context, state),
-                        const SizedBox(height: 24),
-                        _buildRecentSessions(context, state),
-                        const SizedBox(height: 32),
-                      ],
+                  child: RefreshIndicator(
+                    color: AppColors.primary,
+                    onRefresh: _onRefresh,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 24),
+                          _buildQuickActions(context),
+                          const SizedBox(height: 24),
+                          _buildVehicles(context, state),
+                          const SizedBox(height: 24),
+                          _buildRecentSessions(context, state),
+                          const SizedBox(height: 32),
+                        ],
+                      ),
                     ),
                   ),
                 ),

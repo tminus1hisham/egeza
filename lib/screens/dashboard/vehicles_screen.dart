@@ -34,6 +34,11 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     super.dispose();
   }
 
+  Future<void> _onRefresh() async {
+    context.read<AppBloc>().add(LoadDashboardData());
+    await Future.delayed(const Duration(milliseconds: 800));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -48,19 +53,23 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
               children: [
                 _header(context),
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _fleetCard(state),
-                        const SizedBox(height: 18),
-                        _filterBar(),
-                        const SizedBox(height: 18),
-                        _vehicleList(context, vehicles, state.recentSessions),
-                        const SizedBox(height: 18),
-                        _addVehicleCard(context),
-                      ],
+                  child: RefreshIndicator(
+                    color: AppColors.primary,
+                    onRefresh: _onRefresh,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _fleetCard(state),
+                          const SizedBox(height: 18),
+                          _filterBar(),
+                          const SizedBox(height: 18),
+                          _vehicleList(context, vehicles, state.recentSessions),
+                          const SizedBox(height: 18),
+                          _addVehicleCard(context),
+                        ],
+                      ),
                     ),
                   ),
                 ),

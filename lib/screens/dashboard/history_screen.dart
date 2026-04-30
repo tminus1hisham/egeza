@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../blocs/app_bloc.dart';
+import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/parking_session.dart';
@@ -18,6 +19,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
   int _filterIndex = 0;
   static const _filters = ['All', 'Paid', 'Active'];
 
+  Future<void> _onRefresh() async {
+    context.read<AppBloc>().add(LoadDashboardData());
+    await Future.delayed(const Duration(milliseconds: 800));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -32,17 +38,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
               children: [
                 _header(),
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _overviewCard(state.recentSessions),
-                        const SizedBox(height: 18),
-                        _filterBar(),
-                        const SizedBox(height: 18),
-                        _historyList(sessions),
-                      ],
+                  child: RefreshIndicator(
+                    color: AppColors.primary,
+                    onRefresh: _onRefresh,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _overviewCard(state.recentSessions),
+                          const SizedBox(height: 18),
+                          _filterBar(),
+                          const SizedBox(height: 18),
+                          _historyList(sessions),
+                        ],
+                      ),
                     ),
                   ),
                 ),

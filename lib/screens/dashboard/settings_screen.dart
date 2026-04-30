@@ -24,6 +24,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _lowBalance = true;
   String? _paymentPhoneNumber;
 
+  Future<void> _onRefresh() async {
+    context.read<AppBloc>().add(LoadDashboardData());
+    await Future.delayed(const Duration(milliseconds: 800));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -36,7 +41,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 _header(),
                 Expanded(
-                  child: SingleChildScrollView(
+                  child: RefreshIndicator(
+                    color: AppColors.primary,
+                    onRefresh: _onRefresh,
+                    child: SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -221,6 +229,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ],
                     ),
+                  ),
                   ),
                 ),
               ],
