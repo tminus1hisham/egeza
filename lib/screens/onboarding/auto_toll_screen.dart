@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../../blocs/app_bloc.dart';
+import '../../blocs/app_event.dart';
 import '../../core/theme/app_colors.dart';
+import '../../widgets/app_widgets.dart';
 import '../../widgets/primary_button.dart';
 import 'activate_autopay_screen.dart';
 
@@ -13,263 +19,311 @@ class AutoTollScreen extends StatefulWidget {
 
 class _AutoTollScreenState extends State<AutoTollScreen> {
   int _selectedAmount = 1000;
+  final _customAmountController = TextEditingController();
 
-  String _formatAmount(int amount) {
-    if (amount >= 1000) return '${amount ~/ 1000},000';
-    return amount.toString();
+  @override
+  void dispose() {
+    _customAmountController.dispose();
+    super.dispose();
   }
+
+  String get _formattedAmount => 'KES ${_selectedAmount.toString().replaceAllMapped(
+        RegExp(r'\B(?=(\d{3})+(?!\d))'),
+        (match) => ',',
+      )}';
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: AppColors.background,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: const Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        size: 16,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Text(
-                    'Fund Wallet',
-                    style: GoogleFonts.poppins(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: AppColors.pageGrey,
+        body: SafeArea(
+          child: Column(
+            children: [
+              Container(
+                width: double.infinity,
+                color: Colors.white,
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 8),
-
-                    // Icon
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: const BoxDecoration(
-                        color: AppColors.accentLight,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.bolt_rounded, color: AppColors.primary, size: 28),
-                    ),
-                    const SizedBox(height: 16),
-
-                    Text(
-                      'Enable Seamless Exit\nwith AutoPay',
-                      style: GoogleFonts.poppins(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Add Funds to your wallet. At exit, the fee is\ndeducted automatically.',
-                      style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-
-                    // Amount header
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Select top-up amount',
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.accentLight,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            'Last used',
-                            style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-
-                    // 2×2 amount grid
-                    GridView.count(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 10,
-                      crossAxisSpacing: 10,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      childAspectRatio: 3.5,
-                      children: [500, 1000, 2000, 5000].map((amount) {
-                        final selected = _selectedAmount == amount;
-                        return GestureDetector(
-                          onTap: () => setState(() => _selectedAmount = amount),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: selected ? AppColors.primaryDark : AppColors.background,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: selected ? AppColors.primaryDark : AppColors.border,
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                'KES ${_formatAmount(amount)}',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: selected ? Colors.white : AppColors.textPrimary,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
+                    const OnboardingStepHeader(step: 3, totalSteps: 4, title: 'Fund Wallet'),
+                    const SizedBox(height: 52),
+                    const OnboardingHeroIcon(icon: LucideIcons.zap, size: 92),
                     const SizedBox(height: 24),
-
-                    // Pay with
                     Text(
-                      'Pay with',
+                      'Enable Seamless Exit',
+                      textAlign: TextAlign.center,
                       style: GoogleFonts.poppins(
-                        fontSize: 13,
+                        fontSize: 24,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary,
+                        color: AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    _paymentMethodCard(
-                      icon: Icons.phone_android_rounded,
-                      title: 'M-Pesa',
-                      subtitle: '+254 712 345 678',
-                      selected: true,
-                    ),
-                    const SizedBox(height: 32),
-
-                    PrimaryButton(
-                      text: 'Top Up KES ${_formatAmount(_selectedAmount)} via M-Pesa',
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const ActivateAutoPayScreen()),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Center(
-                      child: Text(
-                        'You can manage AutoPay anytime in Settings',
-                        style: GoogleFonts.poppins(fontSize: 11, color: AppColors.textMuted),
+                    const SizedBox(height: 4),
+                    Text(
+                      'with AutoPay',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.primary,
                       ),
                     ),
                     const SizedBox(height: 16),
+                    Text(
+                      'Add funds to your wallet. At exit, the fee is\ndeducted automatically.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        height: 1.45,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
-          ],
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
+                  child: Column(
+                    children: [
+                      _topUpCard(),
+                      const SizedBox(height: 20),
+                      _paymentCard(),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 10, 24, 8),
+                child: PrimaryButton(
+                  text: 'Top Up $_formattedAmount via M-Pesa',
+                  icon: LucideIcons.zap,
+                  onPressed: _topUpAndContinue,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 18),
+                child: Text(
+                  "You'll be prompted on your M-Pesa-registered phone",
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textMuted),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _paymentMethodCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool selected,
-  }) {
+  Widget _topUpCard() {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: selected ? AppColors.primary : AppColors.border,
-          width: selected ? 1.5 : 1,
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Select top-up amount',
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w400,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 18),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 3.1,
+            children: [
+              _amountTile(500),
+              _amountTile(1000),
+              _amountTile(2000),
+              _amountTile(5000),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Divider(color: AppColors.border.withValues(alpha: 0.8), height: 1),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Or enter custom amount:',
+                  style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textMuted),
+                ),
+              ),
+              const SizedBox(width: 10),
+              SizedBox(
+                width: 132,
+                height: 46,
+                child: TextField(
+                  controller: _customAmountController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  style: GoogleFonts.poppins(fontSize: 14, color: AppColors.textPrimary),
+                  decoration: InputDecoration(
+                    hintText: 'KES___',
+                    hintStyle: GoogleFonts.poppins(fontSize: 14, color: AppColors.textMuted),
+                    filled: true,
+                    fillColor: AppColors.pageGrey,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    border: _fieldBorder(AppColors.inputBorder),
+                    enabledBorder: _fieldBorder(AppColors.inputBorder),
+                    focusedBorder: _fieldBorder(AppColors.primary, width: 1.5),
+                  ),
+                  onChanged: (value) {
+                    final parsed = int.tryParse(value);
+                    if (parsed != null && parsed > 0) {
+                      setState(() => _selectedAmount = parsed);
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _amountTile(int amount) {
+    final selected = _selectedAmount == amount;
+    final label = 'KES ${amount.toString().replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (match) => ',',
+    )}';
+
+    return GestureDetector(
+      onTap: () {
+        _customAmountController.clear();
+        setState(() => _selectedAmount = amount);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? AppColors.accentLight : AppColors.pageGrey,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? AppColors.primary : AppColors.inputBorder,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.w400,
+            color: selected ? AppColors.primary : AppColors.textSecondary,
+          ),
         ),
       ),
-      child: Row(
+    );
+  }
+
+  Widget _paymentCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.accentLight,
-              borderRadius: BorderRadius.circular(12),
+          Text(
+            'Pay with',
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w400,
+              color: AppColors.textPrimary,
             ),
-            child: Icon(icon, color: AppColors.primary, size: 22),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.successLight,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.accent, width: 1),
+            ),
+            child: Row(
               children: [
-                Text(
-                  title,
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: AppColors.textPrimary,
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF13A753),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(LucideIcons.smartphone, color: Colors.white, size: 26),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'M-Pesa',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'Instantly funded via\nmobile money',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          height: 1.25,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary),
-                ),
+                const Icon(LucideIcons.checkCircle, color: AppColors.accent, size: 26),
               ],
             ),
           ),
-          if (selected)
-            Container(
-              width: 22,
-              height: 22,
-              decoration: const BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.check_rounded, color: Colors.white, size: 14),
-            ),
         ],
       ),
+    );
+  }
+
+  BoxDecoration _cardDecoration() {
+    return BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: AppColors.border),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.035),
+          blurRadius: 14,
+          offset: const Offset(0, 6),
+        ),
+      ],
+    );
+  }
+
+  OutlineInputBorder _fieldBorder(Color color, {double width = 1}) {
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(color: color, width: width),
+    );
+  }
+
+  void _topUpAndContinue() {
+    context.read<AppBloc>().add(TopUpWallet(_selectedAmount.toDouble()));
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ActivateAutoPayScreen()),
     );
   }
 }

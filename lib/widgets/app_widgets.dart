@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../core/theme/app_colors.dart';
 
 /// Logo widget used in headers
 class ParkIQLogo extends StatelessWidget {
   final bool dark;
-  const ParkIQLogo({super.key, this.dark = false});
+  final double size;
+  const ParkIQLogo({super.key, this.dark = false, this.size = 40});
 
   @override
   Widget build(BuildContext context) {
@@ -13,33 +15,154 @@ class ParkIQLogo extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 28,
-          height: 28,
+          width: size,
+          height: size,
           decoration: BoxDecoration(
             color: dark ? Colors.white : AppColors.primary,
-            borderRadius: BorderRadius.circular(7),
+            borderRadius: BorderRadius.circular(size * 0.28),
           ),
-          child: Center(
-            child: Text(
-              'P',
-              style: GoogleFonts.poppins(
-                color: dark ? AppColors.primary : Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: 14,
-              ),
-            ),
+          child: Icon(
+            LucideIcons.camera,
+            color: dark ? AppColors.primary : Colors.white,
+            size: size * 0.48,
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 10),
         Text(
-          'Park IQ',
+          'ParkIQ',
           style: GoogleFonts.poppins(
-            color: dark ? Colors.white : AppColors.primary,
-            fontWeight: FontWeight.w700,
-            fontSize: 15,
+            color: dark ? Colors.white : AppColors.textPrimary,
+            fontWeight: FontWeight.w500,
+            fontSize: size * 0.52,
           ),
         ),
       ],
+    );
+  }
+}
+
+class OnboardingStepHeader extends StatelessWidget {
+  final int step;
+  final int totalSteps;
+  final String title;
+  final VoidCallback? onBack;
+  final Widget? trailing;
+
+  const OnboardingStepHeader({
+    super.key,
+    required this.step,
+    required this.totalSteps,
+    required this.title,
+    this.onBack,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = (step / totalSteps).clamp(0.0, 1.0);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            _HeaderBackButton(onPressed: onBack ?? () => Navigator.pop(context)),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Step $step of $totalSteps',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (trailing != null) ...[
+              const SizedBox(width: 12),
+              trailing!,
+            ],
+          ],
+        ),
+        const SizedBox(height: 22),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            value: progress,
+            minHeight: 4,
+            color: AppColors.primary,
+            backgroundColor: AppColors.border.withValues(alpha: 0.65),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class OnboardingHeroIcon extends StatelessWidget {
+  final IconData icon;
+  final double size;
+
+  const OnboardingHeroIcon({
+    super.key,
+    required this.icon,
+    this.size = 92,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: AppColors.accentLight,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: AppColors.mintBorder, width: 1.8),
+      ),
+      child: Icon(icon, color: AppColors.primary, size: size * 0.34),
+    );
+  }
+}
+
+class _HeaderBackButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _HeaderBackButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.pageGrey,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(16),
+        child: const SizedBox(
+          width: 46,
+          height: 46,
+          child: Icon(
+            LucideIcons.arrowLeft,
+            size: 20,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -134,10 +257,7 @@ class StatusBadge extends StatelessWidget {
             Container(
               width: 6,
               height: 6,
-              decoration: const BoxDecoration(
-                color: AppColors.success,
-                shape: BoxShape.circle,
-              ),
+              decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
             ),
             const SizedBox(width: 4),
           ],

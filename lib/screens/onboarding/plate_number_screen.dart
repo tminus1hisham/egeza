@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../../blocs/app_bloc.dart';
+import '../../blocs/app_event.dart';
 import '../../core/theme/app_colors.dart';
+import '../../widgets/app_widgets.dart';
 import '../../widgets/plate_number_input.dart';
 import '../../widgets/primary_button.dart';
 import 'auto_toll_screen.dart';
@@ -13,19 +18,10 @@ class PlateNumberScreen extends StatefulWidget {
 }
 
 class _PlateNumberScreenState extends State<PlateNumberScreen> {
-  String _plate = 'KBZ123A';
-  String _selectedType = 'SUV 4×4';
   final _makeController = TextEditingController(text: 'Toyota');
   final _modelController = TextEditingController(text: 'Prado');
-
-  final List<String> _vehicleTypes = [
-    'Sedan',
-    'SUV 4×4',
-    'Hatchback',
-    'Pickup Truck',
-    'Van/Minibus',
-    'Motorcycle',
-  ];
+  String _plateNumber = 'KBZ 123A';
+  String _selectedType = 'SUV / 4x4';
 
   @override
   void dispose() {
@@ -34,257 +30,211 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
     super.dispose();
   }
 
-  String _formatPlate(String raw) {
-    final clean = raw.replaceAll(' ', '');
-    if (clean.length > 3) {
-      return '${clean.substring(0, 3)} ${clean.substring(3)}';
-    }
-    return clean;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: AppColors.background,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: const Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        size: 16,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const OnboardingStepHeader(step: 2, totalSteps: 4, title: 'Add Your Car'),
+              const SizedBox(height: 30),
+              const Center(child: OnboardingHeroIcon(icon: LucideIcons.car, size: 96)),
+              const SizedBox(height: 24),
+              Center(
+                child: Text(
+                  "What's your plate number?",
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
                   ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Car icon
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: const BoxDecoration(
-                        color: AppColors.accentLight,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.directions_car_rounded,
-                        color: AppColors.primary,
-                        size: 28,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Add Your Car',
-                      style: GoogleFonts.poppins(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "What's your plate number?",
-                      style: GoogleFonts.poppins(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'We use this to identify your vehicle at ANPR cameras.',
-                      style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Plate preview
-                    _buildPlatePreview(),
-                    const SizedBox(height: 20),
-
-                    // Number plate input
-                    Text(
-                      'Number Plate',
-                      style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    PlateNumberInput(
-                      initialValue: _plate,
-                      onChanged: (v) => setState(() => _plate = v),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Vehicle type chips
-                    Text(
-                      'Vehicle Type',
-                      style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _vehicleTypes.map((type) {
-                        final selected = _selectedType == type;
-                        return GestureDetector(
-                          onTap: () => setState(() => _selectedType = type),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: selected ? AppColors.primaryDark : AppColors.background,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: selected ? AppColors.primaryDark : AppColors.border,
-                              ),
-                            ),
-                            child: Text(
-                              type,
-                              style: GoogleFonts.poppins(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: selected ? Colors.white : AppColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Make + Model row
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Make',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              _simpleField(controller: _makeController, hint: 'Toyota'),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Model',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              _simpleField(controller: _modelController, hint: 'Prado'),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 32),
-                    PrimaryButton(
-                      text: 'Save Vehicle & Continue →',
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const AutoTollScreen()),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPlatePreview() {
-    final display = _plate.isEmpty ? 'KBZ 123A' : _formatPlate(_plate);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 24),
-      decoration: BoxDecoration(
-        color: AppColors.plateBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.plateYellow, width: 2),
-      ),
-      child: Center(
-        child: Text(
-          display,
-          style: GoogleFonts.poppins(
-            fontSize: 36,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-            letterSpacing: 4,
+              const SizedBox(height: 4),
+              Center(
+                child: Text(
+                  'We use this to identify your vehicle at\nANPR cameras',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    color: AppColors.textSecondary,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 34),
+              _label('Number Plate'),
+              const SizedBox(height: 8),
+              PlateNumberInput(
+                onChanged: (value) => _plateNumber = value,
+              ),
+              const SizedBox(height: 10),
+              Center(
+                child: Text(
+                  'Enter plate exactly as shown on your vehicle',
+                  style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textMuted),
+                ),
+              ),
+              const SizedBox(height: 24),
+              _label('Vehicle Type'),
+              const SizedBox(height: 8),
+              _vehicleTypeSelect(),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _vehicleChip('Saloon'),
+                  _vehicleChip('SUV / 4x4'),
+                  _vehicleChip('Hatchback'),
+                  _vehicleChip('Pickup Truck'),
+                  _vehicleChip('Van / Minibus'),
+                  _vehicleChip('Motorcycle'),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(child: _smallField('Make', _makeController)),
+                  const SizedBox(width: 14),
+                  Expanded(child: _smallField('Model', _modelController)),
+                ],
+              ),
+              const SizedBox(height: 32),
+              PrimaryButton(
+                text: 'Save Vehicle & Continue \u2192',
+                onPressed: _saveVehicle,
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _simpleField({required TextEditingController controller, required String hint}) {
+  Widget _vehicleTypeSelect() {
     return Container(
+      height: 58,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(12),
+        color: AppColors.inputFill,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.inputBorder),
       ),
-      child: TextField(
-        controller: controller,
-        style: GoogleFonts.poppins(fontSize: 14, color: AppColors.textPrimary),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: GoogleFonts.poppins(color: AppColors.textMuted, fontSize: 14),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedType,
+          isExpanded: true,
+          icon: const Icon(LucideIcons.chevronDown, color: AppColors.textMuted, size: 18),
+          style: GoogleFonts.poppins(fontSize: 16, color: AppColors.textPrimary),
+          dropdownColor: Colors.white,
+          items: const ['Saloon', 'SUV / 4x4', 'Hatchback', 'Pickup Truck', 'Van / Minibus', 'Motorcycle']
+              .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+              .toList(),
+          onChanged: (value) => setState(() => _selectedType = value ?? _selectedType),
         ),
       ),
+    );
+  }
+
+  Widget _vehicleChip(String label) {
+    final selected = _selectedType == label;
+
+    return GestureDetector(
+      onTap: () => setState(() => _selectedType = label),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.accentLight : AppColors.pageGrey,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? AppColors.primary : AppColors.inputBorder,
+            width: selected ? 1.3 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 13,
+            fontWeight: FontWeight.w400,
+            color: selected ? AppColors.primary : AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _smallField(String label, TextEditingController controller) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _label(label),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          style: GoogleFonts.poppins(fontSize: 15, color: AppColors.textPrimary),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: AppColors.inputFill,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+            border: _fieldBorder(AppColors.inputBorder),
+            enabledBorder: _fieldBorder(AppColors.inputBorder),
+            focusedBorder: _fieldBorder(AppColors.primary, width: 1.5),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _label(String text) {
+    return Text(
+      text,
+      style: GoogleFonts.poppins(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        color: AppColors.textSecondary,
+      ),
+    );
+  }
+
+  OutlineInputBorder _fieldBorder(Color color, {double width = 1}) {
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(color: color, width: width),
+    );
+  }
+
+  void _saveVehicle() {
+    final plate = _plateNumber.trim().toUpperCase();
+    if (plate.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter your plate number')),
+      );
+      return;
+    }
+
+    context.read<AppBloc>().add(
+          AddVehicle(
+            plateNumber: plate,
+            type: _selectedType,
+            make: _makeController.text.trim().isEmpty
+                ? 'Custom'
+                : _makeController.text.trim(),
+            model: _modelController.text.trim().isEmpty
+                ? 'Vehicle'
+                : _modelController.text.trim(),
+          ),
+        );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AutoTollScreen()),
     );
   }
 }

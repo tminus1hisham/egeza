@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../blocs/app_bloc.dart';
+import '../../blocs/app_event.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/parking_session.dart';
 import '../../widgets/primary_button.dart';
@@ -50,7 +53,6 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          // Dark teal hero header
           Container(
             color: AppColors.primaryDark,
             child: SafeArea(
@@ -108,15 +110,14 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
               ),
             ),
           ),
-
-          // Details
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Session Details', style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                  Text('Session Details',
+                    style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
                   const SizedBox(height: 14),
                   _detailRow('Rate', 'KES ${widget.session.cost.toStringAsFixed(0)}/hr'),
                   _detailRow('Started', _formatTime(widget.session.startTime)),
@@ -190,7 +191,13 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
             const SizedBox(height: 24),
             PrimaryButton(
               text: 'Confirm & Pay',
-              onPressed: () { Navigator.pop(context); Navigator.pop(context); },
+              onPressed: () {
+                context.read<AppBloc>().add(
+                      PayParkingSession(sessionId: widget.session.id),
+                    );
+                Navigator.pop(context);
+                Navigator.pop(context);
+              },
             ),
             const SizedBox(height: 10),
             TextButton(

@@ -10,9 +10,21 @@ import '../../models/vehicle.dart';
 import '../../models/parking_session.dart';
 import 'wallet_screen.dart';
 import 'active_session_screen.dart';
+import 'pay_parking_screen.dart';
+import 'vehicle_detail_screen.dart';
+import 'vehicles_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  final VoidCallback? onVehiclesTap;
+  final VoidCallback? onWalletTap;
+  final VoidCallback? onHistoryTap;
+
+  const DashboardScreen({
+    super.key,
+    this.onVehiclesTap,
+    this.onWalletTap,
+    this.onHistoryTap,
+  });
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -40,10 +52,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             }
             return Column(
               children: [
-                // ── Teal header + wallet card ──────────────────────────
                 _buildHeader(context, state),
-
-                // ── Scrollable body ────────────────────────────────────
                 Expanded(
                   child: SingleChildScrollView(
                     child: Column(
@@ -51,7 +60,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         const SizedBox(height: 24),
                         _buildQuickActions(context),
                         const SizedBox(height: 24),
-                        _buildVehicles(state),
+                        _buildVehicles(context, state),
                         const SizedBox(height: 24),
                         _buildRecentSessions(context, state),
                         const SizedBox(height: 32),
@@ -67,10 +76,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // HEADER (teal bg + wallet balance card merged)
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── HEADER ───────────────────────────────────────────────────────────────
   Widget _buildHeader(BuildContext context, AppState state) {
+    final autoPayCount = state.vehicles.where((v) => v.autoPayEnabled).length;
+
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.primary,
@@ -86,7 +95,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // greeting row
+              // Greeting row
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -129,7 +138,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(height: 20),
 
-              // wallet balance card (slightly different shade)
+              // Wallet balance sub-card
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
@@ -151,12 +160,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                         ),
                         GestureDetector(
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const WalletScreen()),
-                          ),
+                          onTap: () => _openWallet(context),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(20),
@@ -192,17 +201,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: 10),
                     Row(
                       children: [
-                        const Icon(Icons.check_circle, color: Color(0xFF7DDFB0), size: 14),
+                        const Icon(
+                          Icons.check_circle,
+                          color: Color(0xFF7DDFB0),
+                          size: 14,
+                        ),
                         const SizedBox(width: 5),
                         Text(
-                          '1 of ${state.vehicles.length} cars on AutoPay',
+                          '$autoPayCount of ${state.vehicles.length} cars on AutoPay',
                           style: GoogleFonts.poppins(
                             color: Colors.white.withValues(alpha: 0.8),
                             fontSize: 12,
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Container(width: 4, height: 4, decoration: const BoxDecoration(color: Colors.white54, shape: BoxShape.circle)),
+                        Container(
+                          width: 4,
+                          height: 4,
+                          decoration: const BoxDecoration(
+                            color: Colors.white54,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'M-Pesa linked',
@@ -223,9 +243,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // QUICK ACTIONS
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── QUICK ACTIONS ────────────────────────────────────────────────────────
   Widget _buildQuickActions(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -244,7 +262,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           // Pay Parking wide card
           GestureDetector(
-            onTap: () {},
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PayParkingScreen()),
+            ),
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
@@ -261,7 +282,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       color: Colors.white.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.credit_card_rounded, color: Colors.white, size: 22),
+                    child: const Icon(
+                      Icons.credit_card_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -286,7 +311,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right_rounded, color: Colors.white54, size: 22),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Colors.white54,
+                    size: 22,
+                  ),
                 ],
               ),
             ),
@@ -296,11 +325,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
           // 3 small action tiles
           Row(
             children: [
-              Expanded(child: _quickTile(Icons.account_balance_wallet_outlined, 'Top Up', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WalletScreen())))),
+              Expanded(
+                child: _quickTile(
+                  Icons.account_balance_wallet_outlined,
+                  'Top Up',
+                  onTap: () => _openWallet(context),
+                ),
+              ),
               const SizedBox(width: 10),
-              Expanded(child: _quickTile(Icons.directions_car_outlined, 'Add Car', onTap: () {})),
+              Expanded(
+                child: _quickTile(
+                  Icons.directions_car_outlined,
+                  'Add Car',
+                  onTap: () => _openVehicles(context),
+                ),
+              ),
               const SizedBox(width: 10),
-              Expanded(child: _quickTile(Icons.history_rounded, 'History', onTap: () {})),
+              Expanded(
+                child: _quickTile(
+                  Icons.history_rounded,
+                  'History',
+                  onTap: _openHistory,
+                ),
+              ),
             ],
           ),
         ],
@@ -344,10 +391,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // MY VEHICLES
-  // ─────────────────────────────────────────────────────────────────────────
-  Widget _buildVehicles(AppState state) {
+  // ── MY VEHICLES ──────────────────────────────────────────────────────────
+  Widget _buildVehicles(BuildContext context, AppState state) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -364,7 +409,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: () => _openVehicles(context),
                 child: Text(
                   '+ Add Vehicle',
                   style: GoogleFonts.poppins(
@@ -377,16 +422,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          ...state.vehicles.map((v) => _vehicleTile(v)),
           if (state.vehicles.isEmpty)
-            _emptyVehicle(),
+            _emptyVehicle()
+          else
+            ...state.vehicles.map((v) => _vehicleTile(v)),
         ],
       ),
     );
   }
 
   Widget _vehicleTile(Vehicle v) {
-    return Container(
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => VehicleDetailScreen(vehicle: v)),
+      ),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
@@ -403,7 +454,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               color: AppColors.accentLight,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.directions_car_rounded, color: AppColors.primary, size: 22),
+            child: const Icon(
+              Icons.directions_car_rounded,
+              color: AppColors.primary,
+              size: 22,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -448,9 +503,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppColors.textMuted,
+            size: 20,
+          ),
         ],
       ),
+    ),
     );
   }
 
@@ -502,9 +562,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // RECENT SESSIONS
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── RECENT SESSIONS ──────────────────────────────────────────────────────
   Widget _buildRecentSessions(BuildContext context, AppState state) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -522,7 +580,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: _openHistory,
                 child: Text(
                   'View all',
                   style: GoogleFonts.poppins(
@@ -547,7 +605,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Center(
                       child: Text(
                         'No recent sessions',
-                        style: GoogleFonts.poppins(color: AppColors.textSecondary, fontSize: 13),
+                        style: GoogleFonts.poppins(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   )
@@ -555,8 +616,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: state.recentSessions.length,
-                    separatorBuilder: (_, idx) => const Divider(height: 1, indent: 64, color: Color(0xFFF0F4F2)),
-                    itemBuilder: (context, i) => _sessionTile(context, state.recentSessions[i]),
+                    separatorBuilder: (_, idx) => const Divider(
+                      height: 1,
+                      indent: 64,
+                      color: Color(0xFFF0F4F2),
+                    ),
+                    itemBuilder: (context, i) =>
+                        _sessionTile(context, state.recentSessions[i]),
                   ),
           ),
         ],
@@ -571,13 +637,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final h = duration.inHours;
     final m = duration.inMinutes % 60;
     final durationStr = h > 0 ? '${h}h ${m}m' : '${m}m';
-
     final dayStr = _dayLabel(session.startTime);
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: session.isActive
-          ? () => Navigator.push(context, MaterialPageRoute(builder: (ctx) => ActiveSessionScreen(session: session)))
+          ? () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (ctx) => ActiveSessionScreen(session: session),
+                ),
+              )
           : null,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -590,7 +660,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 color: AppColors.accentLight,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.location_on_outlined, color: AppColors.primary, size: 18),
+              child: const Icon(
+                Icons.location_on_outlined,
+                color: AppColors.primary,
+                size: 18,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -610,11 +684,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: [
                       _platePill(session.vehicle.plateNumber),
                       const SizedBox(width: 6),
-                      const Icon(Icons.access_time_rounded, size: 12, color: AppColors.textMuted),
+                      const Icon(
+                        Icons.access_time_rounded,
+                        size: 12,
+                        color: AppColors.textMuted,
+                      ),
                       const SizedBox(width: 3),
-                      Text(durationStr, style: GoogleFonts.poppins(fontSize: 11, color: AppColors.textSecondary)),
+                      Text(
+                        durationStr,
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                       const SizedBox(width: 6),
-                      Text(dayStr, style: GoogleFonts.poppins(fontSize: 11, color: AppColors.textSecondary)),
+                      Text(
+                        dayStr,
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -634,16 +724,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(height: 3),
                 session.isActive
-                    ? Row(children: [
-                        Container(width: 6, height: 6, decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle)),
-                        const SizedBox(width: 4),
-                        Text('Active', style: GoogleFonts.poppins(fontSize: 11, color: AppColors.success, fontWeight: FontWeight.w600)),
-                      ])
-                    : Row(children: [
-                        const Icon(Icons.check_circle_rounded, size: 13, color: AppColors.success),
-                        const SizedBox(width: 3),
-                        Text('Paid', style: GoogleFonts.poppins(fontSize: 11, color: AppColors.success, fontWeight: FontWeight.w600)),
-                      ]),
+                    ? Row(
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: AppColors.success,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Active',
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              color: AppColors.success,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            size: 13,
+                            color: AppColors.success,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Paid',
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              color: AppColors.success,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
               ],
             ),
           ],
@@ -658,7 +777,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         color: AppColors.accentLight,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.4), width: 1),
+        border: Border.all(
+          color: AppColors.accent.withValues(alpha: 0.4),
+          width: 1,
+        ),
       ),
       child: Text(
         plate,
@@ -680,5 +802,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (diff == 1) return 'Yesterday';
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return days[dt.weekday - 1];
+  }
+
+  void _openWallet(BuildContext context) {
+    if (widget.onWalletTap != null) {
+      widget.onWalletTap!();
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const WalletScreen(showBackButton: true),
+      ),
+    );
+  }
+
+  void _openVehicles(BuildContext context) {
+    if (widget.onVehiclesTap != null) {
+      widget.onVehiclesTap!();
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const VehiclesScreen(showBackButton: true),
+      ),
+    );
+  }
+
+  void _openHistory() {
+    widget.onHistoryTap?.call();
   }
 }

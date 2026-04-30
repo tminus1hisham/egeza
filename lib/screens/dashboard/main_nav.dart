@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import 'dashboard_screen.dart';
+import 'history_screen.dart';
+import 'settings_screen.dart';
+import 'vehicles_screen.dart';
+import 'wallet_screen.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -13,122 +17,101 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _index = 0;
 
-  final _screens = [
-    const DashboardScreen(),
-    const _Placeholder(label: 'Vehicle', icon: Icons.directions_car_outlined),
-    const _Placeholder(label: 'Wallet', icon: Icons.account_balance_wallet_outlined),
-    const _Placeholder(label: 'History', icon: Icons.history_rounded),
-    const _Placeholder(label: 'Settings', icon: Icons.settings_outlined),
-  ];
+  late final List<Widget> _screens;
 
-  static const _navItems = [
-    _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Home'),
-    _NavItem(icon: Icons.directions_car_outlined, activeIcon: Icons.directions_car_rounded, label: 'Vehicle'),
-    _NavItem(icon: Icons.account_balance_wallet_outlined, activeIcon: Icons.account_balance_wallet_rounded, label: 'Wallet'),
-    _NavItem(icon: Icons.history_outlined, activeIcon: Icons.history_rounded, label: 'History'),
-    _NavItem(icon: Icons.settings_outlined, activeIcon: Icons.settings_rounded, label: 'Settings'),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _screens = [
+      DashboardScreen(
+        onVehiclesTap: () => _selectTab(1),
+        onWalletTap: () => _selectTab(2),
+        onHistoryTap: () => _selectTab(3),
+      ),
+      const VehiclesScreen(),
+      const WalletScreen(),
+      const HistoryScreen(),
+      const SettingsScreen(),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _index, children: _screens),
-      bottomNavigationBar: _buildNavBar(),
-    );
-  }
-
-  Widget _buildNavBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: AppColors.border, width: 1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, -4),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: const Border(
+            top: BorderSide(color: AppColors.border, width: 1),
           ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 60,
-          child: Row(
-            children: List.generate(_navItems.length, (i) => _navTab(i)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: SizedBox(
+            height: 66,
+            child: Row(
+              children: [
+                _navItem(0, Icons.home_outlined, 'Home'),
+                _navItem(1, Icons.directions_car_outlined, 'Vehicle'),
+                _navItem(
+                  2,
+                  Icons.account_balance_wallet_outlined,
+                  'Wallet',
+                ),
+                _navItem(3, Icons.history_rounded, 'History'),
+                _navItem(4, Icons.settings_outlined, 'Settings'),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _navTab(int i) {
-    final isActive = _index == i;
-    final item = _navItems[i];
+  void _selectTab(int index) {
+    setState(() => _index = index);
+  }
 
+  Widget _navItem(int idx, IconData icon, String label) {
+    final isActive = _index == idx;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _index = i),
+        onTap: () => setState(() => _index = idx),
         behavior: HitTestBehavior.opaque,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              isActive ? item.activeIcon : item.icon,
-              size: 22,
+              icon,
               color: isActive ? AppColors.primary : AppColors.textMuted,
+              size: 21,
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 4),
             Text(
-              item.label,
+              label,
               style: GoogleFonts.poppins(
-                fontSize: 10,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                fontSize: 11,
+                height: 1,
+                fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
                 color: isActive ? AppColors.primary : AppColors.textMuted,
               ),
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 5),
             AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: isActive ? 5 : 0,
-              height: isActive ? 5 : 0,
-              decoration: const BoxDecoration(
-                color: AppColors.primary,
+              duration: const Duration(milliseconds: 180),
+              width: 3.5,
+              height: 3.5,
+              decoration: BoxDecoration(
+                color: isActive ? AppColors.primary : Colors.transparent,
                 shape: BoxShape.circle,
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem {
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
-  const _NavItem({required this.icon, required this.activeIcon, required this.label});
-}
-
-class _Placeholder extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  const _Placeholder({required this.label, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF2F4F3),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 48, color: AppColors.textMuted),
-            const SizedBox(height: 12),
-            Text(
-              label,
-              style: GoogleFonts.poppins(color: AppColors.textSecondary, fontSize: 16),
             ),
           ],
         ),

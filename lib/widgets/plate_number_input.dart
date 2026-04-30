@@ -3,109 +3,115 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/theme/app_colors.dart';
 
-/// The iconic yellow Kenyan-style license plate input widget.
 class PlateNumberInput extends StatefulWidget {
-  final String? initialValue;
-  final ValueChanged<String>? onChanged;
+  final ValueChanged<String> onChanged;
+  final String initialValue;
 
-  const PlateNumberInput({super.key, this.initialValue, this.onChanged});
+  const PlateNumberInput({
+    super.key,
+    required this.onChanged,
+    this.initialValue = 'KBZ 123A',
+  });
 
   @override
   State<PlateNumberInput> createState() => _PlateNumberInputState();
 }
 
 class _PlateNumberInputState extends State<PlateNumberInput> {
-  late List<TextEditingController> _controllers;
-  late List<FocusNode> _focusNodes;
-
-  // Kenyan plate: 3 letters + 3 numbers + 1 letter = 7 chars
-  static const int _length = 7;
+  late final TextEditingController _controller;
 
   @override
   void initState() {
     super.initState();
-    _controllers = List.generate(_length, (i) {
-      final c = TextEditingController();
-      if (widget.initialValue != null && i < widget.initialValue!.length) {
-        c.text = widget.initialValue![i];
-      }
-      return c;
+    _controller = TextEditingController(text: _formatPlate(widget.initialValue));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onChanged(_controller.text);
     });
-    _focusNodes = List.generate(_length, (_) => FocusNode());
   }
 
   @override
   void dispose() {
-    for (final c in _controllers) { c.dispose(); }
-    for (final f in _focusNodes) { f.dispose(); }
+    _controller.dispose();
     super.dispose();
   }
 
-  bool _isLetter(int index) => index < 3 || index == 6;
+  String _formatPlate(String value) {
+    final compact = value.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase();
+    final limited = compact.length > 7 ? compact.substring(0, 7) : compact;
+    if (limited.length <= 3) {
+      return limited;
+    }
+    return '${limited.substring(0, 3)} ${limited.substring(3)}';
+  }
+
+  void _handleChanged(String value) {
+    final formatted = _formatPlate(value);
+    if (formatted != value) {
+      _controller.value = TextEditingValue(
+        text: formatted,
+        selection: TextSelection.collapsed(offset: formatted.length),
+      );
+    }
+    widget.onChanged(formatted);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-      decoration: BoxDecoration(
-        color: AppColors.plateBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.plateYellow, width: 2),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(_length, (i) {
-          return _buildBox(i);
-        }),
-      ),
-    );
-  }
-
-  Widget _buildBox(int index) {
-    return SizedBox(
-      width: 38,
-      height: 50,
-      child: TextFormField(
-        controller: _controllers[index],
-        focusNode: _focusNodes[index],
-        textAlign: TextAlign.center,
-        textCapitalization: TextCapitalization.characters,
-        maxLength: 1,
-        inputFormatters: [
-          FilteringTextInputFormatter.allow(
-            _isLetter(index) ? RegExp(r'[a-zA-Z]') : RegExp(r'[0-9]'),
-          ),
-        ],
-        style: GoogleFonts.poppins(
-          fontSize: 20,
-          fontWeight: FontWeight.w800,
-          color: AppColors.textPrimary,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: AppColors.plateBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.plateYellow, width: 2),
         ),
-        decoration: InputDecoration(
-          counterText: '',
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: EdgeInsets.zero,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppColors.plateYellow, width: 1.5),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppColors.plateYellow, width: 1.5),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppColors.primary, width: 2),
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: double.infinity,
+              height: 32,
+              alignment: Alignment.center,
+              color: AppColors.plateYellow,
+              child: Text(
+                'KENYA',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                  letterSpacing: 5,
+                ),
+              ),
+            ),
+            TextField(
+              controller: _controller,
+              textAlign: TextAlign.center,
+              textCapitalization: TextCapitalization.characters,
+              keyboardType: TextInputType.text,
+              maxLength: 8,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]')),
+              ],
+              style: GoogleFonts.poppins(
+                fontSize: 34,
+                fontWeight: FontWeight.w400,
+                color: AppColors.textPrimary,
+                letterSpacing: 10,
+              ),
+              decoration: const InputDecoration(
+                counterText: '',
+                filled: true,
+                fillColor: AppColors.plateBg,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+              ),
+              onChanged: _handleChanged,
+            ),
+          ],
         ),
-        onChanged: (val) {
-          if (val.isNotEmpty && index < _length - 1) {
-            _focusNodes[index + 1].requestFocus();
-          }
-          final plate = _controllers.map((c) => c.text.toUpperCase()).join();
-          widget.onChanged?.call(plate);
-        },
       ),
     );
   }

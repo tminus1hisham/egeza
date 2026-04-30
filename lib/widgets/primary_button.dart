@@ -8,6 +8,7 @@ class PrimaryButton extends StatelessWidget {
   final bool isLoading;
   final bool isOutlined;
   final double? width;
+  final IconData? icon;
 
   const PrimaryButton({
     super.key,
@@ -16,6 +17,7 @@ class PrimaryButton extends StatelessWidget {
     this.isLoading = false,
     this.isOutlined = false,
     this.width,
+    this.icon,
   });
 
   @override
@@ -36,18 +38,31 @@ class PrimaryButton extends StatelessWidget {
             ? const SizedBox(
                 height: 20,
                 width: 20,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
               )
-            : Text(
-                text,
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: isOutlined ? AppColors.primary : AppColors.textLight,
-                ),
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (icon != null) ...[
+                    Icon(
+                      icon,
+                      size: 18,
+                      color: isOutlined ? AppColors.primary : AppColors.textLight,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Flexible(
+                    child: Text(
+                      text,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: isOutlined ? AppColors.primary : AppColors.textLight,
+                      ),
+                    ),
+                  ),
+                ],
               ),
       ),
     );
