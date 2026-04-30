@@ -26,42 +26,41 @@ class _ActivateAutoPayScreenState extends State<ActivateAutoPayScreen> {
     return Scaffold(
       backgroundColor: AppColors.pageGrey,
       body: SafeArea(
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              color: Colors.white,
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: BlocBuilder<AppBloc, AppState>(
+          builder: (context, state) {
+            final vehicle = state.vehicles.isEmpty ? null : state.vehicles.last;
+
+            return SingleChildScrollView(
               child: Column(
                 children: [
-                  OnboardingStepHeader(
-                    step: 4,
-                    totalSteps: 4,
-                    title: 'Activate AutoPay',
-                    trailing: _lastStepBadge(),
-                  ),
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      'Almost there!',
-                      style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        color: AppColors.primary,
-                      ),
+                  Container(
+                    width: double.infinity,
+                    color: Colors.white,
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                    child: Column(
+                      children: [
+                        OnboardingStepHeader(
+                          step: 4,
+                          totalSteps: 4,
+                          title: 'Activate AutoPay',
+                          trailing: _lastStepBadge(),
+                        ),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            'Almost there!',
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: BlocBuilder<AppBloc, AppState>(
-                builder: (context, state) {
-                  final vehicle =
-                      state.vehicles.isEmpty ? null : state.vehicles.last;
-
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(24, 22, 24, 24),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
                     child: Column(
                       children: [
                         _vehicleCard(vehicle),
@@ -69,28 +68,24 @@ class _ActivateAutoPayScreenState extends State<ActivateAutoPayScreen> {
                         _autoPayCard(),
                         const SizedBox(height: 22),
                         _howItWorksCard(),
+                        const SizedBox(height: 22),
+                        PrimaryButton(
+                          text: "I'm All Set \u2014 Go to Dashboard",
+                          icon: LucideIcons.checkCircle,
+                          onPressed: _finishOnboarding,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'You can manage AutoPay anytime in Settings',
+                          style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textMuted),
+                        ),
                       ],
                     ),
-                  );
-                },
+                  ),
+                ],
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
-              child: PrimaryButton(
-                text: "I'm All Set \u2014 Go to Dashboard",
-                icon: LucideIcons.checkCircle,
-                onPressed: _finishOnboarding,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 18),
-              child: Text(
-                'You can manage AutoPay anytime in Settings',
-                style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textMuted),
-              ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );

@@ -231,16 +231,26 @@ class ParkingIqApi {
     required double amount,
     String? phoneNumber,
   }) async {
+    dev.log(
+      'topUpWallet: amount=${amount.toInt()} phone=$phoneNumber hasToken=$hasToken',
+      name: 'ParkingIQ',
+    );
     final response = await _request(
       'POST',
       '/wallet/topup',
       body: {
-        'amount': amount,
+        'amount': amount.toInt(),
         if (phoneNumber != null && phoneNumber.isNotEmpty)
           'phoneNumber': phoneNumber,
       },
     );
-    return MpesaResponse.fromJson(_requiredDataMap(response));
+    dev.log('topUpWallet: raw response=$response', name: 'ParkingIQ');
+    final data = _dataMap(response);
+    dev.log(
+      'topUpWallet: data=${data != null ? "found (data key)" : "null — falling back to top-level response"}',
+      name: 'ParkingIQ',
+    );
+    return MpesaResponse.fromJson(data ?? response);
   }
 
   Future<MpesaResponse> stkPush({
@@ -260,6 +270,38 @@ class ParkingIqApi {
       },
     );
     return MpesaResponse.fromJson(_requiredDataMap(response));
+  }
+
+  Future<List<ParkingSession>> recentParkingSessions() async {
+    final response = await _request('GET', '/parking/sessions/recent');
+    return _dataList(response).map(ParkingSession.fromJson).toList();
+  }
+
+  Future<List<ParkingSession>> activeParkingSessions() async {
+    final response = await _request('GET', '/parking/sessions/active');
+    return _dataList(response).map(ParkingSession.fromJson).toList();
+  }
+
+  Future<List<ParkingSession>> parkingSessionsForPlate(
+    String plateNumber,
+  ) async {
+    final response = await _request(
+      'GET',
+      '/parking/sessions/by-plate',
+      query: {'plateNumber': plateNumber},
+    );
+    return _dataList(response).map(ParkingSession.fromJson).toList();
+  }
+
+  Future<List<ParkingSession>> activeParkingSessionsForPlate(
+    String plateNumber,
+  ) async {
+    final response = await _request(
+      'GET',
+      '/parking/sessions/by-plate/active',
+      query: {'plateNumber': plateNumber},
+    );
+    return _dataList(response).map(ParkingSession.fromJson).toList();
   }
 
   Future<ParkingSession> findActiveParkingSession({
@@ -327,21 +369,11 @@ class ParkingIqApi {
       '/parking/session/$sessionId/calculate',
     );
     final data = _requiredDataMap(response);
-    return ParkingSession(
-      id: jsonString(data['sessionId']) ?? sessionId,
-      locationName: jsonString(data['location']) ?? 'Parking Location',
-      startTime: jsonDateTime(data['entryTime']) ?? DateTime.now(),
-      cost: jsonDouble(data['amountDue']),
-      durationMinutes: jsonInt(data['durationMinutes']),
-      status: 'ACTIVE',
-      vehicle: Vehicle(
-        plateNumber: jsonString(data['plateNumber']) ?? '',
-        type: 'Vehicle',
-        make: '',
-        model: '',
-      ),
-      isActive: true,
-    );
+    return ParkingSession.fromJson({
+      ...data,
+      'sessionId': data['sessionId'] ?? sessionId,
+      'status': data['status'] ?? 'ACTIVE',
+    });
   }
 
   Future<QrCodeResponse> generateQrCode(String locationId) async {
@@ -375,7 +407,11 @@ class ParkingIqApi {
     return ParkingLocation.fromJson(_requiredDataMap(response));
   }
 
-  Future<List<ParkingSession>> activeSessions() async {
+  Future<List<ParkingSession>> activeSessions() {
+    return activeParkingSessions();
+  }
+
+  Future<List<ParkingSession>> adminActiveSessions() async {
     final response = await _request('GET', '/admin/sessions/active');
     return _dataList(response).map(ParkingSession.fromJson).toList();
   }
@@ -597,9 +633,34 @@ class ParkingIqApi {
   }
 
   List<Map<String, dynamic>> _dataList(Map<String, dynamic> response) {
-    final data = response['data'];
-    if (data is! List) return const [];
+    final data = _listPayload(response['data']) ?? _listPayload(response);
+    if (data == null) return const [];
     return data.whereType<Map<String, dynamic>>().toList();
+  }
+
+  List<dynamic>? _listPayload(Object? value) {
+    if (value is List) return value;
+    if (value is Map<String, dynamic>) {
+      const listKeys = {
+        'items',
+        'sessions',
+        'parkingSessions',
+        'content',
+        'results',
+        'vehicles',
+        'transactions',
+        'locations',
+      };
+
+      for (final key in listKeys) {
+        final nested = value[key];
+        if (nested is List) return nested;
+      }
+      for (final nested in value.values) {
+        if (nested is List) return nested;
+      }
+    }
+    return null;
   }
 
   AuthResult? _authResultOrNull(Map<String, dynamic> response) {

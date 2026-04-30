@@ -1,3 +1,5 @@
+import 'dart:developer' as dev;
+
 import 'vehicle.dart';
 
 double jsonDouble(Object? value, [double fallback = 0]) {
@@ -178,13 +180,25 @@ class MpesaResponse {
   });
 
   factory MpesaResponse.fromJson(Map<String, dynamic> json) {
-    return MpesaResponse(
-      merchantRequestId: jsonString(json['merchantRequestId']),
-      checkoutRequestId: jsonString(json['checkoutRequestId']),
-      responseCode: jsonString(json['responseCode']),
-      responseDescription: jsonString(json['responseDescription']),
-      customerMessage: jsonString(json['customerMessage']),
+    dev.log('MpesaResponse.fromJson: keys=${json.keys.toList()} values=${json.values.toList()}', name: 'ApiModels');
+    final result = MpesaResponse(
+      merchantRequestId: jsonString(json['merchantRequestId']) ??
+          jsonString(json['MerchantRequestID']),
+      checkoutRequestId: jsonString(json['checkoutRequestId']) ??
+          jsonString(json['CheckoutRequestID']),
+      responseCode: jsonString(json['responseCode']) ??
+          jsonString(json['ResponseCode']),
+      responseDescription: jsonString(json['responseDescription']) ??
+          jsonString(json['ResponseDescription']),
+      customerMessage: jsonString(json['customerMessage']) ??
+          jsonString(json['CustomerMessage']),
     );
+    dev.log(
+      'MpesaResponse.fromJson: parsed — checkoutRequestId=${result.checkoutRequestId} '
+      'responseCode=${result.responseCode} customerMessage=${result.customerMessage}',
+      name: 'ApiModels',
+    );
+    return result;
   }
 }
 
@@ -314,11 +328,52 @@ Map<String, dynamic> locationRequestBody({
 }
 
 Vehicle vehicleFromParkingSessionJson(Map<String, dynamic> json) {
+  final vehicleJson = json['vehicle'];
+  if (vehicleJson is Map<String, dynamic>) {
+    final vehicle = Vehicle.fromJson({
+      ...vehicleJson,
+      'plateNumber': _firstMapValue(vehicleJson, const [
+            'plateNumber',
+            'plate',
+            'registrationNumber',
+          ]) ??
+          _firstMapValue(json, const [
+            'plateNumber',
+            'vehiclePlateNumber',
+            'registrationNumber',
+          ]),
+    });
+    return vehicle.copyWith(
+      autoPayEnabled: jsonBool(
+        _firstMapValue(json, const ['autoPayEnabled', 'autoPay']),
+        vehicle.autoPayEnabled,
+      ),
+    );
+  }
+
   return Vehicle(
-    plateNumber: jsonString(json['plateNumber']) ?? '',
-    type: 'Vehicle',
-    make: '',
-    model: '',
-    autoPayEnabled: jsonBool(json['autoPayEnabled']),
+    id: jsonString(_firstMapValue(json, const ['vehicleId', 'vehicleID'])),
+    plateNumber: jsonString(_firstMapValue(json, const [
+          'plateNumber',
+          'vehiclePlateNumber',
+          'registrationNumber',
+        ])) ??
+        '',
+    type: Vehicle.vehicleTypeLabel(jsonString(_firstMapValue(json, const [
+      'vehicleType',
+      'type',
+    ]))),
+    make: jsonString(json['make']) ?? '',
+    model: jsonString(json['model']) ?? '',
+    autoPayEnabled:
+        jsonBool(_firstMapValue(json, const ['autoPayEnabled', 'autoPay'])),
   );
+}
+
+Object? _firstMapValue(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value != null) return value;
+  }
+  return null;
 }

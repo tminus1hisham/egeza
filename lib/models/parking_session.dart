@@ -33,28 +33,66 @@ class ParkingSession {
   });
 
   factory ParkingSession.fromJson(Map<String, dynamic> json) {
-    final status = jsonString(json['status']) ?? 'ACTIVE';
-    final amountDue = jsonDouble(json['amountDue']);
-    final amountPaid = jsonDouble(json['amountPaid']);
+    final endTime = jsonDateTime(_firstJsonValue(json, const [
+      'exitTime',
+      'endTime',
+      'endedAt',
+      'exitedAt',
+    ]));
+    final rawStatus = jsonString(_firstJsonValue(json, const [
+      'status',
+      'sessionStatus',
+      'state',
+    ]));
+    final status = (rawStatus ?? (endTime == null ? 'ACTIVE' : 'COMPLETED'))
+        .toUpperCase();
+    final amountDue = jsonDouble(_firstJsonValue(json, const [
+      'amountDue',
+      'cost',
+      'amount',
+      'fee',
+      'total',
+      'totalAmount',
+    ]));
+    final amountPaid = jsonDouble(_firstJsonValue(json, const [
+      'amountPaid',
+      'paidAmount',
+    ]));
+    final vehicle = vehicleFromParkingSessionJson(json);
 
     return ParkingSession(
-      id: jsonString(json['sessionId']) ?? jsonString(json['id']) ?? '',
-      locationName: jsonString(json['location']) ?? 'Parking Location',
-      startTime: jsonDateTime(json['entryTime']) ?? DateTime.now(),
-      endTime: jsonDateTime(json['exitTime']),
+      id: jsonString(_firstJsonValue(json, const [
+            'sessionId',
+            'id',
+            'parkingSessionId',
+          ])) ??
+          '',
+      locationName: _locationName(json),
+      startTime: jsonDateTime(_firstJsonValue(json, const [
+            'entryTime',
+            'startTime',
+            'startedAt',
+            'createdAt',
+          ])) ??
+          DateTime.now(),
+      endTime: endTime,
       cost: amountDue > 0 ? amountDue : amountPaid,
       amountPaid: amountPaid,
-      durationMinutes: json['durationMinutes'] == null
-          ? null
-          : jsonInt(json['durationMinutes']),
+      durationMinutes: _optionalInt(_firstJsonValue(json, const [
+        'durationMinutes',
+        'durationInMinutes',
+      ])),
       status: status,
-      autoPayEnabled: jsonBool(json['autoPayEnabled']),
+      autoPayEnabled: jsonBool(
+        _firstJsonValue(json, const ['autoPayEnabled', 'autoPay']),
+        vehicle.autoPayEnabled,
+      ),
       walletBalance: json['walletBalance'] == null
           ? null
           : jsonDouble(json['walletBalance']),
       willAutoDeduct: jsonBool(json['willAutoDeduct']),
-      vehicle: vehicleFromParkingSessionJson(json),
-      isActive: status == 'ACTIVE' || status == 'PAYMENT_PENDING',
+      vehicle: vehicle,
+      isActive: _isActiveSession(json, status),
     );
   }
 
@@ -89,4 +127,55 @@ class ParkingSession {
       isActive: isActive ?? this.isActive,
     );
   }
+}
+
+Object? _firstJsonValue(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value != null) return value;
+  }
+  return null;
+}
+
+int? _optionalInt(Object? value) {
+  if (value == null) return null;
+  return jsonInt(value);
+}
+
+String _locationName(Map<String, dynamic> json) {
+  final direct = jsonString(_firstJsonValue(json, const [
+    'locationName',
+    'parkingLocationName',
+    'siteName',
+  ]));
+  if (direct != null) return direct;
+
+  final location = _firstJsonValue(json, const [
+    'location',
+    'parkingLocation',
+  ]);
+  if (location is Map<String, dynamic>) {
+    return jsonString(_firstJsonValue(location, const [
+          'name',
+          'locationName',
+          'address',
+        ])) ??
+        'Parking Location';
+  }
+
+  return jsonString(location) ?? 'Parking Location';
+}
+
+bool _isActiveSession(Map<String, dynamic> json, String status) {
+  final explicit = _firstJsonValue(json, const ['isActive', 'active']);
+  if (explicit != null) return jsonBool(explicit);
+
+  const activeStatuses = {
+    'ACTIVE',
+    'PAYMENT_PENDING',
+    'UNPAID',
+    'OPEN',
+    'IN_PROGRESS',
+  };
+  return activeStatuses.contains(status);
 }

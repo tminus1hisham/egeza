@@ -1,6 +1,6 @@
 import 'dart:developer' as dev;
 
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../core/api/parking_iq_api.dart';
@@ -45,15 +45,22 @@ class AppBloc extends Bloc<AppEvent, AppState> {
   }
 
   void _log(String msg) {
-    if (kDebugMode) dev.log(msg, name: 'AppBloc');
+    if (kDebugMode) {
+      dev.log(msg, name: 'AppBloc');
+      debugPrint('[AppBloc] $msg');
+    }
   }
 
   void _logSuccess(String handler, String detail) {
-    if (kDebugMode) dev.log('✓ $handler — $detail', name: 'AppBloc');
+    if (kDebugMode) {
+      dev.log('✓ $handler — $detail', name: 'AppBloc');
+      debugPrint('[AppBloc] ✓ $handler — $detail');
+    }
   }
 
   void _logError(String handler, Object error, StackTrace st) {
     dev.log('✗ $handler — $error', name: 'AppBloc', error: error, stackTrace: st);
+    debugPrint('[AppBloc] ✗ $handler — $error\n$st');
   }
 
   Future<void> _onRequestLoginOtp(
@@ -232,6 +239,19 @@ class AppBloc extends Bloc<AppEvent, AppState> {
             _logError('LoadDashboardData/listLocations', e, st);
             return null;
           });
+      final recentSessionsFuture = _api
+          .recentParkingSessions()
+          .then<Object?>((value) => value)
+          .catchError((e, st) {
+            _logError('LoadDashboardData/recentParkingSessions', e, st);
+            return null;
+          });
+      final activeSessionsFuture = _activeParkingSessionsWithAmounts()
+          .then<Object?>((value) => value)
+          .catchError((e, st) {
+        _logError('LoadDashboardData/activeParkingSessions', e, st);
+        return null;
+      });
 
       final results = await Future.wait([
         profileFuture,
@@ -239,6 +259,8 @@ class AppBloc extends Bloc<AppEvent, AppState> {
         vehiclesFuture,
         transactionsFuture,
         locationsFuture,
+        recentSessionsFuture,
+        activeSessionsFuture,
       ]);
 
       final profile = results[0] is UserProfile ? results[0] as UserProfile : null;
@@ -251,12 +273,24 @@ class AppBloc extends Bloc<AppEvent, AppState> {
       final locations = results[4] is List<ParkingLocation>
           ? results[4] as List<ParkingLocation>
           : null;
+      final recentSessions = results[5] is List<ParkingSession>
+          ? results[5] as List<ParkingSession>
+          : null;
+      final activeSessions = results[6] is List<ParkingSession>
+          ? results[6] as List<ParkingSession>
+          : null;
+      final sessions = _mergeFetchedSessions(
+        recentSessions: recentSessions,
+        activeSessions: activeSessions,
+        vehicles: vehicles ?? state.vehicles,
+      );
 
       _logSuccess(
         'LoadDashboardData',
         'profile=${profile?.fullName} balance=$balance '
         'vehicles=${vehicles?.length} transactions=${transactions?.length} '
-        'locations=${locations?.length}',
+        'locations=${locations?.length} recent=${recentSessions?.length} '
+        'active=${activeSessions?.length}',
       );
       emit(
         state.copyWith(
@@ -267,6 +301,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
               vehicles == null ? state.requiresVehicleSetup : vehicles.isEmpty,
           walletBalance: balance ?? state.walletBalance,
           vehicles: vehicles ?? state.vehicles,
+          recentSessions: sessions,
           walletTransactions: transactions ?? state.walletTransactions,
           locations: locations ?? state.locations,
           isLoading: false,
@@ -346,38 +381,57 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     Emitter<AppState> emit,
   ) async {
     emit(state.copyWith(isLoading: true, clearMessages: true));
-    _log('TopUpWallet: amount=${event.amount} phone=${event.phoneNumber}');
+    _log('TopUpWallet: amount=${event.amount} phone=${event.phoneNumber} hasToken=${_api.hasToken}');
 
     try {
       if (_api.hasToken) {
-        final normalizedPhone = _normalizePhone(event.phoneNumber ?? state.phoneNumber);
-        _log('TopUpWallet/stkPush: phone=$normalizedPhone amount=${event.amount}');
+        final rawPhone = event.phoneNumber ?? state.phoneNumber;
+        final normalizedPhone = _normalizePhone(rawPhone);
+        _log('TopUpWallet: rawPhone=$rawPhone normalizedPhone=$normalizedPhone');
+
+        if (normalizedPhone == null || normalizedPhone.isEmpty) {
+          _log('TopUpWallet: ⚠ phone is null/empty after normalization — STK push will be sent without phone');
+        }
+
+        _log('TopUpWallet: calling /wallet/topup ...');
         final response = await _api.topUpWallet(
           amount: event.amount,
           phoneNumber: normalizedPhone,
         );
-        _logSuccess('TopUpWallet/topUpWallet', 'checkoutRequestId=${response.checkoutRequestId}');
-        final balance = await _api.walletBalance().catchError((e, st) {
-          _logError('TopUpWallet/walletBalance', e, st);
-          return state.walletBalance;
-        });
-        _logSuccess('TopUpWallet/walletBalance', 'balance=$balance');
+        _logSuccess(
+          'TopUpWallet/topUpWallet',
+          'checkoutRequestId=${response.checkoutRequestId} '
+          'responseCode=${response.responseCode} '
+          'responseDescription=${response.responseDescription} '
+          'customerMessage=${response.customerMessage}',
+        );
 
         emit(
           state.copyWith(
-            walletBalance: balance,
             isLoading: false,
-            statusMessage:
-                response.customerMessage ?? 'M-Pesa top-up request sent',
+            statusMessage: response.customerMessage ?? 'M-Pesa prompt sent — check your phone',
           ),
         );
+
+        // STK push is async: wait for the user to complete the M-Pesa prompt
+        // before polling the updated balance.
+        await Future.delayed(const Duration(seconds: 15));
+        if (!isClosed) {
+          _log('TopUpWallet: polling balance after STK delay ...');
+          final balance = await _api.walletBalance().catchError((e, st) {
+            _logError('TopUpWallet/walletBalance', e, st);
+            return state.walletBalance;
+          });
+          _logSuccess('TopUpWallet/walletBalance', 'balance=$balance');
+          emit(state.copyWith(walletBalance: balance));
+        }
       } else {
-        _log('TopUpWallet: no token, updating locally');
+        _log('TopUpWallet: ⚠ no auth token — skipping real STK push, bumping balance locally');
         emit(
           state.copyWith(
             walletBalance: state.walletBalance + event.amount,
             isLoading: false,
-            statusMessage: 'Wallet topped up locally',
+            statusMessage: 'Wallet topped up locally (no auth)',
           ),
         );
       }
@@ -653,12 +707,111 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     emit(const AppState());
   }
 
-  ParkingSession _hydrateSessionVehicle(ParkingSession session) {
-    final vehicle = state.vehicles.firstWhere(
-      (item) => item.plateNumber == session.vehicle.plateNumber,
+  Future<List<ParkingSession>> _activeParkingSessionsWithAmounts() async {
+    final sessions = await _api.activeParkingSessions();
+    if (sessions.isEmpty) return sessions;
+
+    return Future.wait(
+      sessions.map((session) async {
+        if (session.id.isEmpty) return session;
+
+        try {
+          final calculated = await _api.calculateParkingSession(session.id);
+          return session.copyWith(
+            cost: calculated.cost > 0 || session.cost == 0
+                ? calculated.cost
+                : session.cost,
+            amountPaid: calculated.amountPaid > 0
+                ? calculated.amountPaid
+                : session.amountPaid,
+            durationMinutes:
+                calculated.durationMinutes ?? session.durationMinutes,
+            locationName: calculated.locationName == 'Parking Location'
+                ? session.locationName
+                : calculated.locationName,
+            autoPayEnabled:
+                calculated.autoPayEnabled || session.autoPayEnabled,
+            walletBalance: calculated.walletBalance ?? session.walletBalance,
+            willAutoDeduct:
+                calculated.willAutoDeduct || session.willAutoDeduct,
+            vehicle: calculated.vehicle.plateNumber.isEmpty
+                ? session.vehicle
+                : calculated.vehicle,
+            isActive: true,
+          );
+        } catch (error, st) {
+          _logError('LoadDashboardData/calculateParkingSession', error, st);
+          return session;
+        }
+      }),
+    );
+  }
+
+  List<ParkingSession>? _mergeFetchedSessions({
+    required List<ParkingSession>? recentSessions,
+    required List<ParkingSession>? activeSessions,
+    required List<Vehicle> vehicles,
+  }) {
+    if (recentSessions == null && activeSessions == null) return null;
+
+    final candidates = <ParkingSession>[
+      if (recentSessions != null)
+        ...recentSessions
+      else
+        ...state.recentSessions.where((session) => !session.isActive),
+      if (activeSessions != null)
+        ...activeSessions
+      else if (recentSessions == null)
+        ...state.recentSessions.where((session) => session.isActive),
+    ];
+
+    return _mergeParkingSessions(candidates, vehicles: vehicles);
+  }
+
+  List<ParkingSession> _mergeParkingSessions(
+    Iterable<ParkingSession> sessions, {
+    required List<Vehicle> vehicles,
+  }) {
+    final byKey = <String, ParkingSession>{};
+
+    for (final session in sessions) {
+      final hydrated = _hydrateSessionVehicle(session, vehicles: vehicles);
+      byKey[_sessionKey(hydrated)] = hydrated;
+    }
+
+    return byKey.values.toList()
+      ..sort((a, b) {
+        if (a.isActive != b.isActive) return a.isActive ? -1 : 1;
+        return b.startTime.compareTo(a.startTime);
+      });
+  }
+
+  String _sessionKey(ParkingSession session) {
+    if (session.id.isNotEmpty) return 'id:${session.id}';
+
+    return [
+      _plateKey(session.vehicle.plateNumber),
+      session.startTime.toIso8601String(),
+      session.status,
+    ].join(':');
+  }
+
+  ParkingSession _hydrateSessionVehicle(
+    ParkingSession session, {
+    List<Vehicle>? vehicles,
+  }) {
+    final plateKey = _plateKey(session.vehicle.plateNumber);
+    if (plateKey.isEmpty) return session;
+
+    final vehicle = (vehicles ?? state.vehicles).firstWhere(
+      (item) => _plateKey(item.plateNumber) == plateKey,
       orElse: () => session.vehicle,
     );
     return session.copyWith(vehicle: vehicle);
+  }
+
+  String _plateKey(String plateNumber) {
+    return plateNumber.replaceAll(RegExp(r'\s+'), '').toUpperCase();
   }
 
   String _friendlyError(Object error) {

@@ -3,8 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../blocs/app_bloc.dart';
+import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
 import '../../core/theme/app_colors.dart';
+import '../auth/sign_in_screen.dart';
+import 'settings_detail_screen.dart';
+import 'vehicles_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -18,6 +22,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _pushAlerts = true;
   bool _biometrics = false;
   bool _lowBalance = true;
+  String? _paymentPhoneNumber;
 
   @override
   Widget build(BuildContext context) {
@@ -45,16 +50,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               icon: Icons.person_outline_rounded,
                               title: 'Personal details',
                               subtitle: state.userName,
+                              onTap: () => _openPage(
+                                PersonalDetailsSettingsPage(state: state),
+                              ),
                             ),
                             _settingsRow(
                               icon: Icons.directions_car_outlined,
                               title: 'Vehicles',
                               subtitle: '${state.vehicles.length} registered',
+                              onTap: () => _openPage(
+                                const VehiclesScreen(showBackButton: true),
+                              ),
                             ),
                             _settingsRow(
                               icon: Icons.lock_outline_rounded,
                               title: 'Security',
                               subtitle: 'PIN and device access',
+                              onTap: _openSecurityPage,
                             ),
                           ],
                         ),
@@ -68,6 +80,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               subtitle: _autoPay
                                   ? 'Automatic exit payments'
                                   : 'Manual payments',
+                              onTap: () => _openPreferencePage(
+                                title: 'AutoPay',
+                                subtitle: 'Automatic parking payments',
+                                icon: Icons.bolt_outlined,
+                                value: _autoPay,
+                                enabledText: 'Automatic exit payments',
+                                disabledText: 'Manual parking payments',
+                                details: const [
+                                  'Use your wallet balance for eligible exits.',
+                                  'Vehicle-specific AutoPay can still be changed from Vehicles.',
+                                  'Receipts stay available in parking history.',
+                                ],
+                                onSaved: (value) => _autoPay = value,
+                              ),
                               trailing: _switch(
                                 value: _autoPay,
                                 onChanged: (value) =>
@@ -78,6 +104,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               icon: Icons.notifications_none_rounded,
                               title: 'Parking alerts',
                               subtitle: 'Entry, exit, and receipt updates',
+                              onTap: () => _openPreferencePage(
+                                title: 'Parking alerts',
+                                subtitle: 'Session and payment notifications',
+                                icon: Icons.notifications_none_rounded,
+                                value: _pushAlerts,
+                                enabledText: 'Entry, exit, and receipt updates',
+                                disabledText: 'Alerts are muted',
+                                details: const [
+                                  'Get updates when a parking session starts.',
+                                  'Know when payment is completed or needs action.',
+                                  'Keep receipt notifications visible after exit.',
+                                ],
+                                onSaved: (value) => _pushAlerts = value,
+                              ),
                               trailing: _switch(
                                 value: _pushAlerts,
                                 onChanged: (value) =>
@@ -88,6 +128,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               icon: Icons.fingerprint_rounded,
                               title: 'Biometric approval',
                               subtitle: 'Require biometrics for top-ups',
+                              onTap: () => _openPreferencePage(
+                                title: 'Biometric approval',
+                                subtitle: 'Top-up confirmation security',
+                                icon: Icons.fingerprint_rounded,
+                                value: _biometrics,
+                                enabledText: 'Biometrics required for top-ups',
+                                disabledText: 'Top-ups use device unlock only',
+                                details: const [
+                                  'Add an extra approval step before wallet top-ups.',
+                                  'Uses the biometric method configured on this device.',
+                                  'You can still approve payments with your device passcode.',
+                                ],
+                                onSaved: (value) => _biometrics = value,
+                              ),
                               trailing: _switch(
                                 value: _biometrics,
                                 onChanged: (value) =>
@@ -103,12 +157,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             _settingsRow(
                               icon: Icons.phone_android_rounded,
                               title: 'M-Pesa number',
-                              subtitle: '0712 345 678',
+                              subtitle: _displayPhone(
+                                _paymentPhoneNumber ?? state.phoneNumber,
+                              ),
+                              onTap: () => _openMpesaNumberPage(
+                                _paymentPhoneNumber ?? state.phoneNumber,
+                              ),
                             ),
                             _settingsRow(
                               icon: Icons.account_balance_wallet_outlined,
                               title: 'Low balance alert',
                               subtitle: 'Notify below KES 500',
+                              onTap: () => _openPreferencePage(
+                                title: 'Low balance alert',
+                                subtitle: 'Wallet balance reminders',
+                                icon: Icons.account_balance_wallet_outlined,
+                                value: _lowBalance,
+                                enabledText: 'Notify below KES 500',
+                                disabledText: 'Low balance reminders are off',
+                                details: const [
+                                  'Warn before wallet funds are too low for AutoPay.',
+                                  'Alert threshold is set to KES 500.',
+                                  'Top up from Wallet when the alert appears.',
+                                ],
+                                onSaved: (value) => _lowBalance = value,
+                              ),
                               trailing: _switch(
                                 value: _lowBalance,
                                 onChanged: (value) =>
@@ -125,17 +198,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               icon: Icons.help_outline_rounded,
                               title: 'Help center',
                               subtitle: 'FAQs and contact support',
+                              onTap: () => _openPage(
+                                const HelpCenterSettingsPage(),
+                              ),
                             ),
                             _settingsRow(
                               icon: Icons.privacy_tip_outlined,
                               title: 'Privacy and terms',
                               subtitle: 'Data, payments, and app terms',
+                              onTap: () => _openPage(
+                                const PrivacyTermsSettingsPage(),
+                              ),
                             ),
                             _settingsRow(
                               icon: Icons.logout_rounded,
                               title: 'Sign out',
                               subtitle: 'Leave this device',
                               danger: true,
+                              onTap: _confirmSignOut,
                             ),
                           ],
                         ),
@@ -216,97 +296,231 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _profileCard(AppState state) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.primaryDark,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 58,
-            height: 58,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(19),
-            ),
-            child: Text(
-              _initials(state.userName),
-              style: GoogleFonts.poppins(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  state.userName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+    return Material(
+      color: AppColors.primaryDark,
+      borderRadius: BorderRadius.circular(24),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _openPage(PersonalDetailsSettingsPage(state: state)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(19),
+                ),
+                child: Text(
+                  _initials(state.userName),
                   style: GoogleFonts.poppins(
                     color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'ParkIQ member',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white.withValues(alpha: 0.66),
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.account_balance_wallet_outlined,
-                      color: AppColors.accent,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        'KES ${_formatAmount(state.walletBalance)} wallet balance',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.poppins(
-                          color: Colors.white.withValues(alpha: 0.82),
-                          fontSize: 12,
-                        ),
+                    Text(
+                      state.userName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
                       ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'ParkIQ member',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white.withValues(alpha: 0.66),
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.account_balance_wallet_outlined,
+                          color: AppColors.accent,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'KES ${_formatAmount(state.walletBalance)} wallet balance',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.poppins(
+                              color: Colors.white.withValues(alpha: 0.82),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.edit_outlined,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(
-              Icons.edit_outlined,
-              color: Colors.white,
-              size: 18,
-            ),
-          ),
-        ],
+        ),
       ),
     );
+  }
+
+  Future<void> _openPage<T>(Widget page) {
+    return Navigator.push<T>(
+      context,
+      MaterialPageRoute(builder: (_) => page),
+    );
+  }
+
+  Future<void> _openPreferencePage({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool value,
+    required String enabledText,
+    required String disabledText,
+    required List<String> details,
+    required ValueChanged<bool> onSaved,
+  }) async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PreferenceSettingsPage(
+          title: title,
+          subtitle: subtitle,
+          icon: icon,
+          enabled: value,
+          enabledText: enabledText,
+          disabledText: disabledText,
+          details: details,
+        ),
+      ),
+    );
+
+    if (!mounted || result == null) return;
+    setState(() => onSaved(result));
+  }
+
+  Future<void> _openSecurityPage() async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SecuritySettingsPage(
+          biometricsEnabled: _biometrics,
+        ),
+      ),
+    );
+
+    if (!mounted || result == null) return;
+    setState(() => _biometrics = result);
+  }
+
+  Future<void> _openMpesaNumberPage(String? phoneNumber) async {
+    final result = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MpesaNumberSettingsPage(phoneNumber: phoneNumber),
+      ),
+    );
+
+    if (!mounted || result == null || result.trim().isEmpty) return;
+    setState(() => _paymentPhoneNumber = result.trim());
+  }
+
+  Future<void> _confirmSignOut() async {
+    final shouldSignOut = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Text(
+            'Sign out?',
+            style: GoogleFonts.poppins(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: Text(
+            'You will need to sign in again to manage parking and payments.',
+            style: GoogleFonts.poppins(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.poppins(color: AppColors.textSecondary),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(
+                'Sign out',
+                style: GoogleFonts.poppins(
+                  color: AppColors.error,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldSignOut != true || !mounted) return;
+    context.read<AppBloc>().add(SignOut());
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const SignInScreen()),
+      (route) => false,
+    );
+  }
+
+  String _displayPhone(String? phoneNumber) {
+    if (phoneNumber == null || phoneNumber.trim().isEmpty) {
+      return 'Add payment number';
+    }
+
+    final digits = phoneNumber.replaceAll(RegExp(r'\D'), '');
+    if (digits.length == 12 && digits.startsWith('254')) {
+      return '0${digits.substring(3, 6)} ${digits.substring(6, 9)} ${digits.substring(9)}';
+    }
+    if (digits.length == 10 && digits.startsWith('0')) {
+      return '${digits.substring(0, 4)} ${digits.substring(4, 7)} ${digits.substring(7)}';
+    }
+    return phoneNumber;
   }
 
   Widget _settingsSection({
@@ -365,58 +579,67 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String subtitle,
     Widget? trailing,
     bool danger = false,
+    VoidCallback? onTap,
   }) {
     final color = danger ? AppColors.error : AppColors.primary;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: danger ? const Color(0xFFFFECEB) : AppColors.accentLight,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: color, size: 21),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    color: danger ? AppColors.error : AppColors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+    return Material(
+      color: Colors.white,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color:
+                      danger ? const Color(0xFFFFECEB) : AppColors.accentLight,
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          trailing ??
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.textMuted,
-                size: 22,
+                child: Icon(icon, color: color, size: 21),
               ),
-        ],
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        color:
+                            danger ? AppColors.error : AppColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              trailing ??
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.textMuted,
+                    size: 22,
+                  ),
+            ],
+          ),
+        ),
       ),
     );
   }

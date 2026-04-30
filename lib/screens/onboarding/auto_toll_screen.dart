@@ -39,79 +39,75 @@ class _AutoTollScreenState extends State<AutoTollScreen> {
       child: Scaffold(
         backgroundColor: AppColors.pageGrey,
         body: SafeArea(
-          child: Column(
-            children: [
-              Container(
-                width: double.infinity,
-                color: Colors.white,
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-                child: Column(
-                  children: [
-                    const OnboardingStepHeader(step: 3, totalSteps: 4, title: 'Fund Wallet'),
-                    const SizedBox(height: 52),
-                    const OnboardingHeroIcon(icon: LucideIcons.zap, size: 92),
-                    const SizedBox(height: 24),
-                    Text(
-                      'Enable Seamless Exit',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textPrimary,
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                Container(
+                  width: double.infinity,
+                  color: Colors.white,
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+                  child: Column(
+                    children: [
+                      const OnboardingStepHeader(step: 3, totalSteps: 4, title: 'Fund Wallet'),
+                      const SizedBox(height: 52),
+                      const OnboardingHeroIcon(icon: LucideIcons.zap, size: 92),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Enable Seamless Exit',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'with AutoPay',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w400,
-                        color: AppColors.primary,
+                      const SizedBox(height: 4),
+                      Text(
+                        'with AutoPay',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.primary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Add funds to your wallet. At exit, the fee is\ndeducted automatically.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
-                        fontSize: 15,
-                        height: 1.45,
-                        color: AppColors.textSecondary,
+                      const SizedBox(height: 16),
+                      Text(
+                        'Add funds to your wallet. At exit, the fee is\ndeducted automatically.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          height: 1.45,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
                   child: Column(
                     children: [
                       _topUpCard(),
                       const SizedBox(height: 20),
                       _paymentCard(),
+                      const SizedBox(height: 20),
+                      PrimaryButton(
+                        text: 'Top Up $_formattedAmount via M-Pesa',
+                        icon: LucideIcons.zap,
+                        onPressed: _topUpAndContinue,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        "You'll be prompted on your M-Pesa-registered phone",
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textMuted),
+                      ),
                     ],
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 10, 24, 8),
-                child: PrimaryButton(
-                  text: 'Top Up $_formattedAmount via M-Pesa',
-                  icon: LucideIcons.zap,
-                  onPressed: _topUpAndContinue,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 18),
-                child: Text(
-                  "You'll be prompted on your M-Pesa-registered phone",
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textMuted),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

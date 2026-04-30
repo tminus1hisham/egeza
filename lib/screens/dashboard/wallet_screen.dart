@@ -1,3 +1,5 @@
+import 'dart:developer' as dev;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -20,6 +22,13 @@ class WalletScreen extends StatefulWidget {
 class _WalletScreenState extends State<WalletScreen> {
   double? _selectedAmount = 1000;
   final _amountOptions = [500.0, 1000.0, 2000.0, 5000.0];
+  final _customAmountController = TextEditingController();
+
+  @override
+  void dispose() {
+    _customAmountController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +36,36 @@ class _WalletScreenState extends State<WalletScreen> {
       backgroundColor: AppColors.pageGrey,
       body: SafeArea(
         bottom: false,
-        child: BlocBuilder<AppBloc, AppState>(
+        child: BlocConsumer<AppBloc, AppState>(
+          listenWhen: (prev, curr) =>
+              curr.errorMessage != prev.errorMessage ||
+              curr.statusMessage != prev.statusMessage,
+          listener: (context, state) {
+            if (state.errorMessage != null && state.errorMessage!.isNotEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  behavior: SnackBarBehavior.floating,
+                  backgroundColor: Colors.red.shade700,
+                  content: Text(
+                    state.errorMessage!,
+                    style: GoogleFonts.poppins(color: Colors.white),
+                  ),
+                ),
+              );
+            } else if (state.statusMessage != null &&
+                state.statusMessage!.isNotEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  behavior: SnackBarBehavior.floating,
+                  backgroundColor: AppColors.primaryDark,
+                  content: Text(
+                    state.statusMessage!,
+                    style: GoogleFonts.poppins(color: Colors.white),
+                  ),
+                ),
+              );
+            }
+          },
           builder: (context, state) {
             return Column(
               children: [
@@ -255,6 +293,54 @@ class _WalletScreenState extends State<WalletScreen> {
             itemBuilder: (context, index) => _amountOption(_amountOptions[index]),
           ),
           const SizedBox(height: 14),
+          TextField(
+            controller: _customAmountController,
+            keyboardType: TextInputType.number,
+            onChanged: (value) {
+              final amount = double.tryParse(value);
+              setState(() {
+                if (amount != null && amount > 0) {
+                  _selectedAmount = amount;
+                } else {
+                  _selectedAmount = null;
+                }
+              });
+            },
+            style: GoogleFonts.poppins(fontSize: 14, color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+            decoration: InputDecoration(
+              hintText: 'Enter custom amount',
+              hintStyle: GoogleFonts.poppins(color: AppColors.textMuted, fontSize: 14, fontWeight: FontWeight.w400),
+              prefixIcon: Padding(
+                padding: const EdgeInsets.only(left: 16, right: 10),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'KES',
+                      style: GoogleFonts.poppins(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+              filled: true,
+              fillColor: const Color(0xFFF6F7F9),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
           Row(
             children: [
               Container(
@@ -462,7 +548,12 @@ class _WalletScreenState extends State<WalletScreen> {
     final selected = _selectedAmount == amount;
 
     return GestureDetector(
-      onTap: () => setState(() => _selectedAmount = amount),
+      onTap: () {
+        setState(() {
+          _selectedAmount = amount;
+          _customAmountController.clear();
+        });
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         alignment: Alignment.center,
@@ -611,21 +702,25 @@ class _WalletScreenState extends State<WalletScreen> {
     return BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: AppColors.border),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.025),
-          blurRadius: 12,
-          offset: const Offset(0, 6),
+          color: Colors.black.withValues(alpha: 0.03),
+          blurRadius: 16,
+          offset: const Offset(0, 4),
         ),
       ],
     );
   }
 
   Future<void> _topUpWallet(BuildContext context, double amount) async {
-    final phone = context.read<AppBloc>().state.phoneNumber;
+    final state = context.read<AppBloc>().state;
+    final phone = state.phoneNumber;
+    dev.log(
+      'topUpWallet: amount=$amount phone=$phone hasToken=${state.authToken != null && state.authToken!.isNotEmpty}',
+      name: 'WalletScreen',
+    );
 
-    final confirmed = await showModalBottomSheet<bool>(
+    final result = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -636,30 +731,27 @@ class _WalletScreenState extends State<WalletScreen> {
         amount: amount,
         phoneNumber: phone,
         formatAmount: _formatAmount,
-        onConfirm: () => Navigator.of(ctx).pop(true),
-        onCancel: () => Navigator.of(ctx).pop(false),
+        onConfirm: (newPhone) => Navigator.of(ctx).pop(newPhone),
+        onCancel: () => Navigator.of(ctx).pop(),
       ),
     );
 
-    if (confirmed != true || !context.mounted) return;
+    dev.log(
+      'topUpWallet: sheet closed — result=$result (null means cancelled)',
+      name: 'WalletScreen',
+    );
 
-    context.read<AppBloc>().add(TopUpWallet(amount, phoneNumber: phone));
+    if (result == null || !context.mounted) return;
+
+    dev.log(
+      'topUpWallet: dispatching TopUpWallet(amount=$amount, phone=$result)',
+      name: 'WalletScreen',
+    );
+    context.read<AppBloc>().add(TopUpWallet(amount, phoneNumber: result));
 
     if (widget.showBackButton && Navigator.canPop(context)) {
       Navigator.pop(context);
-      return;
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.primaryDark,
-        content: Text(
-          'STK push sent to ${phone ?? 'your number'} — check your phone',
-          style: GoogleFonts.poppins(color: Colors.white),
-        ),
-      ),
-    );
   }
 
   String _durationLabel(ParkingSession session) {
@@ -716,11 +808,11 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 }
 
-class _StkPushSheet extends StatelessWidget {
+class _StkPushSheet extends StatefulWidget {
   final double amount;
   final String? phoneNumber;
   final String Function(num) formatAmount;
-  final VoidCallback onConfirm;
+  final void Function(String) onConfirm;
   final VoidCallback onCancel;
 
   const _StkPushSheet({
@@ -730,6 +822,25 @@ class _StkPushSheet extends StatelessWidget {
     required this.onConfirm,
     required this.onCancel,
   });
+
+  @override
+  State<_StkPushSheet> createState() => _StkPushSheetState();
+}
+
+class _StkPushSheetState extends State<_StkPushSheet> {
+  late TextEditingController _phoneController;
+
+  @override
+  void initState() {
+    super.initState();
+    _phoneController = TextEditingController(text: widget.phoneNumber);
+  }
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -750,8 +861,16 @@ class _StkPushSheet extends StatelessWidget {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEFFBF4),
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.success.withValues(alpha: 0.15),
+                      AppColors.success.withValues(alpha: 0.05),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                   borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.success.withValues(alpha: 0.1)),
                 ),
                 child: const Icon(
                   Icons.phone_android_rounded,
@@ -783,9 +902,53 @@ class _StkPushSheet extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 24),
-          _infoRow('Amount', 'KES ${formatAmount(amount)}'),
-          const SizedBox(height: 14),
-          _infoRow('M-Pesa number', phoneNumber ?? 'Not set'),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Amount',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              Text(
+                'KES ${widget.formatAmount(widget.amount)}',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'M-Pesa number',
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: const Color(0xFFF6F7F9),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+              ),
+            ),
+          ),
           const SizedBox(height: 8),
           Text(
             'A payment prompt will be sent to this number.',
@@ -795,15 +958,29 @@ class _StkPushSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 28),
-          SizedBox(
+          Container(
             width: double.infinity,
-            height: 52,
+            height: 54,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF0E6B5C), Color(0xFF168D7C)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF0E6B5C).withValues(alpha: 0.3),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
             child: ElevatedButton(
-              onPressed: onConfirm,
+              onPressed: () => widget.onConfirm(_phoneController.text.trim()),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -811,8 +988,9 @@ class _StkPushSheet extends StatelessWidget {
               child: Text(
                 'Send STK Push',
                 style: GoogleFonts.poppins(
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
+                  color: Colors.white,
                 ),
               ),
             ),
@@ -822,11 +1000,12 @@ class _StkPushSheet extends StatelessWidget {
             width: double.infinity,
             height: 48,
             child: TextButton(
-              onPressed: onCancel,
+              onPressed: widget.onCancel,
               child: Text(
                 'Cancel',
                 style: GoogleFonts.poppins(
                   fontSize: 14,
+                  fontWeight: FontWeight.w500,
                   color: AppColors.textSecondary,
                 ),
               ),
@@ -834,29 +1013,6 @@ class _StkPushSheet extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _infoRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.poppins(
-            fontSize: 13,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        Text(
-          value,
-          style: GoogleFonts.poppins(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-      ],
     );
   }
 }
