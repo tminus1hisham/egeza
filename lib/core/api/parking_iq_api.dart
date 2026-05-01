@@ -269,7 +269,7 @@ class ParkingIqApi {
         if (transactionDesc != null) 'transactionDesc': transactionDesc,
       },
     );
-    return MpesaResponse.fromJson(_requiredDataMap(response));
+    return MpesaResponse.fromJson(_requiredObjectPayload(response));
   }
 
   Future<List<ParkingSession>> recentParkingSessions() async {
@@ -306,6 +306,7 @@ class ParkingIqApi {
 
   Future<ParkingSession> findActiveParkingSession({
     required String plateNumber,
+    String? location,
     String? locationId,
   }) async {
     final response = await _request(
@@ -313,28 +314,37 @@ class ParkingIqApi {
       '/parking/initiate',
       body: {
         'plateNumber': plateNumber,
+        if (location != null && location.isNotEmpty) 'location': location,
         if (locationId != null && locationId.isNotEmpty)
           'locationId': locationId,
       },
     );
-    return ParkingSession.fromJson(_requiredDataMap(response));
+    return ParkingSession.fromJson(_requiredObjectPayload(response));
   }
 
   Future<ParkingSession> createParkingEntry({
     required String plateNumber,
-    required String locationId,
+    String? location,
+    String? locationId,
     bool qrCodeScanned = false,
   }) async {
+    final resolvedLocation = location ?? locationId;
+    if (resolvedLocation == null || resolvedLocation.trim().isEmpty) {
+      throw const ApiException('Parking location is required');
+    }
+
     final response = await _request(
       'POST',
       '/parking/entry',
       body: {
         'plateNumber': plateNumber,
-        'locationId': locationId,
+        'location': resolvedLocation,
+        if (locationId != null && locationId.isNotEmpty)
+          'locationId': locationId,
         'qrCodeScanned': qrCodeScanned,
       },
     );
-    return ParkingSession.fromJson(_requiredDataMap(response));
+    return ParkingSession.fromJson(_requiredObjectPayload(response));
   }
 
   Future<ParkingSession> exitParking(String plateNumber) async {
@@ -368,12 +378,64 @@ class ParkingIqApi {
       'GET',
       '/parking/session/$sessionId/calculate',
     );
-    final data = _requiredDataMap(response);
+    final data = _requiredObjectPayload(response);
     return ParkingSession.fromJson({
       ...data,
       'sessionId': data['sessionId'] ?? sessionId,
       'status': data['status'] ?? 'ACTIVE',
     });
+  }
+
+  Future<ParkingSession> parkingSession(String sessionId) async {
+    final response = await _request('GET', '/parking/session/$sessionId');
+    return ParkingSession.fromJson(_requiredObjectPayload(response));
+  }
+
+  Future<MpesaResponse> startSessionStkPush({
+    required String phoneNumber,
+    required double amount,
+    required String sessionId,
+    required String plateNumber,
+    required String location,
+    String transactionDesc = 'Parking session payment',
+  }) async {
+    final response = await _request(
+      'POST',
+      '/payments/mpesa/stkpush',
+      body: {
+        'type': 'SESSION',
+        'phoneNumber': phoneNumber,
+        'amount': amount.toInt(),
+        'sessionId': sessionId,
+        'plateNumber': plateNumber,
+        'location': location,
+        'transactionDesc': transactionDesc,
+      },
+    );
+    return MpesaResponse.fromJson(_requiredObjectPayload(response));
+  }
+
+  Future<PaymentStatusSnapshot> paymentStatus(String paymentId) async {
+    final response = await _request('GET', '/payments/$paymentId/status');
+    return PaymentStatusSnapshot.fromJson(_requiredObjectPayload(response));
+  }
+
+  Future<PaymentStatusSnapshot> paymentStatusByCheckout(
+    String checkoutRequestId,
+  ) async {
+    final response = await _request(
+      'GET',
+      '/payments/status/checkout/$checkoutRequestId',
+    );
+    return PaymentStatusSnapshot.fromJson(_requiredObjectPayload(response));
+  }
+
+  Future<PaymentStatusSnapshot> paymentStatusBySession(String sessionId) async {
+    final response = await _request(
+      'GET',
+      '/payments/status/session/$sessionId',
+    );
+    return PaymentStatusSnapshot.fromJson(_requiredObjectPayload(response));
   }
 
   Future<QrCodeResponse> generateQrCode(String locationId) async {
@@ -630,6 +692,10 @@ class ParkingIqApi {
       throw ApiException('API response did not include an object payload');
     }
     return data;
+  }
+
+  Map<String, dynamic> _requiredObjectPayload(Map<String, dynamic> response) {
+    return _dataMap(response) ?? response;
   }
 
   List<Map<String, dynamic>> _dataList(Map<String, dynamic> response) {

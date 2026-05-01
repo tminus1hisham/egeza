@@ -6,9 +6,13 @@ class ParkingSession {
   final String locationName;
   final DateTime startTime;
   final DateTime? endTime;
+  final DateTime? currentTime;
   final double cost;
   final double amountPaid;
   final int? durationMinutes;
+  final int gracePeriodMinutes;
+  final int ratePerHour;
+  final int billableHours;
   final String status;
   final bool autoPayEnabled;
   final double? walletBalance;
@@ -21,9 +25,13 @@ class ParkingSession {
     required this.locationName,
     required this.startTime,
     this.endTime,
+    this.currentTime,
     required this.cost,
     this.amountPaid = 0,
     this.durationMinutes,
+    this.gracePeriodMinutes = 3,
+    this.ratePerHour = 5,
+    this.billableHours = 0,
     this.status = 'ACTIVE',
     this.autoPayEnabled = false,
     this.walletBalance,
@@ -59,6 +67,23 @@ class ParkingSession {
       'paidAmount',
     ]));
     final vehicle = vehicleFromParkingSessionJson(json);
+    final startTime = jsonDateTime(_firstJsonValue(json, const [
+          'entryTime',
+          'startTime',
+          'startedAt',
+          'createdAt',
+        ])) ??
+        DateTime.now();
+    final currentTime = jsonDateTime(_firstJsonValue(json, const [
+      'currentTime',
+      'calculatedAt',
+      'serverTime',
+    ]));
+    final durationMinutes = _optionalInt(_firstJsonValue(json, const [
+          'durationMinutes',
+          'durationInMinutes',
+        ])) ??
+        (currentTime == null ? null : currentTime.difference(startTime).inMinutes);
 
     return ParkingSession(
       id: jsonString(_firstJsonValue(json, const [
@@ -68,20 +93,15 @@ class ParkingSession {
           ])) ??
           '',
       locationName: _locationName(json),
-      startTime: jsonDateTime(_firstJsonValue(json, const [
-            'entryTime',
-            'startTime',
-            'startedAt',
-            'createdAt',
-          ])) ??
-          DateTime.now(),
+      startTime: startTime,
       endTime: endTime,
+      currentTime: currentTime,
       cost: amountDue > 0 ? amountDue : amountPaid,
       amountPaid: amountPaid,
-      durationMinutes: _optionalInt(_firstJsonValue(json, const [
-        'durationMinutes',
-        'durationInMinutes',
-      ])),
+      durationMinutes: durationMinutes,
+      gracePeriodMinutes: jsonInt(json['gracePeriodMinutes'], 3),
+      ratePerHour: jsonInt(json['ratePerHour'], 5),
+      billableHours: jsonInt(json['billableHours']),
       status: status,
       autoPayEnabled: jsonBool(
         _firstJsonValue(json, const ['autoPayEnabled', 'autoPay']),
@@ -101,9 +121,13 @@ class ParkingSession {
     String? locationName,
     DateTime? startTime,
     DateTime? endTime,
+    DateTime? currentTime,
     double? cost,
     double? amountPaid,
     int? durationMinutes,
+    int? gracePeriodMinutes,
+    int? ratePerHour,
+    int? billableHours,
     String? status,
     bool? autoPayEnabled,
     double? walletBalance,
@@ -116,9 +140,13 @@ class ParkingSession {
       locationName: locationName ?? this.locationName,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
+      currentTime: currentTime ?? this.currentTime,
       cost: cost ?? this.cost,
       amountPaid: amountPaid ?? this.amountPaid,
       durationMinutes: durationMinutes ?? this.durationMinutes,
+      gracePeriodMinutes: gracePeriodMinutes ?? this.gracePeriodMinutes,
+      ratePerHour: ratePerHour ?? this.ratePerHour,
+      billableHours: billableHours ?? this.billableHours,
       status: status ?? this.status,
       autoPayEnabled: autoPayEnabled ?? this.autoPayEnabled,
       walletBalance: walletBalance ?? this.walletBalance,

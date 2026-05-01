@@ -111,12 +111,17 @@ class EndParkingSession extends AppEvent {
 
 class FindParkingSession extends AppEvent {
   final String plateNumber;
+  final String location;
   final String? locationId;
 
-  const FindParkingSession(this.plateNumber, {this.locationId});
+  const FindParkingSession(
+    this.plateNumber, {
+    required this.location,
+    this.locationId,
+  });
 
   @override
-  List<Object?> get props => [plateNumber, locationId];
+  List<Object?> get props => [plateNumber, location, locationId];
 }
 
 class PayParkingSession extends AppEvent {
@@ -124,16 +129,27 @@ class PayParkingSession extends AppEvent {
   final bool useWallet;
   final String? phoneNumber;
   final double? amount;
+  final String? plateNumber;
+  final String? location;
 
   const PayParkingSession({
     required this.sessionId,
     this.useWallet = true,
     this.phoneNumber,
     this.amount,
+    this.plateNumber,
+    this.location,
   });
 
   @override
-  List<Object?> get props => [sessionId, useWallet, phoneNumber, amount];
+  List<Object?> get props => [
+        sessionId,
+        useWallet,
+        phoneNumber,
+        amount,
+        plateNumber,
+        location,
+      ];
 }
 
 class SetVehicleAutoPay extends AppEvent {

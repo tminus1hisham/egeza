@@ -7,6 +7,7 @@ import '../../blocs/app_bloc.dart';
 import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/payment/payment_validation.dart';
 import '../../models/parking_session.dart';
 import '../../models/vehicle.dart';
 import '../../widgets/primary_button.dart';
@@ -21,8 +22,13 @@ class PayParkingScreen extends StatefulWidget {
 class _PayParkingScreenState extends State<PayParkingScreen> {
   static const int _plateLength = 7;
 
+  final _locationController = TextEditingController();
   late final List<TextEditingController> _controllers;
   late final List<FocusNode> _focusNodes;
+  String? _selectedLocationId;
+  String? _lastShownSessionId;
+  bool _waitingDialogVisible = false;
+  bool _wasWaitingForPayment = false;
 
   @override
   void initState() {
@@ -36,6 +42,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
 
   @override
   void dispose() {
+    _locationController.dispose();
     for (final controller in _controllers) {
       controller.dispose();
     }
@@ -54,9 +61,27 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
     return BlocListener<AppBloc, AppState>(
       listenWhen: (previous, current) =>
           previous.selectedSession != current.selectedSession ||
+          previous.isWaitingForPayment != current.isWaitingForPayment ||
           previous.errorMessage != current.errorMessage ||
           previous.statusMessage != current.statusMessage,
       listener: (context, state) {
+        if (state.isWaitingForPayment) {
+          _wasWaitingForPayment = true;
+          _showWaitingDialog();
+        } else {
+          _hideWaitingDialog();
+          if (_wasWaitingForPayment &&
+              state.selectedSession?.status == 'COMPLETED') {
+            _wasWaitingForPayment = false;
+            final session = state.selectedSession!;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _navigateToReceipt(session);
+            });
+          } else {
+            _wasWaitingForPayment = false;
+          }
+        }
+
         final error = state.errorMessage;
         if (error != null && error.isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -72,7 +97,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
         }
 
         final status = state.statusMessage;
-        if (status != null && status.isNotEmpty) {
+        if (status != null && status.isNotEmpty && !state.isWaitingForPayment) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               backgroundColor: AppColors.primaryDark,
@@ -86,7 +111,12 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
         }
 
         final session = state.selectedSession;
-        if (session != null && session.id.isNotEmpty) {
+        if (session != null &&
+            session.id.isNotEmpty &&
+            session.isActive &&
+            !state.isWaitingForPayment &&
+            _lastShownSessionId != session.id) {
+          _lastShownSessionId = session.id;
           _showSessionSheet(session);
         }
       },
@@ -105,6 +135,10 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          _sectionLabel('Parking Location'),
+                          const SizedBox(height: 12),
+                          _locationField(state),
+                          const SizedBox(height: 20),
                           _sectionLabel('Vehicle Plate Number'),
                           const SizedBox(height: 12),
                           _plateCard(),
@@ -210,6 +244,100 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
         fontWeight: FontWeight.w700,
         color: compact ? AppColors.textSecondary : AppColors.textPrimary,
         letterSpacing: compact ? 0.8 : 0,
+      ),
+    );
+  }
+
+  Widget _locationField(AppState state) {
+    final locations = state.locations;
+    if (locations.isNotEmpty) {
+      final selectedValue = locations.any((item) => item.name == _locationController.text)
+          ? _locationController.text
+          : null;
+
+      return DropdownButtonFormField<String>(
+        value: selectedValue,
+        isExpanded: true,
+        hint: Text(
+          'Select parking location',
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            color: AppColors.textMuted,
+          ),
+        ),
+        decoration: _fieldDecoration(
+          prefixIcon: Icons.location_on_outlined,
+        ),
+        items: [
+          for (final location in locations)
+            DropdownMenuItem<String>(
+              value: location.name,
+              child: Text(
+                location.name,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+        ],
+        onChanged: (value) {
+          if (value == null) return;
+          final selected = locations.firstWhere((item) => item.name == value);
+          setState(() {
+            _locationController.text = selected.name;
+            _selectedLocationId = selected.id.isEmpty ? null : selected.id;
+          });
+        },
+      );
+    }
+
+    return TextFormField(
+      controller: _locationController,
+      textCapitalization: TextCapitalization.words,
+      style: GoogleFonts.poppins(
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+        color: AppColors.textPrimary,
+      ),
+      decoration: _fieldDecoration(
+        prefixIcon: Icons.location_on_outlined,
+        hintText: 'CBD Parking Zone A',
+      ),
+    );
+  }
+
+  InputDecoration _fieldDecoration({
+    required IconData prefixIcon,
+    String? hintText,
+  }) {
+    return InputDecoration(
+      hintText: hintText,
+      hintStyle: GoogleFonts.poppins(
+        color: AppColors.textMuted,
+        fontSize: 14,
+      ),
+      prefixIcon: Icon(
+        prefixIcon,
+        color: AppColors.primary,
+        size: 20,
+      ),
+      filled: true,
+      fillColor: AppColors.inputFill,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColors.inputBorder),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColors.inputBorder),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.8),
       ),
     );
   }
@@ -442,9 +570,29 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
   }
 
   void _lookupPlate(String plateNumber) {
+    final location = _locationController.text.trim();
+    if (location.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          content: Text(
+            'Select or enter the parking location',
+            style: GoogleFonts.poppins(color: Colors.white),
+          ),
+        ),
+      );
+      return;
+    }
+
+    _lastShownSessionId = null;
     context.read<AppBloc>().add(ClearParkingSelection());
     context.read<AppBloc>().add(
-          FindParkingSession(plateNumber.replaceAll(' ', '').toUpperCase()),
+          FindParkingSession(
+            plateNumber.replaceAll(' ', '').toUpperCase(),
+            location: location,
+            locationId: _selectedLocationId,
+          ),
         );
   }
 
@@ -515,12 +663,48 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
               ),
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                children: [
+                  _billingRow('Entry time', _formatDateTime(session.startTime)),
+                  const SizedBox(height: 8),
+                  _billingRow('Grace period', '${session.gracePeriodMinutes} min free'),
+                  const SizedBox(height: 8),
+                  _billingRow('Rate', 'KES ${session.ratePerHour}/hr'),
+                  const SizedBox(height: 8),
+                  _billingRow('Billable hours', '${session.billableHours} billable hour(s)'),
+                ],
+              ),
+            ),
             const SizedBox(height: 28),
             PrimaryButton(
-              text: 'Pay KES ${session.cost.toStringAsFixed(0)}',
+              text: session.cost <= 0
+                  ? 'No Payment Due'
+                  : 'Pay KES ${session.cost.toStringAsFixed(0)}',
               onPressed: () {
                 Navigator.pop(context);
-                _showStkConfirmation(session);
+                if (session.cost <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: AppColors.primaryDark,
+                      behavior: SnackBarBehavior.floating,
+                      content: Text(
+                        'No parking fee is due during the grace period',
+                        style: GoogleFonts.poppins(color: Colors.white),
+                      ),
+                    ),
+                  );
+                } else {
+                  _showStkConfirmation(session);
+                }
               },
             ),
             const SizedBox(height: 10),
@@ -545,6 +729,11 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
     final displayPlate = _formatPlate(
       session.vehicle.plateNumber.isEmpty ? _plate : session.vehicle.plateNumber,
     );
+    final plateNumber =
+        session.vehicle.plateNumber.isEmpty ? _plate : session.vehicle.plateNumber;
+    final location = session.locationName == 'Parking Location'
+        ? _locationController.text.trim()
+        : session.locationName;
 
     final phoneCtrl = TextEditingController(text: initialPhone);
     final amountCtrl = TextEditingController(
@@ -571,6 +760,8 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                     useWallet: true,
                     phoneNumber: phone,
                     amount: amount,
+                    plateNumber: plateNumber,
+                    location: location,
                   ),
                 );
             Navigator.of(ctx).pop();
@@ -679,6 +870,30 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Location',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      Flexible(
+                        child: Text(
+                          location,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 18),
 
                   // M-Pesa number field
@@ -745,10 +960,11 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                     ),
                     onChanged: (_) => setSheetState(() {}),
                     validator: (v) {
-                      final digits = v?.replaceAll(RegExp(r'\D'), '') ?? '';
-                      if (digits.isEmpty) return 'Enter a phone number';
-                      if (digits.length < 9 || digits.length > 12) {
-                        return 'Enter a valid Kenyan number';
+                      if (v == null || v.trim().isEmpty) return 'Enter a phone number';
+                      final normalized = PaymentValidation.normalizeMpesaPhone(v.trim());
+                      if (normalized == null ||
+                          !RegExp(r'^254(7|1)\d{8}$').hasMatch(normalized)) {
+                        return 'Enter a valid Kenyan M-Pesa number (07XX or 01XX)';
                       }
                       return null;
                     },
@@ -767,6 +983,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                   const SizedBox(height: 6),
                   TextFormField(
                     controller: amountCtrl,
+                    readOnly: true,
                     keyboardType: const TextInputType.numberWithOptions(decimal: false),
                     style: GoogleFonts.poppins(
                       fontSize: 15,
@@ -896,9 +1113,102 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
     });
   }
 
+  void _showWaitingDialog() {
+    if (_waitingDialogVisible || !mounted) return;
+    _waitingDialogVisible = true;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 26, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(color: AppColors.primary),
+                const SizedBox(height: 20),
+                Text(
+                  'Waiting for M-Pesa confirmation...',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Complete the prompt on your phone.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ).then((_) {
+      _waitingDialogVisible = false;
+    });
+  }
+
+  void _hideWaitingDialog() {
+    if (!_waitingDialogVisible || !mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
+    _waitingDialogVisible = false;
+  }
 
 
 
+
+
+  void _navigateToReceipt(ParkingSession session) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => _PaymentReceiptPage(session: session),
+      ),
+    );
+  }
+
+  Widget _billingRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary),
+        ),
+        Text(
+          value,
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatDateTime(DateTime dt) {
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final mm = dt.minute.toString().padLeft(2, '0');
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '$hh:$mm ${dt.day.toString().padLeft(2, '0')} ${months[dt.month - 1]}';
+  }
 
   String _formatPlate(String value) {
     final compact = value.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase();
@@ -916,5 +1226,135 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
     if (hours <= 0) return '${remainder}m';
     if (remainder <= 0) return '${hours}h';
     return '${hours}h ${remainder}m';
+  }
+}
+
+class _PaymentReceiptPage extends StatelessWidget {
+  final ParkingSession session;
+
+  const _PaymentReceiptPage({required this.session});
+
+  @override
+  Widget build(BuildContext context) {
+    final plateNumber = session.vehicle.plateNumber.isEmpty
+        ? '—'
+        : session.vehicle.plateNumber;
+    final amount = session.amountPaid > 0 ? session.amountPaid : session.cost;
+    final exitTime = session.endTime != null ? _fmt(session.endTime!) : '—';
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              const Spacer(),
+              Container(
+                width: 80,
+                height: 80,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFEFFBF4),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_circle_rounded,
+                  color: AppColors.success,
+                  size: 48,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Payment Successful',
+                style: GoogleFonts.poppins(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 28),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  children: [
+                    _row('Plate number', plateNumber),
+                    const SizedBox(height: 12),
+                    _row('Location', session.locationName),
+                    const SizedBox(height: 12),
+                    _row('Amount paid', 'KES ${amount.toStringAsFixed(0)}'),
+                    const SizedBox(height: 12),
+                    _row('Exit time', exitTime),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: () =>
+                      Navigator.of(context).popUntil((r) => r.isFirst),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: Text(
+                    'Done',
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _row(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSecondary),
+        ),
+        Flexible(
+          child: Text(
+            value,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _fmt(DateTime dt) {
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final mm = dt.minute.toString().padLeft(2, '0');
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '$hh:$mm ${dt.day.toString().padLeft(2, '0')} ${months[dt.month - 1]}';
   }
 }

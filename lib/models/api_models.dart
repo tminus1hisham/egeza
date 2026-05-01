@@ -165,23 +165,28 @@ class ParkingLocation {
 }
 
 class MpesaResponse {
+  final String? paymentId;
   final String? merchantRequestId;
   final String? checkoutRequestId;
   final String? responseCode;
   final String? responseDescription;
   final String? customerMessage;
+  final String? status;
 
   const MpesaResponse({
+    this.paymentId,
     this.merchantRequestId,
     this.checkoutRequestId,
     this.responseCode,
     this.responseDescription,
     this.customerMessage,
+    this.status,
   });
 
   factory MpesaResponse.fromJson(Map<String, dynamic> json) {
     dev.log('MpesaResponse.fromJson: keys=${json.keys.toList()} values=${json.values.toList()}', name: 'ApiModels');
     final result = MpesaResponse(
+      paymentId: jsonString(json['paymentId']) ?? jsonString(json['id']),
       merchantRequestId: jsonString(json['merchantRequestId']) ??
           jsonString(json['MerchantRequestID']),
       checkoutRequestId: jsonString(json['checkoutRequestId']) ??
@@ -192,6 +197,7 @@ class MpesaResponse {
           jsonString(json['ResponseDescription']),
       customerMessage: jsonString(json['customerMessage']) ??
           jsonString(json['CustomerMessage']),
+      status: jsonString(json['status']),
     );
     dev.log(
       'MpesaResponse.fromJson: parsed — checkoutRequestId=${result.checkoutRequestId} '
@@ -200,6 +206,55 @@ class MpesaResponse {
     );
     return result;
   }
+}
+
+class PaymentStatusSnapshot {
+  final String? paymentId;
+  final String? checkoutRequestId;
+  final String? sessionId;
+  final String status;
+  final String? message;
+
+  const PaymentStatusSnapshot({
+    this.paymentId,
+    this.checkoutRequestId,
+    this.sessionId,
+    required this.status,
+    this.message,
+  });
+
+  factory PaymentStatusSnapshot.fromJson(Map<String, dynamic> json) {
+    return PaymentStatusSnapshot(
+      paymentId: jsonString(json['paymentId']) ?? jsonString(json['id']),
+      checkoutRequestId: jsonString(json['checkoutRequestId']) ??
+          jsonString(json['CheckoutRequestID']),
+      sessionId: jsonString(json['sessionId']) ??
+          jsonString(json['parkingSessionId']),
+      status: (jsonString(json['status']) ??
+              jsonString(json['paymentStatus']) ??
+              jsonString(json['ResultDesc']) ??
+              'PENDING')
+          .toUpperCase(),
+      message: jsonString(json['message']) ??
+          jsonString(json['resultDesc']) ??
+          jsonString(json['ResultDesc']) ??
+          jsonString(json['customerMessage']),
+    );
+  }
+
+  bool get isSuccess => status == 'SUCCESS' || status == 'COMPLETED';
+
+  bool get isTerminal => const {
+        'SUCCESS',
+        'COMPLETED',
+        'FAILED',
+        'CANCELLED',
+        'CANCELED',
+        'TIMEOUT',
+        'TIMED_OUT',
+      }.contains(status);
+
+  bool get isFailure => isTerminal && !isSuccess;
 }
 
 class QrCodeResponse {

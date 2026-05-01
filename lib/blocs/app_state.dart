@@ -15,6 +15,8 @@ class AppState extends Equatable {
   final List<WalletTransaction> walletTransactions;
   final List<ParkingLocation> locations;
   final ParkingSession? selectedSession;
+  final bool isWaitingForPayment;
+  final PaymentStatusSnapshot? activePayment;
   final bool isLoading;
   final String? errorMessage;
   final String? statusMessage;
@@ -31,6 +33,8 @@ class AppState extends Equatable {
     this.walletTransactions = const [],
     this.locations = const [],
     this.selectedSession,
+    this.isWaitingForPayment = false,
+    this.activePayment,
     this.isLoading = false,
     this.errorMessage,
     this.statusMessage,
@@ -50,10 +54,13 @@ class AppState extends Equatable {
     List<WalletTransaction>? walletTransactions,
     List<ParkingLocation>? locations,
     ParkingSession? selectedSession,
+    bool? isWaitingForPayment,
+    PaymentStatusSnapshot? activePayment,
     bool? isLoading,
     String? errorMessage,
     String? statusMessage,
     bool clearSelectedSession = false,
+    bool clearActivePayment = false,
     bool clearMessages = false,
   }) {
     return AppState(
@@ -70,6 +77,9 @@ class AppState extends Equatable {
       locations: locations ?? this.locations,
       selectedSession:
           clearSelectedSession ? null : selectedSession ?? this.selectedSession,
+      isWaitingForPayment: isWaitingForPayment ?? this.isWaitingForPayment,
+      activePayment:
+          clearActivePayment ? null : activePayment ?? this.activePayment,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearMessages ? null : errorMessage ?? this.errorMessage,
       statusMessage: clearMessages ? null : statusMessage ?? this.statusMessage,
@@ -89,6 +99,8 @@ class AppState extends Equatable {
         walletTransactions,
         locations,
         selectedSession,
+        isWaitingForPayment,
+        activePayment,
         isLoading,
         errorMessage,
         statusMessage,

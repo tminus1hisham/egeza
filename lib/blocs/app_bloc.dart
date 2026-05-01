@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../core/api/parking_iq_api.dart';
+import '../core/payment/payment_validation.dart';
 import '../core/user_prefs.dart';
 import '../models/api_models.dart';
 import '../models/parking_session.dart';
@@ -465,20 +466,28 @@ class AppBloc extends Bloc<AppEvent, AppState> {
       ),
     );
 
-    _log('FindParkingSession: plate=${event.plateNumber} locationId=${event.locationId}');
+    _log(
+      'FindParkingSession: plate=${event.plateNumber} '
+      'location=${event.location} locationId=${event.locationId}',
+    );
 
     try {
       if (!_api.hasToken) {
         throw const ApiException('Please create an account before paying');
       }
 
-      final locationId = event.locationId ??
-          (state.locations.isNotEmpty ? state.locations.first.id : null);
-      final session = await _api.findActiveParkingSession(
-        plateNumber: event.plateNumber,
-        locationId: locationId,
+      PaymentValidation.validatePlateNumber(event.plateNumber);
+      PaymentValidation.validateLocation(event.location);
+
+      final session = await _api.createParkingEntry(
+        plateNumber: event.plateNumber.trim().toUpperCase(),
+        location: event.location.trim(),
+        locationId: event.locationId,
       );
-      _logSuccess('FindParkingSession/findActiveParkingSession', 'sessionId=${session.id} status=${session.status}');
+      _logSuccess(
+        'FindParkingSession/createParkingEntry',
+        'sessionId=${session.id} status=${session.status}',
+      );
 
       final calculated = session.id.isEmpty
           ? session
@@ -511,94 +520,156 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     PayParkingSession event,
     Emitter<AppState> emit,
   ) async {
-    emit(state.copyWith(isLoading: true, clearMessages: true));
-    _log('PayParkingSession: sessionId=${event.sessionId} useWallet=${event.useWallet} phone=${event.phoneNumber}');
+    if (state.isWaitingForPayment) {
+      _log('PayParkingSession: ignored — already waiting for payment');
+      return;
+    }
+
+    emit(
+      state.copyWith(
+        isLoading: true,
+        isWaitingForPayment: false,
+        clearActivePayment: true,
+        clearMessages: true,
+      ),
+    );
+    _log(
+      'PayParkingSession: sessionId=${event.sessionId} '
+      'phone=${event.phoneNumber} amount=${event.amount}',
+    );
 
     try {
-      ParkingSession paid;
-      if (_api.hasToken) {
-        // Step 1: mark the session as being paid via wallet
-        paid = await _api.payParkingSession(
-          sessionId: event.sessionId,
-          useWallet: event.useWallet,
-          phoneNumber: event.phoneNumber,
-        );
-        _logSuccess('PayParkingSession/payParkingSession', 'status=${paid.status} cost=${paid.cost}');
+      if (!_api.hasToken) {
+        throw const ApiException('Please sign in before paying for parking');
+      }
 
-        // Step 2: send an M-Pesa STK push to the user's phone for the amount due
-        final rawPhone = event.phoneNumber ?? state.phoneNumber;
-        final phone = _normalizePhone(rawPhone);
-        if (phone != null && phone.isNotEmpty) {
-          // Use amountDue from response; fall back to amountPaid, then event.amount
-          final amountDue = paid.cost > 0
-              ? paid.cost
-              : (paid.amountPaid > 0 ? paid.amountPaid : (event.amount ?? 1.0));
-          _log('PayParkingSession/stkPush: phone=$phone amount=$amountDue ref=${paid.id.isNotEmpty ? paid.id : event.sessionId}');
-          try {
-            final stkResp = await _api.stkPush(
-              phoneNumber: phone,
-              amount: amountDue,
-              accountReference: paid.id.isNotEmpty ? paid.id : event.sessionId,
-              transactionDesc: 'Parking – ${paid.vehicle.plateNumber.isNotEmpty ? paid.vehicle.plateNumber : event.sessionId}',
-            );
-            _logSuccess('PayParkingSession/stkPush', 'checkoutRequestId=${stkResp.checkoutRequestId} msg=${stkResp.customerMessage}');
-          } catch (stkErr, stkSt) {
-            _logError('PayParkingSession/stkPush', stkErr, stkSt);
-            // Non-fatal: session is already recorded as paid
-          }
-        } else {
-          _log('PayParkingSession: no phone number available, skipping STK push (rawPhone=$rawPhone)');
-        }
-      } else {
-        _log('PayParkingSession: no token, completing locally');
-        final local = state.recentSessions.firstWhere(
-          (session) => session.id == event.sessionId,
-          orElse: () => state.selectedSession!,
-        );
-        paid = local.copyWith(
-          status: 'COMPLETED',
-          isActive: false,
-          endTime: DateTime.now(),
-          amountPaid: local.cost,
+      PaymentValidation.validateSessionId(event.sessionId);
+
+      final existingSession = _sessionFromState(event.sessionId);
+      if (existingSession != null) {
+        PaymentValidation.validateSessionCanBePaid(existingSession);
+      }
+
+      final calculated = await _api.calculateParkingSession(event.sessionId);
+      PaymentValidation.validateSessionCanBePaid(calculated);
+
+      final amountDue = calculated.cost;
+      if (event.amount != null) {
+        PaymentValidation.validateAmountMatches(
+          providedAmount: event.amount!,
+          calculatedAmount: amountDue,
         );
       }
 
-      final updatedSession = _hydrateSessionVehicle(
-        paid.copyWith(
-          isActive: false,
-          endTime: paid.endTime ?? DateTime.now(),
-        ),
+      if (amountDue <= 0) {
+        emit(
+          state.copyWith(
+            selectedSession: _hydrateSessionVehicle(calculated),
+            isLoading: false,
+            statusMessage: 'No parking fee is due during the grace period',
+          ),
+        );
+        return;
+      }
+
+      PaymentValidation.validateAmount(amountDue);
+
+      final phone = PaymentValidation.requireValidMpesaPhone(
+        event.phoneNumber ?? state.phoneNumber,
       );
-      final sessions = [
-        updatedSession,
-        ...state.recentSessions
-            .where((session) => session.id != updatedSession.id),
-      ];
-      final balance = _api.hasToken
-          ? await _api.walletBalance().catchError((e, st) {
-              _logError('PayParkingSession/walletBalance', e, st);
-              return state.walletBalance;
-            })
-          : state.walletBalance - updatedSession.cost;
-      if (_api.hasToken) {
-        _logSuccess('PayParkingSession/walletBalance', 'balance=$balance');
-      }
+      final plateNumber =
+          (event.plateNumber ?? calculated.vehicle.plateNumber)
+              .trim()
+              .toUpperCase();
+      final location = (event.location ?? calculated.locationName).trim();
 
-      final stkStatusMessage = _api.hasToken
-          ? (event.phoneNumber != null && event.phoneNumber!.isNotEmpty
-              ? 'STK push sent to ${event.phoneNumber} — check your phone'
-              : (state.phoneNumber != null && state.phoneNumber!.isNotEmpty
-                  ? 'STK push sent to ${state.phoneNumber} — check your phone'
-                  : 'Parking payment recorded'))
-          : 'Parking payment completed';
+      PaymentValidation.validatePlateNumber(plateNumber);
+      PaymentValidation.validateLocation(location);
+
+      final response = await _api.startSessionStkPush(
+        phoneNumber: phone,
+        amount: amountDue,
+        sessionId: event.sessionId,
+        plateNumber: plateNumber,
+        location: location,
+        transactionDesc: 'Parking session payment',
+      );
+      _logSuccess(
+        'PayParkingSession/startSessionStkPush',
+        'paymentId=${response.paymentId} '
+        'checkoutRequestId=${response.checkoutRequestId}',
+      );
 
       emit(
         state.copyWith(
-          recentSessions: sessions,
-          walletBalance: balance,
-          selectedSession: updatedSession,
+          selectedSession: _hydrateSessionVehicle(calculated),
           isLoading: false,
-          statusMessage: stkStatusMessage,
+          isWaitingForPayment: true,
+          activePayment: PaymentStatusSnapshot(
+            paymentId: response.paymentId,
+            checkoutRequestId: response.checkoutRequestId,
+            sessionId: event.sessionId,
+            status: response.status ?? 'PENDING',
+            message: response.customerMessage,
+          ),
+          statusMessage:
+              response.customerMessage ?? 'Waiting for M-Pesa confirmation...',
+        ),
+      );
+
+      final terminalStatus = await _pollPaymentUntilTerminal(
+        paymentId: response.paymentId,
+        checkoutRequestId: response.checkoutRequestId,
+        sessionId: event.sessionId,
+      );
+
+      if (terminalStatus.isSuccess) {
+        final completed = await _api.parkingSession(event.sessionId).catchError(
+          (e, st) {
+            _logError('PayParkingSession/parkingSession', e, st);
+            return calculated.copyWith(
+              status: 'COMPLETED',
+              isActive: false,
+              endTime: DateTime.now(),
+              amountPaid: amountDue,
+            );
+          },
+        );
+        final updatedSession = _hydrateSessionVehicle(
+          completed.copyWith(
+            status: 'COMPLETED',
+            isActive: false,
+            endTime: completed.endTime ?? DateTime.now(),
+            amountPaid:
+                completed.amountPaid > 0 ? completed.amountPaid : amountDue,
+          ),
+        );
+        final sessions = [
+          updatedSession,
+          ...state.recentSessions
+              .where((session) => session.id != updatedSession.id),
+        ];
+
+        emit(
+          state.copyWith(
+            recentSessions: sessions,
+            selectedSession: updatedSession,
+            isLoading: false,
+            isWaitingForPayment: false,
+            activePayment: terminalStatus,
+            statusMessage: 'Parking payment confirmed',
+          ),
+        );
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          selectedSession: _hydrateSessionVehicle(calculated),
+          isLoading: false,
+          isWaitingForPayment: false,
+          activePayment: terminalStatus,
+          errorMessage: _paymentFailureMessage(terminalStatus),
         ),
       );
     } catch (error, st) {
@@ -606,10 +677,98 @@ class AppBloc extends Bloc<AppEvent, AppState> {
       emit(
         state.copyWith(
           isLoading: false,
+          isWaitingForPayment: false,
           errorMessage: _friendlyError(error),
         ),
       );
     }
+  }
+
+  Future<PaymentStatusSnapshot> _pollPaymentUntilTerminal({
+    required String sessionId,
+    String? paymentId,
+    String? checkoutRequestId,
+  }) async {
+    PaymentStatusSnapshot? lastStatus;
+
+    for (var attempt = 0; attempt < 30; attempt++) {
+      if (isClosed) {
+        return PaymentStatusSnapshot(
+          paymentId: lastStatus?.paymentId ?? paymentId,
+          checkoutRequestId:
+              lastStatus?.checkoutRequestId ?? checkoutRequestId,
+          sessionId: lastStatus?.sessionId ?? sessionId,
+          status: 'CANCELLED',
+          message: 'Payment polling cancelled',
+        );
+      }
+      if (attempt > 0) {
+        await Future.delayed(const Duration(seconds: 3));
+      }
+
+      try {
+        if (paymentId != null && paymentId.isNotEmpty) {
+          lastStatus = await _api.paymentStatus(paymentId);
+        } else if (checkoutRequestId != null && checkoutRequestId.isNotEmpty) {
+          lastStatus = await _api.paymentStatusByCheckout(checkoutRequestId);
+        } else {
+          lastStatus = await _api.paymentStatusBySession(sessionId);
+        }
+      } catch (error, st) {
+        _logError('PayParkingSession/pollPaymentStatus', error, st);
+        try {
+          if (checkoutRequestId != null && checkoutRequestId.isNotEmpty) {
+            lastStatus = await _api.paymentStatusByCheckout(checkoutRequestId);
+          } else {
+            lastStatus = await _api.paymentStatusBySession(sessionId);
+          }
+        } catch (fallbackError, fallbackSt) {
+          _logError(
+            'PayParkingSession/pollPaymentStatusFallback',
+            fallbackError,
+            fallbackSt,
+          );
+        }
+      }
+
+      if (lastStatus?.isTerminal == true) return lastStatus!;
+    }
+
+    return PaymentStatusSnapshot(
+      paymentId: lastStatus?.paymentId ?? paymentId,
+      checkoutRequestId: lastStatus?.checkoutRequestId ?? checkoutRequestId,
+      sessionId: lastStatus?.sessionId ?? sessionId,
+      status: 'TIMEOUT',
+      message: 'M-Pesa confirmation timed out',
+    );
+  }
+
+  String _paymentFailureMessage(PaymentStatusSnapshot status) {
+    final message = status.message;
+    if (message != null && message.isNotEmpty) return message;
+
+    switch (status.status) {
+      case 'CANCELLED':
+      case 'CANCELED':
+        return 'M-Pesa payment was cancelled';
+      case 'TIMEOUT':
+      case 'TIMED_OUT':
+        return 'M-Pesa confirmation timed out';
+      case 'FAILED':
+        return 'M-Pesa payment failed';
+      default:
+        return 'M-Pesa payment did not complete';
+    }
+  }
+
+  ParkingSession? _sessionFromState(String sessionId) {
+    final selected = state.selectedSession;
+    if (selected != null && selected.id == sessionId) return selected;
+
+    for (final session in state.recentSessions) {
+      if (session.id == sessionId) return session;
+    }
+    return null;
   }
 
   Future<void> _onSetVehicleAutoPay(
