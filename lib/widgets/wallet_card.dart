@@ -18,11 +18,11 @@ class WalletCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.primaryDark,
+        color: context.colors.primaryDark,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.3),
+            color: context.colors.primary.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -37,14 +37,14 @@ class WalletCard extends StatelessWidget {
               Text(
                 'Park IQ Wallet',
                 style: GoogleFonts.poppins(
-                  color: AppColors.textLight.withValues(alpha: 0.8),
+                  color: context.colors.textLight.withValues(alpha: 0.8),
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.account_balance_wallet,
-                color: AppColors.textLight,
+                color: context.colors.textLight,
                 size: 20,
               ),
             ],
@@ -53,7 +53,7 @@ class WalletCard extends StatelessWidget {
           Text(
             'KES ${balance.toStringAsFixed(0)}',
             style: GoogleFonts.poppins(
-              color: AppColors.textLight,
+              color: context.colors.textLight,
               fontSize: 32,
               fontWeight: FontWeight.w700,
             ),
@@ -63,7 +63,7 @@ class WalletCard extends StatelessWidget {
             width: double.infinity,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accent,
+                backgroundColor: context.colors.accent,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),

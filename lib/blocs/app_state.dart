@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:equatable/equatable.dart';
 import '../models/api_models.dart';
 import '../models/vehicle.dart';
@@ -20,6 +21,7 @@ class AppState extends Equatable {
   final bool isLoading;
   final String? errorMessage;
   final String? statusMessage;
+  final ThemeMode themeMode;
 
   const AppState({
     this.userName = 'James Mwangi',
@@ -38,6 +40,7 @@ class AppState extends Equatable {
     this.isLoading = false,
     this.errorMessage,
     this.statusMessage,
+    this.themeMode = ThemeMode.system,
   });
 
   bool get isAuthenticated => authToken != null && authToken!.isNotEmpty;
@@ -59,6 +62,7 @@ class AppState extends Equatable {
     bool? isLoading,
     String? errorMessage,
     String? statusMessage,
+    ThemeMode? themeMode,
     bool clearSelectedSession = false,
     bool clearActivePayment = false,
     bool clearMessages = false,
@@ -83,6 +87,7 @@ class AppState extends Equatable {
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearMessages ? null : errorMessage ?? this.errorMessage,
       statusMessage: clearMessages ? null : statusMessage ?? this.statusMessage,
+      themeMode: themeMode ?? this.themeMode,
     );
   }
 
@@ -104,5 +109,6 @@ class AppState extends Equatable {
         isLoading,
         errorMessage,
         statusMessage,
+        themeMode,
       ];
 }

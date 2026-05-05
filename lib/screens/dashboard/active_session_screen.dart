@@ -50,11 +50,11 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       body: Column(
         children: [
           Container(
-            color: AppColors.primaryDark,
+            color: context.colors.primaryDark,
             child: SafeArea(
               bottom: false,
               child: Padding(
@@ -117,7 +117,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Session Details',
-                    style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                    style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600, color: context.colors.textPrimary)),
                   const SizedBox(height: 14),
                   _detailRow('Rate', 'KES ${widget.session.cost.toStringAsFixed(0)}/hr'),
                   _detailRow('Started', _formatTime(widget.session.startTime)),
@@ -126,15 +126,15 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                   const SizedBox(height: 28),
                   Container(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(14)),
+                    decoration: BoxDecoration(color: context.colors.accentLight, borderRadius: BorderRadius.circular(14)),
                     child: Row(
                       children: [
-                        const Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 20),
+                        Icon(Icons.info_outline_rounded, color: context.colors.primary, size: 20),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             'Cost will be automatically deducted from your Park IQ wallet when you end this session.',
-                            style: GoogleFonts.poppins(fontSize: 12, color: AppColors.primary, height: 1.5),
+                            style: GoogleFonts.poppins(fontSize: 12, color: context.colors.primary, height: 1.5),
                           ),
                         ),
                       ],
@@ -154,12 +154,12 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   Widget _detailRow(String label, String value) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.divider))),
+      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: context.colors.divider))),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSecondary)),
-          Text(value, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+          Text(label, style: GoogleFonts.poppins(fontSize: 13, color: context.colors.textSecondary)),
+          Text(value, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: context.colors.textPrimary)),
         ],
       ),
     );
@@ -172,20 +172,20 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   void _showEndDialog(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: context.colors.border, borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 20),
-            Text('End Session?', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+            Text('End Session?', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700, color: context.colors.textPrimary)),
             const SizedBox(height: 8),
             Text(
               'KES ${_accruedCost.toStringAsFixed(2)} will be deducted from your wallet.',
-              style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSecondary),
+              style: GoogleFonts.poppins(fontSize: 13, color: context.colors.textSecondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -202,7 +202,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
             const SizedBox(height: 10),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Cancel', style: GoogleFonts.poppins(color: AppColors.textSecondary)),
+              child: Text('Cancel', style: GoogleFonts.poppins(color: context.colors.textSecondary)),
             ),
             const SizedBox(height: 8),
           ],

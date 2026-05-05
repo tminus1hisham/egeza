@@ -100,7 +100,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
         if (status != null && status.isNotEmpty && !state.isWaitingForPayment) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              backgroundColor: AppColors.primaryDark,
+              backgroundColor: context.colors.primaryDark,
               behavior: SnackBarBehavior.floating,
               content: Text(
                 status,
@@ -149,7 +149,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                               textAlign: TextAlign.center,
                               style: GoogleFonts.poppins(
                                 fontSize: 12,
-                                color: AppColors.textSecondary,
+                                color: context.colors.textSecondary,
                               ),
                             ),
                           ),
@@ -201,12 +201,12 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
               decoration: BoxDecoration(
                 color: const Color(0xFFF4F6F5),
                 shape: BoxShape.circle,
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.colors.border),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.arrow_back_rounded,
                 size: 18,
-                color: AppColors.textPrimary,
+                color: context.colors.textPrimary,
               ),
             ),
           ),
@@ -219,14 +219,14 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                 style: GoogleFonts.poppins(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: context.colors.textPrimary,
                 ),
               ),
               Text(
                 'Enter plate to initiate payment',
                 style: GoogleFonts.poppins(
                   fontSize: 12,
-                  color: AppColors.textSecondary,
+                  color: context.colors.textSecondary,
                 ),
               ),
             ],
@@ -242,7 +242,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
       style: GoogleFonts.poppins(
         fontSize: compact ? 11 : 13,
         fontWeight: FontWeight.w700,
-        color: compact ? AppColors.textSecondary : AppColors.textPrimary,
+        color: compact ? context.colors.textSecondary : context.colors.textPrimary,
         letterSpacing: compact ? 0.8 : 0,
       ),
     );
@@ -256,13 +256,13 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
           : null;
 
       return DropdownButtonFormField<String>(
-        value: selectedValue,
+        initialValue: selectedValue,
         isExpanded: true,
         hint: Text(
           'Select parking location',
           style: GoogleFonts.poppins(
             fontSize: 14,
-            color: AppColors.textMuted,
+            color: context.colors.textMuted,
           ),
         ),
         decoration: _fieldDecoration(
@@ -278,7 +278,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
+                  color: context.colors.textPrimary,
                 ),
               ),
             ),
@@ -300,7 +300,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
       style: GoogleFonts.poppins(
         fontSize: 14,
         fontWeight: FontWeight.w500,
-        color: AppColors.textPrimary,
+        color: context.colors.textPrimary,
       ),
       decoration: _fieldDecoration(
         prefixIcon: Icons.location_on_outlined,
@@ -316,28 +316,28 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
     return InputDecoration(
       hintText: hintText,
       hintStyle: GoogleFonts.poppins(
-        color: AppColors.textMuted,
+        color: context.colors.textMuted,
         fontSize: 14,
       ),
       prefixIcon: Icon(
         prefixIcon,
-        color: AppColors.primary,
+        color: context.colors.primary,
         size: 20,
       ),
       filled: true,
-      fillColor: AppColors.inputFill,
+      fillColor: context.colors.inputFill,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: AppColors.inputBorder),
+        borderSide: BorderSide(color: context.colors.inputBorder),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: AppColors.inputBorder),
+        borderSide: BorderSide(color: context.colors.inputBorder),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: AppColors.primary, width: 1.8),
+        borderSide: BorderSide(color: context.colors.primary, width: 1.8),
       ),
     );
   }
@@ -356,7 +356,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 8),
-            color: AppColors.plateYellow,
+            color: context.colors.plateYellow,
             child: Center(
               child: Text(
                 'K E N Y A',
@@ -410,7 +410,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
         style: GoogleFonts.poppins(
           fontSize: 24,
           fontWeight: FontWeight.w800,
-          color: AppColors.textPrimary,
+          color: context.colors.textPrimary,
         ),
         decoration: InputDecoration(
           counterText: '',
@@ -419,7 +419,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
           contentPadding: EdgeInsets.zero,
           border: _plateBorder(const Color(0xFFF59E0B), 1.5),
           enabledBorder: _plateBorder(const Color(0xFFF59E0B), 1.5),
-          focusedBorder: _plateBorder(AppColors.primaryDark, 2.5),
+          focusedBorder: _plateBorder(context.colors.primaryDark, 2.5),
         ),
         onChanged: (value) {
           if (value.isNotEmpty && index < _plateLength - 1) {
@@ -448,7 +448,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
             'or select your vehicle',
             style: GoogleFonts.poppins(
               fontSize: 12,
-              color: AppColors.textSecondary,
+              color: context.colors.textSecondary,
             ),
           ),
         ),
@@ -466,7 +466,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: context.colors.border),
         ),
         child: Row(
           children: [
@@ -474,12 +474,12 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: AppColors.accentLight,
+                color: context.colors.accentLight,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.directions_car_rounded,
-                color: AppColors.primary,
+                color: context.colors.primary,
                 size: 22,
               ),
             ),
@@ -495,7 +495,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                         style: GoogleFonts.poppins(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
+                          color: context.colors.textPrimary,
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -508,15 +508,15 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                     '${vehicle.make} ${vehicle.model}',
                     style: GoogleFonts.poppins(
                       fontSize: 12,
-                      color: AppColors.textSecondary,
+                      color: context.colors.textSecondary,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
-              color: AppColors.textMuted,
+              color: context.colors.textMuted,
               size: 20,
             ),
           ],
@@ -529,16 +529,16 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       decoration: BoxDecoration(
-        color: AppColors.accentLight,
+        color: context.colors.accentLight,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.35)),
+        border: Border.all(color: context.colors.accent.withValues(alpha: 0.35)),
       ),
       child: Text(
         'AutoPay',
         style: GoogleFonts.poppins(
           fontSize: 10,
           fontWeight: FontWeight.w600,
-          color: AppColors.primary,
+          color: context.colors.primary,
         ),
       ),
     );
@@ -548,15 +548,15 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.background,
+        color: context.colors.background,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Center(
         child: Text(
           'No registered vehicles',
           style: GoogleFonts.poppins(
-            color: AppColors.textSecondary,
+            color: context.colors.textSecondary,
             fontSize: 13,
           ),
         ),
@@ -617,7 +617,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.border,
+                color: context.colors.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -626,12 +626,12 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: AppColors.accentLight,
+                color: context.colors.accentLight,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.local_parking_rounded,
-                color: AppColors.primary,
+                color: context.colors.primary,
                 size: 28,
               ),
             ),
@@ -641,7 +641,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
               style: GoogleFonts.poppins(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: context.colors.textPrimary,
               ),
             ),
             const SizedBox(height: 6),
@@ -650,7 +650,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
               style: GoogleFonts.poppins(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: AppColors.primary,
+                color: context.colors.primary,
                 letterSpacing: 1.5,
               ),
             ),
@@ -659,7 +659,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
               '${session.locationName} · ${_durationLabel(session)} · KES ${session.cost.toStringAsFixed(0)}',
               style: GoogleFonts.poppins(
                 fontSize: 13,
-                color: AppColors.textSecondary,
+                color: context.colors.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -668,9 +668,9 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: AppColors.background,
+                color: context.colors.background,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.colors.border),
               ),
               child: Column(
                 children: [
@@ -694,7 +694,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                 if (session.cost <= 0) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      backgroundColor: AppColors.primaryDark,
+                      backgroundColor: context.colors.primaryDark,
                       behavior: SnackBarBehavior.floating,
                       content: Text(
                         'No parking fee is due during the grace period',
@@ -712,7 +712,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
               onPressed: () => Navigator.pop(context),
               child: Text(
                 'Cancel',
-                style: GoogleFonts.poppins(color: AppColors.textSecondary),
+                style: GoogleFonts.poppins(color: context.colors.textSecondary),
               ),
             ),
             const SizedBox(height: 8),
@@ -787,7 +787,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: AppColors.border,
+                        color: context.colors.border,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -804,9 +804,9 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                           color: const Color(0xFFEFFBF4),
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.phone_android_rounded,
-                          color: AppColors.success,
+                          color: context.colors.success,
                           size: 22,
                         ),
                       ),
@@ -819,14 +819,14 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                             style: GoogleFonts.poppins(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
+                              color: context.colors.textPrimary,
                             ),
                           ),
                           Text(
                             'Edit details then confirm',
                             style: GoogleFonts.poppins(
                               fontSize: 12,
-                              color: AppColors.textSecondary,
+                              color: context.colors.textSecondary,
                             ),
                           ),
                         ],
@@ -843,7 +843,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                         'Plate number',
                         style: GoogleFonts.poppins(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: context.colors.textSecondary,
                         ),
                       ),
                       Container(
@@ -852,10 +852,10 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                           vertical: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.accentLight,
+                          color: context.colors.accentLight,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: AppColors.accent.withValues(alpha: 0.3),
+                            color: context.colors.accent.withValues(alpha: 0.3),
                           ),
                         ),
                         child: Text(
@@ -863,7 +863,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                           style: GoogleFonts.poppins(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
+                            color: context.colors.primary,
                             letterSpacing: 1,
                           ),
                         ),
@@ -878,7 +878,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                         'Location',
                         style: GoogleFonts.poppins(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: context.colors.textSecondary,
                         ),
                       ),
                       Flexible(
@@ -888,7 +888,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                           style: GoogleFonts.poppins(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
+                            color: context.colors.textPrimary,
                           ),
                         ),
                       ),
@@ -902,7 +902,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                     style: GoogleFonts.poppins(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textPrimary,
+                      color: context.colors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -912,48 +912,48 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                     style: GoogleFonts.poppins(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textPrimary,
+                      color: context.colors.textPrimary,
                     ),
                     decoration: InputDecoration(
                       hintText: '07XX XXX XXX',
                       hintStyle: GoogleFonts.poppins(
-                        color: AppColors.textMuted,
+                        color: context.colors.textMuted,
                         fontSize: 15,
                       ),
-                      prefixIcon: const Icon(
+                      prefixIcon: Icon(
                         Icons.phone_outlined,
-                        color: AppColors.primary,
+                        color: context.colors.primary,
                         size: 20,
                       ),
                       filled: true,
-                      fillColor: AppColors.inputFill,
+                      fillColor: context.colors.inputFill,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 14,
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: AppColors.inputBorder),
+                        borderSide: BorderSide(color: context.colors.inputBorder),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: AppColors.inputBorder),
+                        borderSide: BorderSide(color: context.colors.inputBorder),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                          color: AppColors.primary,
+                        borderSide: BorderSide(
+                          color: context.colors.primary,
                           width: 1.8,
                         ),
                       ),
                       errorBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: AppColors.error),
+                        borderSide: BorderSide(color: context.colors.error),
                       ),
                       focusedErrorBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                          color: AppColors.error,
+                        borderSide: BorderSide(
+                          color: context.colors.error,
                           width: 1.8,
                         ),
                       ),
@@ -977,7 +977,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                     style: GoogleFonts.poppins(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textPrimary,
+                      color: context.colors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -988,49 +988,49 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                     style: GoogleFonts.poppins(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textPrimary,
+                      color: context.colors.textPrimary,
                     ),
                     decoration: InputDecoration(
                       hintText: '0',
                       hintStyle: GoogleFonts.poppins(
-                        color: AppColors.textMuted,
+                        color: context.colors.textMuted,
                         fontSize: 15,
                       ),
                       prefixText: 'KES  ',
                       prefixStyle: GoogleFonts.poppins(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
+                        color: context.colors.primary,
                       ),
                       filled: true,
-                      fillColor: AppColors.inputFill,
+                      fillColor: context.colors.inputFill,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 14,
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: AppColors.inputBorder),
+                        borderSide: BorderSide(color: context.colors.inputBorder),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: AppColors.inputBorder),
+                        borderSide: BorderSide(color: context.colors.inputBorder),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                          color: AppColors.primary,
+                        borderSide: BorderSide(
+                          color: context.colors.primary,
                           width: 1.8,
                         ),
                       ),
                       errorBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: AppColors.error),
+                        borderSide: BorderSide(color: context.colors.error),
                       ),
                       focusedErrorBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                          color: AppColors.error,
+                        borderSide: BorderSide(
+                          color: context.colors.error,
                           width: 1.8,
                         ),
                       ),
@@ -1047,7 +1047,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                     'A payment prompt will be sent to the number above.',
                     style: GoogleFonts.poppins(
                       fontSize: 12,
-                      color: AppColors.textSecondary,
+                      color: context.colors.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -1075,7 +1075,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                         },
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
+                        backgroundColor: context.colors.primary,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
@@ -1093,7 +1093,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                       child: Text(
                         'Cancel',
                         style: GoogleFonts.poppins(
-                          color: AppColors.textSecondary,
+                          color: context.colors.textSecondary,
                           fontSize: 14,
                         ),
                       ),
@@ -1132,7 +1132,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const CircularProgressIndicator(color: AppColors.primary),
+                CircularProgressIndicator(color: context.colors.primary),
                 const SizedBox(height: 20),
                 Text(
                   'Waiting for M-Pesa confirmation...',
@@ -1140,7 +1140,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                   style: GoogleFonts.poppins(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1149,7 +1149,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 12,
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                   ),
                 ),
               ],
@@ -1186,14 +1186,14 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
       children: [
         Text(
           label,
-          style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary),
+          style: GoogleFonts.poppins(fontSize: 12, color: context.colors.textSecondary),
         ),
         Text(
           value,
           style: GoogleFonts.poppins(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+            color: context.colors.textPrimary,
           ),
         ),
       ],
@@ -1257,9 +1257,9 @@ class _PaymentReceiptPage extends StatelessWidget {
                   color: Color(0xFFEFFBF4),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.check_circle_rounded,
-                  color: AppColors.success,
+                  color: context.colors.success,
                   size: 48,
                 ),
               ),
@@ -1269,7 +1269,7 @@ class _PaymentReceiptPage extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: context.colors.textPrimary,
                 ),
               ),
               const SizedBox(height: 28),
@@ -1277,19 +1277,19 @@ class _PaymentReceiptPage extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: AppColors.background,
+                  color: context.colors.background,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
+                  border: Border.all(color: context.colors.border),
                 ),
                 child: Column(
                   children: [
-                    _row('Plate number', plateNumber),
+                    _row(context, 'Plate number', plateNumber),
                     const SizedBox(height: 12),
-                    _row('Location', session.locationName),
+                    _row(context, 'Location', session.locationName),
                     const SizedBox(height: 12),
-                    _row('Amount paid', 'KES ${amount.toStringAsFixed(0)}'),
+                    _row(context, 'Amount paid', 'KES ${amount.toStringAsFixed(0)}'),
                     const SizedBox(height: 12),
-                    _row('Exit time', exitTime),
+                    _row(context, 'Exit time', exitTime),
                   ],
                 ),
               ),
@@ -1301,7 +1301,7 @@ class _PaymentReceiptPage extends StatelessWidget {
                   onPressed: () =>
                       Navigator.of(context).popUntil((r) => r.isFirst),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
+                    backgroundColor: context.colors.primary,
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
@@ -1324,13 +1324,13 @@ class _PaymentReceiptPage extends StatelessWidget {
     );
   }
 
-  Widget _row(String label, String value) {
+  Widget _row(BuildContext context, String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
-          style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSecondary),
+          style: GoogleFonts.poppins(fontSize: 13, color: context.colors.textSecondary),
         ),
         Flexible(
           child: Text(
@@ -1340,7 +1340,7 @@ class _PaymentReceiptPage extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              color: context.colors.textPrimary,
             ),
           ),
         ),

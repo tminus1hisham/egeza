@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:park_iq/blocs/app_bloc.dart';
-import 'package:park_iq/blocs/app_event.dart';
 import 'package:park_iq/blocs/app_state.dart';
 import 'package:park_iq/models/parking_session.dart';
 import 'package:park_iq/models/vehicle.dart';

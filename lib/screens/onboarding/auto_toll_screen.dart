@@ -37,14 +37,14 @@ class _AutoTollScreenState extends State<AutoTollScreen> {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: AppColors.pageGrey,
+        backgroundColor: context.colors.pageGrey,
         body: SafeArea(
           child: SingleChildScrollView(
             child: Column(
               children: [
                 Container(
                   width: double.infinity,
-                  color: Colors.white,
+                  color: context.colors.surface,
                   padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
                   child: Column(
                     children: [
@@ -64,7 +64,7 @@ class _AutoTollScreenState extends State<AutoTollScreen> {
                             style: GoogleFonts.poppins(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
-                              color: AppColors.textMuted,
+                              color: context.colors.textMuted,
                             ),
                           ),
                         ),
@@ -78,7 +78,7 @@ class _AutoTollScreenState extends State<AutoTollScreen> {
                         style: GoogleFonts.poppins(
                           fontSize: 24,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.textPrimary,
+                          color: context.colors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -88,7 +88,7 @@ class _AutoTollScreenState extends State<AutoTollScreen> {
                         style: GoogleFonts.poppins(
                           fontSize: 20,
                           fontWeight: FontWeight.w400,
-                          color: AppColors.primary,
+                          color: context.colors.primary,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -98,7 +98,7 @@ class _AutoTollScreenState extends State<AutoTollScreen> {
                         style: GoogleFonts.poppins(
                           fontSize: 15,
                           height: 1.45,
-                          color: AppColors.textSecondary,
+                          color: context.colors.textSecondary,
                         ),
                       ),
                     ],
@@ -121,7 +121,7 @@ class _AutoTollScreenState extends State<AutoTollScreen> {
                       Text(
                         "You'll be prompted on your M-Pesa-registered phone",
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textMuted),
+                        style: GoogleFonts.poppins(fontSize: 12, color: context.colors.textMuted),
                       ),
                     ],
                   ),
@@ -147,7 +147,7 @@ class _AutoTollScreenState extends State<AutoTollScreen> {
             style: GoogleFonts.poppins(
               fontSize: 16,
               fontWeight: FontWeight.w400,
-              color: AppColors.textPrimary,
+              color: context.colors.textPrimary,
             ),
           ),
           const SizedBox(height: 18),
@@ -166,14 +166,14 @@ class _AutoTollScreenState extends State<AutoTollScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          Divider(color: AppColors.border.withValues(alpha: 0.8), height: 1),
+          Divider(color: context.colors.border.withValues(alpha: 0.8), height: 1),
           const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
                 child: Text(
                   'Or enter custom amount:',
-                  style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textMuted),
+                  style: GoogleFonts.poppins(fontSize: 13, color: context.colors.textMuted),
                 ),
               ),
               const SizedBox(width: 10),
@@ -184,16 +184,16 @@ class _AutoTollScreenState extends State<AutoTollScreen> {
                   controller: _customAmountController,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  style: GoogleFonts.poppins(fontSize: 14, color: AppColors.textPrimary),
+                  style: GoogleFonts.poppins(fontSize: 14, color: context.colors.textPrimary),
                   decoration: InputDecoration(
                     hintText: 'KES___',
-                    hintStyle: GoogleFonts.poppins(fontSize: 14, color: AppColors.textMuted),
+                    hintStyle: GoogleFonts.poppins(fontSize: 14, color: context.colors.textMuted),
                     filled: true,
-                    fillColor: AppColors.pageGrey,
+                    fillColor: context.colors.pageGrey,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    border: _fieldBorder(AppColors.inputBorder),
-                    enabledBorder: _fieldBorder(AppColors.inputBorder),
-                    focusedBorder: _fieldBorder(AppColors.primary, width: 1.5),
+                    border: _fieldBorder(context.colors.inputBorder),
+                    enabledBorder: _fieldBorder(context.colors.inputBorder),
+                    focusedBorder: _fieldBorder(context.colors.primary, width: 1.5),
                   ),
                   onChanged: (value) {
                     final parsed = int.tryParse(value);
@@ -226,10 +226,10 @@ class _AutoTollScreenState extends State<AutoTollScreen> {
         duration: const Duration(milliseconds: 160),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? AppColors.accentLight : AppColors.pageGrey,
+          color: selected ? context.colors.accentLight : context.colors.pageGrey,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected ? AppColors.primary : AppColors.inputBorder,
+            color: selected ? context.colors.primary : context.colors.inputBorder,
             width: selected ? 2 : 1,
           ),
         ),
@@ -238,7 +238,7 @@ class _AutoTollScreenState extends State<AutoTollScreen> {
           style: GoogleFonts.poppins(
             fontSize: 16,
             fontWeight: FontWeight.w400,
-            color: selected ? AppColors.primary : AppColors.textSecondary,
+            color: selected ? context.colors.primary : context.colors.textSecondary,
           ),
         ),
       ),
@@ -258,16 +258,16 @@ class _AutoTollScreenState extends State<AutoTollScreen> {
             style: GoogleFonts.poppins(
               fontSize: 16,
               fontWeight: FontWeight.w400,
-              color: AppColors.textPrimary,
+              color: context.colors.textPrimary,
             ),
           ),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppColors.successLight,
+              color: context.colors.successLight,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.accent, width: 1),
+              border: Border.all(color: context.colors.accent, width: 1),
             ),
             child: Row(
               children: [
@@ -290,7 +290,7 @@ class _AutoTollScreenState extends State<AutoTollScreen> {
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.textPrimary,
+                          color: context.colors.textPrimary,
                         ),
                       ),
                       Text(
@@ -298,13 +298,13 @@ class _AutoTollScreenState extends State<AutoTollScreen> {
                         style: GoogleFonts.poppins(
                           fontSize: 13,
                           height: 1.25,
-                          color: AppColors.textSecondary,
+                          color: context.colors.textSecondary,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(LucideIcons.checkCircle, color: AppColors.accent, size: 26),
+                Icon(LucideIcons.checkCircle, color: context.colors.accent, size: 26),
               ],
             ),
           ),
@@ -315,9 +315,9 @@ class _AutoTollScreenState extends State<AutoTollScreen> {
 
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
-      color: Colors.white,
+      color: context.colors.surface,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: AppColors.border),
+      border: Border.all(color: context.colors.border),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.035),

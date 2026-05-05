@@ -38,7 +38,7 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.pageGrey,
+      backgroundColor: context.colors.pageGrey,
       body: SafeArea(
         bottom: false,
         child: BlocConsumer<AppBloc, AppState>(
@@ -62,7 +62,7 @@ class _WalletScreenState extends State<WalletScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppColors.primaryDark,
+                  backgroundColor: context.colors.primaryDark,
                   content: Text(
                     state.statusMessage!,
                     style: GoogleFonts.poppins(color: Colors.white),
@@ -77,7 +77,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 _header(context, state),
                 Expanded(
                   child: RefreshIndicator(
-                    color: AppColors.primary,
+                    color: context.colors.primary,
                     onRefresh: _onRefresh,
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
@@ -107,7 +107,7 @@ class _WalletScreenState extends State<WalletScreen> {
   Widget _header(BuildContext context, AppState state) {
     return Container(
       width: double.infinity,
-      color: Colors.white,
+      color: context.colors.surface,
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
       child: Row(
         children: [
@@ -128,7 +128,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 Text(
                   'Wallet',
                   style: GoogleFonts.poppins(
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                     fontSize: 22,
                     fontWeight: FontWeight.w600,
                   ),
@@ -139,7 +139,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                     fontSize: 13,
                   ),
                 ),
@@ -157,11 +157,11 @@ class _WalletScreenState extends State<WalletScreen> {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),
       decoration: BoxDecoration(
-        color: AppColors.primaryDark,
+        color: context.colors.primaryDark,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryDark.withValues(alpha: 0.18),
+            color: context.colors.primaryDark.withValues(alpha: 0.18),
             blurRadius: 22,
             offset: const Offset(0, 12),
           ),
@@ -237,7 +237,7 @@ class _WalletScreenState extends State<WalletScreen> {
             icon: Icons.check_circle_outline_rounded,
             label: 'Paid exits',
             value: completed.toString(),
-            color: AppColors.success,
+            color: context.colors.success,
           ),
         ),
         const SizedBox(width: 10),
@@ -255,7 +255,7 @@ class _WalletScreenState extends State<WalletScreen> {
             icon: Icons.bolt_outlined,
             label: 'AutoPay',
             value: 'On',
-            color: AppColors.warning,
+            color: context.colors.warning,
           ),
         ),
       ],
@@ -272,16 +272,16 @@ class _WalletScreenState extends State<WalletScreen> {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.add_card_rounded,
-                color: AppColors.primary,
+                color: context.colors.primary,
                 size: 20,
               ),
               const SizedBox(width: 8),
               Text(
                 'Top up wallet',
                 style: GoogleFonts.poppins(
-                  color: AppColors.textPrimary,
+                  color: context.colors.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -315,10 +315,10 @@ class _WalletScreenState extends State<WalletScreen> {
                 }
               });
             },
-            style: GoogleFonts.poppins(fontSize: 14, color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+            style: GoogleFonts.poppins(fontSize: 14, color: context.colors.textPrimary, fontWeight: FontWeight.w600),
             decoration: InputDecoration(
               hintText: 'Enter custom amount',
-              hintStyle: GoogleFonts.poppins(color: AppColors.textMuted, fontSize: 14, fontWeight: FontWeight.w400),
+              hintStyle: GoogleFonts.poppins(color: context.colors.textMuted, fontSize: 14, fontWeight: FontWeight.w400),
               prefixIcon: Padding(
                 padding: const EdgeInsets.only(left: 16, right: 10),
                 child: Column(
@@ -327,7 +327,7 @@ class _WalletScreenState extends State<WalletScreen> {
                     Text(
                       'KES',
                       style: GoogleFonts.poppins(
-                        color: AppColors.textSecondary,
+                        color: context.colors.textSecondary,
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
                       ),
@@ -345,7 +345,7 @@ class _WalletScreenState extends State<WalletScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                borderSide: BorderSide(color: context.colors.primary, width: 1.5),
               ),
             ),
           ),
@@ -359,9 +359,9 @@ class _WalletScreenState extends State<WalletScreen> {
                   color: const Color(0xFFEFFBF4),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.phone_android_rounded,
-                  color: AppColors.success,
+                  color: context.colors.success,
                   size: 21,
                 ),
               ),
@@ -373,7 +373,7 @@ class _WalletScreenState extends State<WalletScreen> {
                     Text(
                       'M-Pesa',
                       style: GoogleFonts.poppins(
-                        color: AppColors.textPrimary,
+                        color: context.colors.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
@@ -382,16 +382,16 @@ class _WalletScreenState extends State<WalletScreen> {
                     Text(
                       'Instant wallet funding',
                       style: GoogleFonts.poppins(
-                        color: AppColors.textSecondary,
+                        color: context.colors.textSecondary,
                         fontSize: 12,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.check_circle_rounded,
-                color: AppColors.success,
+                color: context.colors.success,
                 size: 22,
               ),
             ],
@@ -415,7 +415,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: context.colors.primary,
                 disabledBackgroundColor: const Color(0xFFCAD3D0),
                 foregroundColor: Colors.white,
                 disabledForegroundColor: Colors.white,
@@ -440,7 +440,7 @@ class _WalletScreenState extends State<WalletScreen> {
         Text(
           'Recent activity',
           style: GoogleFonts.poppins(
-            color: AppColors.textPrimary,
+            color: context.colors.textPrimary,
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -457,7 +457,7 @@ class _WalletScreenState extends State<WalletScreen> {
                     'No wallet activity yet',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
-                      color: AppColors.textSecondary,
+                      color: context.colors.textSecondary,
                       fontSize: 13,
                     ),
                   ),
@@ -467,8 +467,8 @@ class _WalletScreenState extends State<WalletScreen> {
                     for (var i = 0; i < sessions.length; i++) ...[
                       _activityRow(sessions[i]),
                       if (i != sessions.length - 1)
-                        const Divider(
-                          color: AppColors.divider,
+                        Divider(
+                          color: context.colors.divider,
                           height: 1,
                           indent: 74,
                         ),
@@ -489,12 +489,12 @@ class _WalletScreenState extends State<WalletScreen> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: AppColors.accentLight,
+              color: context.colors.accentLight,
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.local_parking_rounded,
-              color: AppColors.primary,
+              color: context.colors.primary,
               size: 21,
             ),
           ),
@@ -508,7 +508,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -519,7 +519,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                     fontSize: 12,
                   ),
                 ),
@@ -533,7 +533,7 @@ class _WalletScreenState extends State<WalletScreen> {
               Text(
                 '- KES ${_formatAmount(session.cost)}',
                 style: GoogleFonts.poppins(
-                  color: AppColors.textPrimary,
+                  color: context.colors.textPrimary,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
@@ -542,7 +542,7 @@ class _WalletScreenState extends State<WalletScreen> {
               Text(
                 _durationLabel(session),
                 style: GoogleFonts.poppins(
-                  color: AppColors.textMuted,
+                  color: context.colors.textMuted,
                   fontSize: 11,
                 ),
               ),
@@ -567,17 +567,17 @@ class _WalletScreenState extends State<WalletScreen> {
         duration: const Duration(milliseconds: 180),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? AppColors.accentLight : const Color(0xFFF6F7F9),
+          color: selected ? context.colors.accentLight : const Color(0xFFF6F7F9),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? AppColors.primary : AppColors.border,
+            color: selected ? context.colors.primary : context.colors.border,
             width: selected ? 1.6 : 1,
           ),
         ),
         child: Text(
           'KES ${_formatAmount(amount)}',
           style: GoogleFonts.poppins(
-            color: selected ? AppColors.primary : AppColors.textPrimary,
+            color: selected ? context.colors.primary : context.colors.textPrimary,
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
@@ -606,7 +606,7 @@ class _WalletScreenState extends State<WalletScreen> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
-              color: AppColors.textPrimary,
+              color: context.colors.textPrimary,
               fontSize: 15,
               fontWeight: FontWeight.w700,
             ),
@@ -617,7 +617,7 @@ class _WalletScreenState extends State<WalletScreen> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
-              color: AppColors.textSecondary,
+              color: context.colors.textSecondary,
               fontSize: 11,
             ),
           ),
@@ -689,7 +689,7 @@ class _WalletScreenState extends State<WalletScreen> {
         child: SizedBox(
           width: 42,
           height: 42,
-          child: Icon(icon, color: AppColors.textPrimary, size: 21),
+          child: Icon(icon, color: context.colors.textPrimary, size: 21),
         ),
       ),
     );
@@ -700,16 +700,16 @@ class _WalletScreenState extends State<WalletScreen> {
       width: 42,
       height: 42,
       decoration: BoxDecoration(
-        color: AppColors.accentLight,
+        color: context.colors.accentLight,
         borderRadius: BorderRadius.circular(15),
       ),
-      child: Icon(icon, color: AppColors.primary, size: 22),
+      child: Icon(icon, color: context.colors.primary, size: 22),
     );
   }
 
   BoxDecoration _panelDecoration({double radius = 20}) {
     return BoxDecoration(
-      color: Colors.white,
+      color: context.colors.surface,
       borderRadius: BorderRadius.circular(radius),
       boxShadow: [
         BoxShadow(
@@ -732,7 +732,7 @@ class _WalletScreenState extends State<WalletScreen> {
     final result = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -872,18 +872,18 @@ class _StkPushSheetState extends State<_StkPushSheet> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      AppColors.success.withValues(alpha: 0.15),
-                      AppColors.success.withValues(alpha: 0.05),
+                      context.colors.success.withValues(alpha: 0.15),
+                      context.colors.success.withValues(alpha: 0.05),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.success.withValues(alpha: 0.1)),
+                  border: Border.all(color: context.colors.success.withValues(alpha: 0.1)),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.phone_android_rounded,
-                  color: AppColors.success,
+                  color: context.colors.success,
                   size: 22,
                 ),
               ),
@@ -896,14 +896,14 @@ class _StkPushSheetState extends State<_StkPushSheet> {
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: context.colors.textPrimary,
                     ),
                   ),
                   Text(
                     'Confirm payment details',
                     style: GoogleFonts.poppins(
                       fontSize: 12,
-                      color: AppColors.textSecondary,
+                      color: context.colors.textSecondary,
                     ),
                   ),
                 ],
@@ -918,7 +918,7 @@ class _StkPushSheetState extends State<_StkPushSheet> {
                 'Amount',
                 style: GoogleFonts.poppins(
                   fontSize: 13,
-                  color: AppColors.textSecondary,
+                  color: context.colors.textSecondary,
                 ),
               ),
               Text(
@@ -926,7 +926,7 @@ class _StkPushSheetState extends State<_StkPushSheet> {
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: context.colors.textPrimary,
                 ),
               ),
             ],
@@ -936,7 +936,7 @@ class _StkPushSheetState extends State<_StkPushSheet> {
             'M-Pesa number',
             style: GoogleFonts.poppins(
               fontSize: 13,
-              color: AppColors.textSecondary,
+              color: context.colors.textSecondary,
             ),
           ),
           const SizedBox(height: 8),
@@ -954,7 +954,7 @@ class _StkPushSheetState extends State<_StkPushSheet> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                borderSide: BorderSide(color: context.colors.primary, width: 1.5),
               ),
             ),
           ),
@@ -963,7 +963,7 @@ class _StkPushSheetState extends State<_StkPushSheet> {
             'A payment prompt will be sent to this number.',
             style: GoogleFonts.poppins(
               fontSize: 12,
-              color: AppColors.textSecondary,
+              color: context.colors.textSecondary,
             ),
           ),
           const SizedBox(height: 28),
@@ -1015,7 +1015,7 @@ class _StkPushSheetState extends State<_StkPushSheet> {
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.textSecondary,
+                  color: context.colors.textSecondary,
                 ),
               ),
             ),

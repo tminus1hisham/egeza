@@ -1,6 +1,7 @@
 import 'dart:developer' as dev;
 
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../core/api/parking_iq_api.dart';
@@ -20,11 +21,13 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     String? initialUserName,
     String? initialPhoneNumber,
     String? initialAuthToken,
+    ThemeMode initialThemeMode = ThemeMode.system,
   })  : _api = api ?? ParkingIqApi(),
         super(AppState(
           userName: initialUserName ?? 'James Mwangi',
           phoneNumber: initialPhoneNumber,
           authToken: initialAuthToken,
+          themeMode: initialThemeMode,
         )) {
     if (initialAuthToken != null && initialAuthToken.isNotEmpty) {
       _api.setToken(initialAuthToken);
@@ -40,9 +43,24 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     on<PayParkingSession>(_onPayParkingSession);
     on<SetVehicleAutoPay>(_onSetVehicleAutoPay);
     on<RemoveVehicle>(_onRemoveVehicle);
+    on<ChangeThemeMode>(_onChangeThemeMode);
     on<ClearAppMessages>(_onClearAppMessages);
     on<ClearParkingSelection>(_onClearParkingSelection);
     on<SignOut>(_onSignOut);
+  }
+
+  Future<void> _onChangeThemeMode(
+    ChangeThemeMode event,
+    Emitter<AppState> emit,
+  ) async {
+    _log('ChangeThemeMode: ${event.themeMode}');
+    emit(state.copyWith(themeMode: event.themeMode));
+    
+    String themeString = 'system';
+    if (event.themeMode == ThemeMode.light) themeString = 'light';
+    if (event.themeMode == ThemeMode.dark) themeString = 'dark';
+    
+    await UserPrefs.saveTheme(themeString);
   }
 
   void _log(String msg) {

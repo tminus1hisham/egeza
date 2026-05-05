@@ -34,7 +34,7 @@ class AppTextField extends StatelessWidget {
           style: GoogleFonts.poppins(
             fontSize: 12,
             fontWeight: FontWeight.w500,
-            color: AppColors.textSecondary,
+            color: context.colors.textSecondary,
           ),
         ),
         const SizedBox(height: 6),
@@ -43,7 +43,7 @@ class AppTextField extends StatelessWidget {
           obscureText: obscure,
           keyboardType: keyboardType,
           validator: validator,
-          style: GoogleFonts.poppins(fontSize: 14, color: AppColors.textPrimary),
+          style: GoogleFonts.poppins(fontSize: 14, color: context.colors.textPrimary),
           decoration: InputDecoration(
             hintText: hint,
             suffixIcon: suffix,

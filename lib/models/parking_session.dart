@@ -83,7 +83,7 @@ class ParkingSession {
           'durationMinutes',
           'durationInMinutes',
         ])) ??
-        (currentTime == null ? null : currentTime.difference(startTime).inMinutes);
+        (currentTime?.difference(startTime).inMinutes);
 
     return ParkingSession(
       id: jsonString(_firstJsonValue(json, const [

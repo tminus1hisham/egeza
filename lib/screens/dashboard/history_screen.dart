@@ -27,7 +27,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.pageGrey,
+      backgroundColor: context.colors.pageGrey,
       body: SafeArea(
         bottom: false,
         child: BlocBuilder<AppBloc, AppState>(
@@ -39,7 +39,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 _header(),
                 Expanded(
                   child: RefreshIndicator(
-                    color: AppColors.primary,
+                    color: context.colors.primary,
                     onRefresh: _onRefresh,
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
@@ -75,12 +75,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: AppColors.accentLight,
+              color: context.colors.accentLight,
               borderRadius: BorderRadius.circular(15),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.history_rounded,
-              color: AppColors.primary,
+              color: context.colors.primary,
               size: 22,
             ),
           ),
@@ -92,7 +92,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 Text(
                   'History',
                   style: GoogleFonts.poppins(
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                     fontSize: 22,
                     fontWeight: FontWeight.w600,
                   ),
@@ -101,7 +101,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 Text(
                   'Parking sessions and payments',
                   style: GoogleFonts.poppins(
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                     fontSize: 13,
                   ),
                 ),
@@ -123,7 +123,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
       decoration: BoxDecoration(
-        color: AppColors.primaryDeep,
+        color: context.colors.primaryDeep,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -175,7 +175,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Row(
         children: List.generate(_filters.length, (index) {
@@ -188,13 +188,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 duration: const Duration(milliseconds: 170),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: selected ? AppColors.primary : Colors.transparent,
+                  color: selected ? context.colors.primary : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   _filters[index],
                   style: GoogleFonts.poppins(
-                    color: selected ? Colors.white : AppColors.textSecondary,
+                    color: selected ? Colors.white : context.colors.textSecondary,
                     fontSize: 13,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                   ),
@@ -217,7 +217,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               child: Text(
                 'Activity',
                 style: GoogleFonts.poppins(
-                  color: AppColors.textPrimary,
+                  color: context.colors.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -226,7 +226,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             Text(
               '${sessions.length} records',
               style: GoogleFonts.poppins(
-                color: AppColors.textMuted,
+                color: context.colors.textMuted,
                 fontSize: 12,
               ),
             ),
@@ -244,7 +244,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     'No sessions match this filter',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
-                      color: AppColors.textSecondary,
+                      color: context.colors.textSecondary,
                       fontSize: 13,
                     ),
                   ),
@@ -254,8 +254,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     for (var i = 0; i < sessions.length; i++) ...[
                       _historyRow(sessions[i]),
                       if (i != sessions.length - 1)
-                        const Divider(
-                          color: AppColors.divider,
+                        Divider(
+                          color: context.colors.divider,
                           height: 1,
                           indent: 74,
                         ),
@@ -278,12 +278,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: active ? AppColors.successLight : AppColors.accentLight,
+              color: active ? context.colors.successLight : context.colors.accentLight,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(
               active ? Icons.local_parking_rounded : Icons.receipt_long_outlined,
-              color: active ? AppColors.success : AppColors.primary,
+              color: active ? context.colors.success : context.colors.primary,
               size: 21,
             ),
           ),
@@ -297,7 +297,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -308,7 +308,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                     fontSize: 12,
                   ),
                 ),
@@ -323,7 +323,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
-                          color: AppColors.textMuted,
+                          color: context.colors.textMuted,
                           fontSize: 11,
                         ),
                       ),
@@ -340,7 +340,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               Text(
                 'KES ${_formatAmount(session.cost)}',
                 style: GoogleFonts.poppins(
-                  color: AppColors.textPrimary,
+                  color: context.colors.textPrimary,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
@@ -348,7 +348,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               const SizedBox(height: 5),
               Icon(
                 active ? Icons.timer_outlined : Icons.check_circle_rounded,
-                color: active ? AppColors.warning : AppColors.success,
+                color: active ? context.colors.warning : context.colors.success,
                 size: 17,
               ),
             ],
@@ -362,13 +362,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: active ? AppColors.successLight : const Color(0xFFF1F5F4),
+        color: active ? context.colors.successLight : const Color(0xFFF1F5F4),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
         style: GoogleFonts.poppins(
-          color: active ? AppColors.success : AppColors.textSecondary,
+          color: active ? context.colors.success : context.colors.textSecondary,
           fontSize: 10,
           fontWeight: FontWeight.w600,
         ),
@@ -384,7 +384,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         color: const Color(0xFFF3F4F6),
         borderRadius: BorderRadius.circular(15),
       ),
-      child: Icon(icon, color: AppColors.textPrimary, size: 21),
+      child: Icon(icon, color: context.colors.textPrimary, size: 21),
     );
   }
 
@@ -447,7 +447,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: AppColors.border),
+      border: Border.all(color: context.colors.border),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.025),

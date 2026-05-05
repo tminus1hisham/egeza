@@ -31,9 +31,9 @@ class _SplashScreenState extends State<SplashScreen> {
     }
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (_, animation, __) =>
+        pageBuilder: (_, animation, _) =>
             isAuthenticated ? const MainNavigation() : const SignInScreen(),
-        transitionsBuilder: (_, animation, __, child) => FadeTransition(
+        transitionsBuilder: (_, animation, _, child) => FadeTransition(
           opacity: animation,
           child: child,
         ),
@@ -46,14 +46,14 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppColors.primaryDeep,
+              context.colors.primaryDeep,
               Color(0xFF0D3D2B),
-              AppColors.primary,
+              context.colors.primary,
             ],
             stops: [0.0, 0.5, 1.0],
           ),
@@ -85,13 +85,13 @@ class _SplashScreenState extends State<SplashScreen> {
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryDeep.withOpacity(0.6),
+            color: context.colors.primaryDeep.withValues(alpha: 0.6),
             blurRadius: 40,
             spreadRadius: 8,
             offset: const Offset(0, 12),
           ),
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
+            color: context.colors.primary.withValues(alpha: 0.3),
             blurRadius: 20,
             spreadRadius: 0,
             offset: const Offset(0, 4),
@@ -127,8 +127,8 @@ class _SplashScreenState extends State<SplashScreen> {
               letterSpacing: -0.5,
               height: 1.1,
             ),
-            children: const [
-              TextSpan(
+            children: [
+              const TextSpan(
                 text: 'Park',
                 style: TextStyle(
                   color: Colors.white,
@@ -137,7 +137,7 @@ class _SplashScreenState extends State<SplashScreen> {
               TextSpan(
                 text: 'IQ',
                 style: TextStyle(
-                  color: AppColors.accent,
+                  color: context.colors.accent,
                 ),
               ),
             ],
@@ -156,7 +156,7 @@ class _SplashScreenState extends State<SplashScreen> {
       style: TextStyle(
         fontSize: 15,
         fontWeight: FontWeight.w400,
-        color: Colors.white.withOpacity(0.6),
+        color: Colors.white.withValues(alpha: 0.6),
         letterSpacing: 0.3,
       ),
     )
@@ -175,8 +175,8 @@ class _SplashScreenState extends State<SplashScreen> {
           height: 6,
           decoration: BoxDecoration(
             color: i == 1
-                ? AppColors.accent
-                : Colors.white.withOpacity(0.3),
+                ? context.colors.accent
+                : Colors.white.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(3),
           ),
         )

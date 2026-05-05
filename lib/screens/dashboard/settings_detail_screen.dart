@@ -423,7 +423,7 @@ class _LegalHero extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.primaryDark,
+        color: context.colors.primaryDark,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -438,9 +438,9 @@ class _LegalHero extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(18),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.shield_outlined,
-                  color: AppColors.accent,
+                  color: context.colors.accent,
                   size: 27,
                 ),
               ),
@@ -542,7 +542,7 @@ class _LegalSegmentedControl extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Row(
         children: [
@@ -585,7 +585,7 @@ class _LegalSegmentButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? AppColors.primary : Colors.transparent,
+      color: selected ? context.colors.primary : Colors.transparent,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -597,7 +597,7 @@ class _LegalSegmentButton extends StatelessWidget {
             children: [
               Icon(
                 icon,
-                color: selected ? Colors.white : AppColors.textSecondary,
+                color: selected ? Colors.white : context.colors.textSecondary,
                 size: 18,
               ),
               const SizedBox(width: 7),
@@ -607,7 +607,7 @@ class _LegalSegmentButton extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
-                    color: selected ? Colors.white : AppColors.textSecondary,
+                    color: selected ? Colors.white : context.colors.textSecondary,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -818,7 +818,7 @@ class _LegalDetailRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -827,7 +827,7 @@ class _LegalDetailRow extends StatelessWidget {
                 Text(
                   body,
                   style: GoogleFonts.poppins(
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                     fontSize: 12,
                     height: 1.4,
                   ),
@@ -863,7 +863,7 @@ class _SettingsSubPageScaffold extends StatelessWidget {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
-      backgroundColor: AppColors.pageGrey,
+      backgroundColor: context.colors.pageGrey,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -893,7 +893,7 @@ class _SettingsSubPageScaffold extends StatelessWidget {
                 width: double.infinity,
                 padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + bottomPadding),
                 decoration: BoxDecoration(
-                  color: AppColors.pageGrey,
+                  color: context.colors.pageGrey,
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.04),
@@ -938,10 +938,10 @@ class _SubPageHeader extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: AppColors.accentLight,
+              color: context.colors.accentLight,
               borderRadius: BorderRadius.circular(15),
             ),
-            child: Icon(icon, color: AppColors.primary, size: 22),
+            child: Icon(icon, color: context.colors.primary, size: 22),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -953,7 +953,7 @@ class _SubPageHeader extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                     fontSize: 22,
                     fontWeight: FontWeight.w600,
                   ),
@@ -964,7 +964,7 @@ class _SubPageHeader extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                     fontSize: 13,
                   ),
                 ),
@@ -997,7 +997,7 @@ class _HeaderButton extends StatelessWidget {
         child: SizedBox(
           width: 42,
           height: 42,
-          child: Icon(icon, color: AppColors.textPrimary, size: 22),
+          child: Icon(icon, color: context.colors.textPrimary, size: 22),
         ),
       ),
     );
@@ -1021,7 +1021,7 @@ class _ProfileHero extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.primaryDark,
+        color: context.colors.primaryDark,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Row(
@@ -1107,7 +1107,7 @@ class _SecurityHero extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.primaryDark,
+        color: context.colors.primaryDark,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Row(
@@ -1119,9 +1119,9 @@ class _SecurityHero extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(18),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.security_rounded,
-              color: AppColors.accent,
+              color: context.colors.accent,
               size: 25,
             ),
           ),
@@ -1184,7 +1184,7 @@ class _PreferenceHero extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Row(
         children: [
@@ -1192,10 +1192,10 @@ class _PreferenceHero extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: AppColors.accentLight,
+              color: context.colors.accentLight,
               borderRadius: BorderRadius.circular(17),
             ),
-            child: Icon(icon, color: AppColors.primary, size: 25),
+            child: Icon(icon, color: context.colors.primary, size: 25),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -1207,7 +1207,7 @@ class _PreferenceHero extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1218,7 +1218,7 @@ class _PreferenceHero extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                     fontSize: 12,
                   ),
                 ),
@@ -1252,7 +1252,7 @@ class _InfoPanel extends StatelessWidget {
           child: Text(
             title,
             style: GoogleFonts.poppins(
-              color: AppColors.textPrimary,
+              color: context.colors.textPrimary,
               fontSize: 15,
               fontWeight: FontWeight.w600,
             ),
@@ -1263,16 +1263,16 @@ class _InfoPanel extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: context.colors.border),
           ),
           child: Column(
             children: [
               for (var i = 0; i < children.length; i++) ...[
                 children[i],
                 if (i != children.length - 1)
-                  const Divider(
+                  Divider(
                     height: 1,
-                    color: AppColors.divider,
+                    color: context.colors.divider,
                     indent: 74,
                   ),
               ],
@@ -1309,7 +1309,7 @@ class _InfoRow extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
-                color: AppColors.textSecondary,
+                color: context.colors.textSecondary,
                 fontSize: 13,
               ),
             ),
@@ -1322,7 +1322,7 @@ class _InfoRow extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
-                color: AppColors.textPrimary,
+                color: context.colors.textPrimary,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -1368,7 +1368,7 @@ class _ActionRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.poppins(
-                        color: AppColors.textPrimary,
+                        color: context.colors.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1379,7 +1379,7 @@ class _ActionRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.poppins(
-                        color: AppColors.textSecondary,
+                        color: context.colors.textSecondary,
                         fontSize: 12,
                       ),
                     ),
@@ -1387,9 +1387,9 @@ class _ActionRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
-                color: AppColors.textMuted,
+                color: context.colors.textMuted,
                 size: 22,
               ),
             ],
@@ -1432,7 +1432,7 @@ class _ToggleRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1443,7 +1443,7 @@ class _ToggleRow extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                     fontSize: 12,
                   ),
                 ),
@@ -1472,8 +1472,8 @@ class _BulletRow extends StatelessWidget {
           Container(
             width: 8,
             height: 8,
-            decoration: const BoxDecoration(
-              color: AppColors.primary,
+            decoration: BoxDecoration(
+              color: context.colors.primary,
               shape: BoxShape.circle,
             ),
           ),
@@ -1482,7 +1482,7 @@ class _BulletRow extends StatelessWidget {
             child: Text(
               text,
               style: GoogleFonts.poppins(
-                color: AppColors.textSecondary,
+                color: context.colors.textSecondary,
                 fontSize: 12,
                 height: 1.35,
               ),
@@ -1513,7 +1513,7 @@ class _InputRow extends StatelessWidget {
           Text(
             label,
             style: GoogleFonts.poppins(
-              color: AppColors.textSecondary,
+              color: context.colors.textSecondary,
               fontSize: 12,
             ),
           ),
@@ -1522,7 +1522,7 @@ class _InputRow extends StatelessWidget {
             controller: controller,
             keyboardType: TextInputType.phone,
             style: GoogleFonts.poppins(
-              color: AppColors.textPrimary,
+              color: context.colors.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -1531,7 +1531,7 @@ class _InputRow extends StatelessWidget {
               fillColor: const Color(0xFFF6F7F9),
               hintText: '0712 345 678',
               hintStyle: GoogleFonts.poppins(
-                color: AppColors.textMuted,
+                color: context.colors.textMuted,
                 fontSize: 14,
               ),
               contentPadding: const EdgeInsets.symmetric(
@@ -1544,8 +1544,8 @@ class _InputRow extends StatelessWidget {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(
-                  color: AppColors.primary,
+                borderSide: BorderSide(
+                  color: context.colors.primary,
                   width: 1.4,
                 ),
               ),
@@ -1574,14 +1574,14 @@ class _NoticeCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.accentLight,
+        color: context.colors.accentLight,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.mintBorder),
+        border: Border.all(color: context.colors.mintBorder),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppColors.primary, size: 22),
+          Icon(icon, color: context.colors.primary, size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -1590,7 +1590,7 @@ class _NoticeCard extends StatelessWidget {
                 Text(
                   title,
                   style: GoogleFonts.poppins(
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1599,7 +1599,7 @@ class _NoticeCard extends StatelessWidget {
                 Text(
                   body,
                   style: GoogleFonts.poppins(
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                     fontSize: 12,
                     height: 1.4,
                   ),
@@ -1624,10 +1624,10 @@ class _RowIcon extends StatelessWidget {
       width: 44,
       height: 44,
       decoration: BoxDecoration(
-        color: AppColors.accentLight,
+        color: context.colors.accentLight,
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Icon(icon, color: AppColors.primary, size: 21),
+      child: Icon(icon, color: context.colors.primary, size: 21),
     );
   }
 }
@@ -1647,8 +1647,8 @@ class _StyledSwitch extends StatelessWidget {
       scale: 0.86,
       child: Switch(
         value: value,
-        activeColor: Colors.white,
-        activeTrackColor: AppColors.primary,
+        activeThumbColor: Colors.white,
+        activeTrackColor: context.colors.primary,
         inactiveThumbColor: Colors.white,
         inactiveTrackColor: const Color(0xFFD8DEE8),
         trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
@@ -1687,7 +1687,7 @@ class _PrimaryActionButton extends StatelessWidget {
         ),
         style: ElevatedButton.styleFrom(
           elevation: 0,
-          backgroundColor: AppColors.primary,
+          backgroundColor: context.colors.primary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -1701,7 +1701,7 @@ void _showSnack(BuildContext context, String message) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: AppColors.primaryDark,
+      backgroundColor: context.colors.primaryDark,
       content: Text(
         message,
         style: GoogleFonts.poppins(color: Colors.white),

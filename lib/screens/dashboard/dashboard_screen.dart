@@ -51,8 +51,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         body: BlocBuilder<AppBloc, AppState>(
           builder: (context, state) {
             if (state.isLoading) {
-              return const Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
+              return Center(
+                child: CircularProgressIndicator(color: context.colors.primary),
               );
             }
             return Column(
@@ -60,7 +60,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 _buildHeader(context, state),
                 Expanded(
                   child: RefreshIndicator(
-                    color: AppColors.primary,
+                    color: context.colors.primary,
                     onRefresh: _onRefresh,
                     child: SingleChildScrollView(
                       child: Column(
@@ -90,8 +90,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final autoPayCount = state.vehicles.where((v) => v.autoPayEnabled).length;
 
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
+      decoration: BoxDecoration(
+        color: context.colors.primary,
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(28),
           bottomRight: Radius.circular(28),
@@ -264,7 +264,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             style: GoogleFonts.poppins(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: context.colors.textPrimary,
             ),
           ),
           const SizedBox(height: 12),
@@ -279,7 +279,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
               decoration: BoxDecoration(
-                color: AppColors.primaryDark,
+                color: context.colors.primaryDark,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
@@ -372,7 +372,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: context.colors.border),
         ),
         child: Column(
           children: [
@@ -380,10 +380,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: AppColors.accentLight,
+                color: context.colors.accentLight,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: AppColors.primary, size: 20),
+              child: Icon(icon, color: context.colors.primary, size: 20),
             ),
             const SizedBox(height: 8),
             Text(
@@ -391,7 +391,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               style: GoogleFonts.poppins(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: context.colors.textPrimary,
               ),
             ),
           ],
@@ -414,7 +414,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 style: GoogleFonts.poppins(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: context.colors.textPrimary,
                 ),
               ),
               GestureDetector(
@@ -424,7 +424,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   style: GoogleFonts.poppins(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
+                    color: context.colors.primary,
                   ),
                 ),
               ),
@@ -452,7 +452,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Row(
         children: [
@@ -460,12 +460,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: AppColors.accentLight,
+              color: context.colors.accentLight,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.directions_car_rounded,
-              color: AppColors.primary,
+              color: context.colors.primary,
               size: 22,
             ),
           ),
@@ -481,7 +481,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       style: GoogleFonts.poppins(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: context.colors.textPrimary,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -496,7 +496,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       height: 7,
                       margin: const EdgeInsets.only(right: 5),
                       decoration: BoxDecoration(
-                        color: v.autoPayEnabled ? AppColors.success : AppColors.error,
+                        color: v.autoPayEnabled ? context.colors.success : context.colors.error,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -504,7 +504,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       '${v.make} ${v.model} · ${v.type}',
                       style: GoogleFonts.poppins(
                         fontSize: 12,
-                        color: AppColors.textSecondary,
+                        color: context.colors.textSecondary,
                       ),
                     ),
                   ],
@@ -512,9 +512,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
           ),
-          const Icon(
+          Icon(
             Icons.chevron_right_rounded,
-            color: AppColors.textMuted,
+            color: context.colors.textMuted,
             size: 20,
           ),
         ],
@@ -527,10 +527,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: active ? AppColors.accentLight : const Color(0xFFF0F0F0),
+        color: active ? context.colors.accentLight : const Color(0xFFF0F0F0),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: active ? AppColors.accent : const Color(0xFFD0D0D0),
+          color: active ? context.colors.accent : const Color(0xFFD0D0D0),
           width: 1,
         ),
       ),
@@ -538,7 +538,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (active) ...[
-            const Icon(Icons.check_circle_rounded, size: 11, color: AppColors.success),
+            Icon(Icons.check_circle_rounded, size: 11, color: context.colors.success),
             const SizedBox(width: 3),
           ],
           Text(
@@ -546,7 +546,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             style: GoogleFonts.poppins(
               fontSize: 10,
               fontWeight: FontWeight.w600,
-              color: active ? AppColors.success : AppColors.textSecondary,
+              color: active ? context.colors.success : context.colors.textSecondary,
             ),
           ),
         ],
@@ -560,12 +560,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Center(
         child: Text(
           'No vehicles added yet',
-          style: GoogleFonts.poppins(color: AppColors.textSecondary, fontSize: 13),
+          style: GoogleFonts.poppins(color: context.colors.textSecondary, fontSize: 13),
         ),
       ),
     );
@@ -585,7 +585,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 style: GoogleFonts.poppins(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: context.colors.textPrimary,
                 ),
               ),
               GestureDetector(
@@ -595,7 +595,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   style: GoogleFonts.poppins(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
+                    color: context.colors.primary,
                   ),
                 ),
               ),
@@ -606,7 +606,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: context.colors.border),
             ),
             child: state.recentSessions.isEmpty
                 ? Padding(
@@ -615,7 +615,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: Text(
                         'No recent sessions',
                         style: GoogleFonts.poppins(
-                          color: AppColors.textSecondary,
+                          color: context.colors.textSecondary,
                           fontSize: 13,
                         ),
                       ),
@@ -666,12 +666,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: AppColors.accentLight,
+                color: context.colors.accentLight,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.location_on_outlined,
-                color: AppColors.primary,
+                color: context.colors.primary,
                 size: 18,
               ),
             ),
@@ -685,7 +685,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: context.colors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -693,17 +693,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: [
                       _platePill(session.vehicle.plateNumber),
                       const SizedBox(width: 6),
-                      const Icon(
+                      Icon(
                         Icons.access_time_rounded,
                         size: 12,
-                        color: AppColors.textMuted,
+                        color: context.colors.textMuted,
                       ),
                       const SizedBox(width: 3),
                       Text(
                         durationStr,
                         style: GoogleFonts.poppins(
                           fontSize: 11,
-                          color: AppColors.textSecondary,
+                          color: context.colors.textSecondary,
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -711,7 +711,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         dayStr,
                         style: GoogleFonts.poppins(
                           fontSize: 11,
-                          color: AppColors.textSecondary,
+                          color: context.colors.textSecondary,
                         ),
                       ),
                     ],
@@ -728,7 +728,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -738,8 +738,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Container(
                             width: 6,
                             height: 6,
-                            decoration: const BoxDecoration(
-                              color: AppColors.success,
+                            decoration: BoxDecoration(
+                              color: context.colors.success,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -748,7 +748,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             'Active',
                             style: GoogleFonts.poppins(
                               fontSize: 11,
-                              color: AppColors.success,
+                              color: context.colors.success,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -756,17 +756,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       )
                     : Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.check_circle_rounded,
                             size: 13,
-                            color: AppColors.success,
+                            color: context.colors.success,
                           ),
                           const SizedBox(width: 3),
                           Text(
                             'Paid',
                             style: GoogleFonts.poppins(
                               fontSize: 11,
-                              color: AppColors.success,
+                              color: context.colors.success,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -784,10 +784,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.accentLight,
+        color: context.colors.accentLight,
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color: AppColors.accent.withValues(alpha: 0.4),
+          color: context.colors.accent.withValues(alpha: 0.4),
           width: 1,
         ),
       ),
@@ -796,7 +796,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         style: GoogleFonts.poppins(
           fontSize: 10,
           fontWeight: FontWeight.w700,
-          color: AppColors.primary,
+          color: context.colors.primary,
         ),
       ),
     );

@@ -32,7 +32,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.pageGrey,
+      backgroundColor: context.colors.pageGrey,
       body: SafeArea(
         bottom: false,
         child: BlocBuilder<AppBloc, AppState>(
@@ -42,7 +42,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _header(),
                 Expanded(
                   child: RefreshIndicator(
-                    color: AppColors.primary,
+                    color: context.colors.primary,
                     onRefresh: _onRefresh,
                     child: SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
@@ -75,6 +75,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               title: 'Security',
                               subtitle: 'PIN and device access',
                               onTap: _openSecurityPage,
+                            ),
+                            _settingsRow(
+                              icon: Icons.brightness_6_outlined,
+                              title: 'App Theme',
+                              subtitle: state.themeMode == ThemeMode.system 
+                                  ? 'System default' 
+                                  : state.themeMode == ThemeMode.dark 
+                                      ? 'Dark mode' 
+                                      : 'Light mode',
+                              onTap: null, // the trailing widget handles it
+                              trailing: SegmentedButton<ThemeMode>(
+                                segments: const [
+                                  ButtonSegment<ThemeMode>(
+                                    value: ThemeMode.light,
+                                    icon: Icon(Icons.light_mode, size: 16),
+                                  ),
+                                  ButtonSegment<ThemeMode>(
+                                    value: ThemeMode.system,
+                                    icon: Icon(Icons.brightness_auto, size: 16),
+                                  ),
+                                  ButtonSegment<ThemeMode>(
+                                    value: ThemeMode.dark,
+                                    icon: Icon(Icons.dark_mode, size: 16),
+                                  ),
+                                ],
+                                selected: {state.themeMode},
+                                onSelectionChanged: (Set<ThemeMode> newSelection) {
+                                  context.read<AppBloc>().add(
+                                    ChangeThemeMode(newSelection.first)
+                                  );
+                                },
+                                style: SegmentedButton.styleFrom(
+                                  backgroundColor: context.colors.background,
+                                  selectedBackgroundColor: context.colors.primary,
+                                  selectedForegroundColor: Colors.white,
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -243,7 +281,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _header() {
     return Container(
       width: double.infinity,
-      color: Colors.white,
+      color: context.colors.surface,
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
       child: Row(
         children: [
@@ -251,12 +289,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: AppColors.accentLight,
+              color: context.colors.accentLight,
               borderRadius: BorderRadius.circular(15),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.settings_outlined,
-              color: AppColors.primary,
+              color: context.colors.primary,
               size: 22,
             ),
           ),
@@ -268,7 +306,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Text(
                   'Settings',
                   style: GoogleFonts.poppins(
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                     fontSize: 22,
                     fontWeight: FontWeight.w600,
                   ),
@@ -279,7 +317,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                     fontSize: 13,
                   ),
                 ),
@@ -293,9 +331,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: const Color(0xFFF3F4F6),
               borderRadius: BorderRadius.circular(15),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.more_horiz_rounded,
-              color: AppColors.textPrimary,
+              color: context.colors.textPrimary,
               size: 22,
             ),
           ),
@@ -306,7 +344,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _profileCard(AppState state) {
     return Material(
-      color: AppColors.primaryDark,
+      color: context.colors.primaryDark,
       borderRadius: BorderRadius.circular(24),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -358,9 +396,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.account_balance_wallet_outlined,
-                          color: AppColors.accent,
+                          color: context.colors.accent,
                           size: 16,
                         ),
                         const SizedBox(width: 6),
@@ -474,14 +512,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: Text(
             'Sign out?',
             style: GoogleFonts.poppins(
-              color: AppColors.textPrimary,
+              color: context.colors.textPrimary,
               fontWeight: FontWeight.w600,
             ),
           ),
           content: Text(
             'You will need to sign in again to manage parking and payments.',
             style: GoogleFonts.poppins(
-              color: AppColors.textSecondary,
+              color: context.colors.textSecondary,
               fontSize: 13,
             ),
           ),
@@ -490,7 +528,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onPressed: () => Navigator.pop(dialogContext, false),
               child: Text(
                 'Cancel',
-                style: GoogleFonts.poppins(color: AppColors.textSecondary),
+                style: GoogleFonts.poppins(color: context.colors.textSecondary),
               ),
             ),
             TextButton(
@@ -498,7 +536,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Text(
                 'Sign out',
                 style: GoogleFonts.poppins(
-                  color: AppColors.error,
+                  color: context.colors.error,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -544,7 +582,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Text(
             title,
             style: GoogleFonts.poppins(
-              color: AppColors.textPrimary,
+              color: context.colors.textPrimary,
               fontSize: 15,
               fontWeight: FontWeight.w600,
             ),
@@ -553,9 +591,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Container(
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: context.colors.surface,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: context.colors.border),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.025),
@@ -569,9 +607,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               for (var i = 0; i < children.length; i++) ...[
                 children[i],
                 if (i != children.length - 1)
-                  const Divider(
+                  Divider(
                     height: 1,
-                    color: AppColors.divider,
+                    color: context.colors.divider,
                     indent: 74,
                   ),
               ],
@@ -590,10 +628,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     bool danger = false,
     VoidCallback? onTap,
   }) {
-    final color = danger ? AppColors.error : AppColors.primary;
+    final color = danger ? context.colors.error : context.colors.primary;
 
     return Material(
-      color: Colors.white,
+      color: context.colors.surface,
       child: InkWell(
         onTap: onTap,
         child: Padding(
@@ -605,7 +643,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 height: 44,
                 decoration: BoxDecoration(
                   color:
-                      danger ? const Color(0xFFFFECEB) : AppColors.accentLight,
+                      danger ? const Color(0xFFFFECEB) : context.colors.accentLight,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(icon, color: color, size: 21),
@@ -621,7 +659,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.poppins(
                         color:
-                            danger ? AppColors.error : AppColors.textPrimary,
+                            danger ? context.colors.error : context.colors.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
@@ -632,7 +670,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.poppins(
-                        color: AppColors.textSecondary,
+                        color: context.colors.textSecondary,
                         fontSize: 12,
                       ),
                     ),
@@ -641,9 +679,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(width: 12),
               trailing ??
-                  const Icon(
+                  Icon(
                     Icons.chevron_right_rounded,
-                    color: AppColors.textMuted,
+                    color: context.colors.textMuted,
                     size: 22,
                   ),
             ],
@@ -661,8 +699,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       scale: 0.86,
       child: Switch(
         value: value,
-        activeColor: Colors.white,
-        activeTrackColor: AppColors.primary,
+        activeThumbColor: Colors.white,
+        activeTrackColor: context.colors.primary,
         inactiveThumbColor: Colors.white,
         inactiveTrackColor: const Color(0xFFD8DEE8),
         trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),

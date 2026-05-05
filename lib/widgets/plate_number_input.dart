@@ -62,9 +62,9 @@ class _PlateNumberInputState extends State<PlateNumberInput> {
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          color: AppColors.plateBg,
+          color: context.colors.plateBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.plateYellow, width: 2),
+          border: Border.all(color: context.colors.plateYellow, width: 2),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -73,7 +73,7 @@ class _PlateNumberInputState extends State<PlateNumberInput> {
               width: double.infinity,
               height: 32,
               alignment: Alignment.center,
-              color: AppColors.plateYellow,
+              color: context.colors.plateYellow,
               child: Text(
                 'KENYA',
                 style: GoogleFonts.poppins(
@@ -96,13 +96,13 @@ class _PlateNumberInputState extends State<PlateNumberInput> {
               style: GoogleFonts.poppins(
                 fontSize: 34,
                 fontWeight: FontWeight.w400,
-                color: AppColors.textPrimary,
+                color: context.colors.textPrimary,
                 letterSpacing: 10,
               ),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 counterText: '',
                 filled: true,
-                fillColor: AppColors.plateBg,
+                fillColor: context.colors.plateBg,
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,

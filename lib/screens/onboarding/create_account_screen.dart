@@ -109,7 +109,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: context.colors.surface,
         body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -124,7 +124,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   style: GoogleFonts.poppins(
                     fontSize: 28,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -133,7 +133,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 15,
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -173,7 +173,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                       text: 'Already a member? ',
                       style: GoogleFonts.poppins(
                         fontSize: 14,
-                        color: AppColors.textMuted,
+                        color: context.colors.textMuted,
                       ),
                       children: [
                         TextSpan(
@@ -181,7 +181,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.textSecondary,
+                            color: context.colors.textSecondary,
                           ),
                         ),
                       ],
@@ -201,9 +201,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.accentLight,
+        color: context.colors.accentLight,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.mintBorder, width: 1.3),
+        border: Border.all(color: context.colors.mintBorder, width: 1.3),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -215,24 +215,24 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
               CountryCodeSelector(
                 selected: _selectedCountry,
                 onChanged: (code) => setState(() => _selectedCountry = code),
-                decoration: _inputBoxDecoration(Colors.white),
+                decoration: _inputBoxDecoration(context.colors.inputFill),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Container(
                   height: 54,
-                  decoration: _inputBoxDecoration(Colors.white),
+                  decoration: _inputBoxDecoration(context.colors.inputFill),
                   child: TextField(
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
-                    style: GoogleFonts.poppins(fontSize: 15, color: AppColors.textPrimary),
+                    style: GoogleFonts.poppins(fontSize: 15, color: context.colors.textPrimary),
                     decoration: InputDecoration(
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
                       hintText: '712 345 678',
-                      hintStyle: GoogleFonts.poppins(color: AppColors.textMuted, fontSize: 15),
+                      hintStyle: GoogleFonts.poppins(color: context.colors.textMuted, fontSize: 15),
                     ),
                   ),
                 ),
@@ -254,7 +254,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   Icon(
                     LucideIcons.checkCircle,
                     size: 16,
-                    color: _otpVerified ? AppColors.accent : AppColors.textMuted,
+                    color: _otpVerified ? context.colors.accent : context.colors.textMuted,
                   ),
                 const SizedBox(width: 7),
                 Text(
@@ -262,7 +262,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: _otpVerified ? AppColors.accent : AppColors.textSecondary,
+                    color: _otpVerified ? context.colors.accent : context.colors.textSecondary,
                   ),
                 ),
                 const SizedBox(width: 5),
@@ -274,7 +274,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.poppins(
                       fontSize: 12,
-                      color: AppColors.textSecondary,
+                      color: context.colors.textSecondary,
                     ),
                   ),
                 ),
@@ -314,24 +314,24 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         style: GoogleFonts.poppins(
           fontSize: 20,
           fontWeight: FontWeight.w500,
-          color: AppColors.textPrimary,
+          color: context.colors.textPrimary,
         ),
         onChanged: (v) => _onOtpDigit(v, index),
         decoration: InputDecoration(
           filled: true,
-          fillColor: Colors.white,
+          fillColor: context.colors.inputFill,
           counterText: '',
           contentPadding: EdgeInsets.zero,
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(
-              color: filled ? AppColors.primary : AppColors.inputBorder,
+              color: filled ? context.colors.primary : context.colors.inputBorder,
               width: filled ? 2 : 1,
             ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.primary, width: 2),
+            borderSide: BorderSide(color: context.colors.primary, width: 2),
           ),
         ),
       ),
@@ -351,7 +351,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         TextField(
           controller: controller,
           keyboardType: keyboardType,
-          style: GoogleFonts.poppins(fontSize: 15, color: AppColors.textPrimary),
+          style: GoogleFonts.poppins(fontSize: 15, color: context.colors.textPrimary),
           decoration: _fieldDecoration(),
         ),
       ],
@@ -365,11 +365,11 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         _label('County'),
         const SizedBox(height: 7),
         DropdownButtonFormField<String>(
-          value: _selectedCounty,
-          icon: const Icon(LucideIcons.chevronDown, color: AppColors.textSecondary, size: 18),
+          initialValue: _selectedCounty,
+          icon: Icon(LucideIcons.chevronDown, color: context.colors.textSecondary, size: 18),
           decoration: _fieldDecoration(hint: 'Select your county'),
-          style: GoogleFonts.poppins(fontSize: 15, color: AppColors.textPrimary),
-          dropdownColor: Colors.white,
+          style: GoogleFonts.poppins(fontSize: 15, color: context.colors.textPrimary),
+          dropdownColor: context.colors.surface,
           items: ['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret', 'Thika', 'Nyeri']
               .map((county) => DropdownMenuItem(value: county, child: Text(county)))
               .toList(),
@@ -390,12 +390,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
               decoration: BoxDecoration(
-                color: AppColors.pageGrey,
+                color: context.colors.pageGrey,
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
                 'Optional',
-                style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textMuted),
+                style: GoogleFonts.poppins(fontSize: 12, color: context.colors.textMuted),
               ),
             ),
           ],
@@ -404,7 +404,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         TextField(
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
-          style: GoogleFonts.poppins(fontSize: 15, color: AppColors.textPrimary),
+          style: GoogleFonts.poppins(fontSize: 15, color: context.colors.textPrimary),
           decoration: _fieldDecoration(hint: 'your@email.com'),
         ),
       ],
@@ -417,7 +417,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       style: GoogleFonts.poppins(
         fontSize: 14,
         fontWeight: FontWeight.w400,
-        color: muted ? AppColors.textMuted : AppColors.textSecondary,
+        color: muted ? context.colors.textMuted : context.colors.textSecondary,
       ),
     );
   }
@@ -425,13 +425,13 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   InputDecoration _fieldDecoration({String? hint}) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: GoogleFonts.poppins(color: AppColors.textMuted, fontSize: 15),
+      hintStyle: GoogleFonts.poppins(color: context.colors.textMuted, fontSize: 15),
       filled: true,
-      fillColor: AppColors.inputFill,
+      fillColor: context.colors.inputFill,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
-      border: _fieldBorder(AppColors.inputBorder),
-      enabledBorder: _fieldBorder(AppColors.inputBorder),
-      focusedBorder: _fieldBorder(AppColors.primary, width: 1.5),
+      border: _fieldBorder(context.colors.inputBorder),
+      enabledBorder: _fieldBorder(context.colors.inputBorder),
+      focusedBorder: _fieldBorder(context.colors.primary, width: 1.5),
     );
   }
 
@@ -446,7 +446,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     return BoxDecoration(
       color: color,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: AppColors.inputBorder),
+      border: Border.all(color: context.colors.inputBorder),
     );
   }
 

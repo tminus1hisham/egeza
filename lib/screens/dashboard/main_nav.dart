@@ -41,9 +41,9 @@ class _MainNavigationState extends State<MainNavigation> {
       body: IndexedStack(index: _index, children: _screens),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: const Border(
-            top: BorderSide(color: AppColors.border, width: 1),
+          color: context.colors.surface,
+          border: Border(
+            top: BorderSide(color: context.colors.border, width: 1),
           ),
           boxShadow: [
             BoxShadow(
@@ -90,7 +90,7 @@ class _MainNavigationState extends State<MainNavigation> {
           children: [
             Icon(
               icon,
-              color: isActive ? AppColors.primary : AppColors.textMuted,
+              color: isActive ? context.colors.primary : context.colors.textMuted,
               size: 21,
             ),
             const SizedBox(height: 4),
@@ -100,7 +100,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 fontSize: 11,
                 height: 1,
                 fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
-                color: isActive ? AppColors.primary : AppColors.textMuted,
+                color: isActive ? context.colors.primary : context.colors.textMuted,
               ),
             ),
             const SizedBox(height: 5),
@@ -109,7 +109,7 @@ class _MainNavigationState extends State<MainNavigation> {
               width: 3.5,
               height: 3.5,
               decoration: BoxDecoration(
-                color: isActive ? AppColors.primary : Colors.transparent,
+                color: isActive ? context.colors.primary : Colors.transparent,
                 shape: BoxShape.circle,
               ),
             ),

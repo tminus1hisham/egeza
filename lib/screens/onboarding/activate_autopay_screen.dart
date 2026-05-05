@@ -24,7 +24,7 @@ class _ActivateAutoPayScreenState extends State<ActivateAutoPayScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.pageGrey,
+      backgroundColor: context.colors.pageGrey,
       body: SafeArea(
         child: BlocBuilder<AppBloc, AppState>(
           builder: (context, state) {
@@ -35,7 +35,7 @@ class _ActivateAutoPayScreenState extends State<ActivateAutoPayScreen> {
                 children: [
                   Container(
                     width: double.infinity,
-                    color: Colors.white,
+                    color: context.colors.surface,
                     padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
                     child: Column(
                       children: [
@@ -52,7 +52,7 @@ class _ActivateAutoPayScreenState extends State<ActivateAutoPayScreen> {
                             'Almost there!',
                             style: GoogleFonts.poppins(
                               fontSize: 13,
-                              color: AppColors.primary,
+                              color: context.colors.primary,
                             ),
                           ),
                         ),
@@ -77,7 +77,7 @@ class _ActivateAutoPayScreenState extends State<ActivateAutoPayScreen> {
                         const SizedBox(height: 12),
                         Text(
                           'You can manage AutoPay anytime in Settings',
-                          style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textMuted),
+                          style: GoogleFonts.poppins(fontSize: 12, color: context.colors.textMuted),
                         ),
                       ],
                     ),
@@ -95,20 +95,20 @@ class _ActivateAutoPayScreenState extends State<ActivateAutoPayScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: AppColors.successLight,
+        color: context.colors.successLight,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(LucideIcons.zap, size: 13, color: AppColors.success),
+          Icon(LucideIcons.zap, size: 13, color: context.colors.success),
           const SizedBox(width: 5),
           Text(
             'Last step!',
             style: GoogleFonts.poppins(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: AppColors.success,
+              color: context.colors.success,
             ),
           ),
         ],
@@ -134,7 +134,7 @@ class _ActivateAutoPayScreenState extends State<ActivateAutoPayScreen> {
             style: GoogleFonts.poppins(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
+              color: context.colors.textSecondary,
               letterSpacing: 0.4,
             ),
           ),
@@ -154,14 +154,14 @@ class _ActivateAutoPayScreenState extends State<ActivateAutoPayScreen> {
                       style: GoogleFonts.poppins(
                         fontSize: 23,
                         fontWeight: FontWeight.w400,
-                        color: AppColors.textPrimary,
+                        color: context.colors.textPrimary,
                         letterSpacing: 3,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '$make $model \u00B7 $type',
-                      style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSecondary),
+                      style: GoogleFonts.poppins(fontSize: 13, color: context.colors.textSecondary),
                     ),
                   ],
                 ),
@@ -179,9 +179,9 @@ class _ActivateAutoPayScreenState extends State<ActivateAutoPayScreen> {
       borderRadius: BorderRadius.circular(18),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.primary, width: 2),
+          border: Border.all(color: context.colors.primary, width: 2),
         ),
         child: Column(
           children: [
@@ -200,23 +200,23 @@ class _ActivateAutoPayScreenState extends State<ActivateAutoPayScreen> {
                           style: GoogleFonts.poppins(
                             fontSize: 18,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.textPrimary,
+                            color: context.colors.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           'Auto-charge on every exit',
-                          style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSecondary),
+                          style: GoogleFonts.poppins(fontSize: 13, color: context.colors.textSecondary),
                         ),
                       ],
                     ),
                   ),
                   Switch(
                     value: _autoPayOn,
-                    activeColor: Colors.white,
-                    activeTrackColor: AppColors.accent,
+                    activeThumbColor: Colors.white,
+                    activeTrackColor: context.colors.accent,
                     inactiveThumbColor: Colors.white,
-                    inactiveTrackColor: AppColors.inputBorder,
+                    inactiveTrackColor: context.colors.inputBorder,
                     onChanged: (value) => setState(() => _autoPayOn = value),
                   ),
                 ],
@@ -224,15 +224,15 @@ class _ActivateAutoPayScreenState extends State<ActivateAutoPayScreen> {
             ),
             Container(
               width: double.infinity,
-              color: AppColors.successLight,
+              color: context.colors.successLight,
               padding: const EdgeInsets.fromLTRB(28, 14, 28, 16),
               child: Row(
                 children: [
                   Container(
                     width: 7,
                     height: 7,
-                    decoration: const BoxDecoration(
-                      color: AppColors.accent,
+                    decoration: BoxDecoration(
+                      color: context.colors.accent,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -245,7 +245,7 @@ class _ActivateAutoPayScreenState extends State<ActivateAutoPayScreen> {
                       style: GoogleFonts.poppins(
                         fontSize: 13,
                         height: 1.25,
-                        color: AppColors.success,
+                        color: context.colors.success,
                       ),
                     ),
                   ),
@@ -263,7 +263,7 @@ class _ActivateAutoPayScreenState extends State<ActivateAutoPayScreen> {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(24, 22, 24, 24),
       decoration: BoxDecoration(
-        color: AppColors.darkPanel,
+        color: context.colors.darkPanel,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
@@ -271,7 +271,7 @@ class _ActivateAutoPayScreenState extends State<ActivateAutoPayScreen> {
         children: [
           Row(
             children: [
-              const Icon(LucideIcons.shield, size: 17, color: AppColors.accent),
+              Icon(LucideIcons.shield, size: 17, color: context.colors.accent),
               const SizedBox(width: 10),
               Text(
                 'How it works',
@@ -328,7 +328,7 @@ class _ActivateAutoPayScreenState extends State<ActivateAutoPayScreen> {
             style: GoogleFonts.poppins(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: AppColors.accent,
+              color: context.colors.accent,
             ),
           ),
         ),
@@ -366,10 +366,10 @@ class _ActivateAutoPayScreenState extends State<ActivateAutoPayScreen> {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: AppColors.accentLight,
+        color: context.colors.accentLight,
         borderRadius: BorderRadius.circular(size * 0.24),
       ),
-      child: Icon(icon, color: AppColors.primary, size: size * 0.34),
+      child: Icon(icon, color: context.colors.primary, size: size * 0.34),
     );
   }
 
@@ -377,18 +377,18 @@ class _ActivateAutoPayScreenState extends State<ActivateAutoPayScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: AppColors.pageGrey,
+        color: context.colors.pageGrey,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(LucideIcons.camera, size: 13, color: AppColors.textSecondary),
+          Icon(LucideIcons.camera, size: 13, color: context.colors.textSecondary),
           const SizedBox(width: 5),
           Text(
             'ANPR',
-            style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary),
+            style: GoogleFonts.poppins(fontSize: 12, color: context.colors.textSecondary),
           ),
         ],
       ),
@@ -397,9 +397,9 @@ class _ActivateAutoPayScreenState extends State<ActivateAutoPayScreen> {
 
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
-      color: Colors.white,
+      color: context.colors.surface,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: AppColors.border),
+      border: Border.all(color: context.colors.border),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.035),

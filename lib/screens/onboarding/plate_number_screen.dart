@@ -33,7 +33,7 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.colors.surface,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
@@ -51,7 +51,7 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
                   style: GoogleFonts.poppins(
                     fontSize: 25,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                   ),
                 ),
               ),
@@ -62,7 +62,7 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 15,
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                     height: 1.35,
                   ),
                 ),
@@ -77,7 +77,7 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
               Center(
                 child: Text(
                   'Enter plate exactly as shown on your vehicle',
-                  style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textMuted),
+                  style: GoogleFonts.poppins(fontSize: 13, color: context.colors.textMuted),
                 ),
               ),
               const SizedBox(height: 24),
@@ -122,17 +122,17 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
       height: 58,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: AppColors.inputFill,
+        color: context.colors.inputFill,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.inputBorder),
+        border: Border.all(color: context.colors.inputBorder),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: _selectedType,
           isExpanded: true,
-          icon: const Icon(LucideIcons.chevronDown, color: AppColors.textMuted, size: 18),
-          style: GoogleFonts.poppins(fontSize: 16, color: AppColors.textPrimary),
-          dropdownColor: Colors.white,
+          icon: Icon(LucideIcons.chevronDown, color: context.colors.textMuted, size: 18),
+          style: GoogleFonts.poppins(fontSize: 16, color: context.colors.textPrimary),
+          dropdownColor: context.colors.surface,
           items: const ['Saloon', 'SUV / 4x4', 'Hatchback', 'Pickup Truck', 'Van / Minibus', 'Motorcycle']
               .map((type) => DropdownMenuItem(value: type, child: Text(type)))
               .toList(),
@@ -151,10 +151,10 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? AppColors.accentLight : AppColors.pageGrey,
+          color: selected ? context.colors.accentLight : context.colors.pageGrey,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? AppColors.primary : AppColors.inputBorder,
+            color: selected ? context.colors.primary : context.colors.inputBorder,
             width: selected ? 1.3 : 1,
           ),
         ),
@@ -163,7 +163,7 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
           style: GoogleFonts.poppins(
             fontSize: 13,
             fontWeight: FontWeight.w400,
-            color: selected ? AppColors.primary : AppColors.textSecondary,
+            color: selected ? context.colors.primary : context.colors.textSecondary,
           ),
         ),
       ),
@@ -178,14 +178,14 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
         const SizedBox(height: 8),
         TextField(
           controller: controller,
-          style: GoogleFonts.poppins(fontSize: 15, color: AppColors.textPrimary),
+          style: GoogleFonts.poppins(fontSize: 15, color: context.colors.textPrimary),
           decoration: InputDecoration(
             filled: true,
-            fillColor: AppColors.inputFill,
+            fillColor: context.colors.inputFill,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
-            border: _fieldBorder(AppColors.inputBorder),
-            enabledBorder: _fieldBorder(AppColors.inputBorder),
-            focusedBorder: _fieldBorder(AppColors.primary, width: 1.5),
+            border: _fieldBorder(context.colors.inputBorder),
+            enabledBorder: _fieldBorder(context.colors.inputBorder),
+            focusedBorder: _fieldBorder(context.colors.primary, width: 1.5),
           ),
         ),
       ],
@@ -198,7 +198,7 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
       style: GoogleFonts.poppins(
         fontSize: 14,
         fontWeight: FontWeight.w400,
-        color: AppColors.textSecondary,
+        color: context.colors.textSecondary,
       ),
     );
   }

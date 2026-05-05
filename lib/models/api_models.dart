@@ -374,11 +374,11 @@ Map<String, dynamic> locationRequestBody({
 }) {
   return {
     'name': name,
-    if (address != null) 'address': address,
-    if (ratePerHour != null) 'ratePerHour': ratePerHour,
-    if (maxCapacity != null) 'maxCapacity': maxCapacity,
-    if (gracePeriodMinutes != null) 'gracePeriodMinutes': gracePeriodMinutes,
-    if (maxDailyCharge != null) 'maxDailyCharge': maxDailyCharge,
+    'address': ?address,
+    'ratePerHour': ?ratePerHour,
+    'maxCapacity': ?maxCapacity,
+    'gracePeriodMinutes': ?gracePeriodMinutes,
+    'maxDailyCharge': ?maxDailyCharge,
   };
 }
 

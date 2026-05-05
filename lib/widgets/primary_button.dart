@@ -27,10 +27,10 @@ class PrimaryButton extends StatelessWidget {
       height: 52,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: isOutlined ? Colors.transparent : AppColors.primary,
-          foregroundColor: isOutlined ? AppColors.primary : AppColors.textLight,
+          backgroundColor: isOutlined ? Colors.transparent : context.colors.primary,
+          foregroundColor: isOutlined ? context.colors.primary : context.colors.textLight,
           elevation: 0,
-          side: isOutlined ? const BorderSide(color: AppColors.primary, width: 1.5) : null,
+          side: isOutlined ? BorderSide(color: context.colors.primary, width: 1.5) : null,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
         onPressed: isLoading ? null : onPressed,
@@ -47,7 +47,7 @@ class PrimaryButton extends StatelessWidget {
                     Icon(
                       icon,
                       size: 18,
-                      color: isOutlined ? AppColors.primary : AppColors.textLight,
+                      color: isOutlined ? context.colors.primary : context.colors.textLight,
                     ),
                     const SizedBox(width: 8),
                   ],
@@ -58,7 +58,7 @@ class PrimaryButton extends StatelessWidget {
                       style: GoogleFonts.poppins(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: isOutlined ? AppColors.primary : AppColors.textLight,
+                        color: isOutlined ? context.colors.primary : context.colors.textLight,
                       ),
                     ),
                   ),

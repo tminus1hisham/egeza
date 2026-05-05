@@ -42,7 +42,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.pageGrey,
+      backgroundColor: context.colors.pageGrey,
       body: SafeArea(
         bottom: false,
         child: BlocBuilder<AppBloc, AppState>(
@@ -54,7 +54,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 _header(context),
                 Expanded(
                   child: RefreshIndicator(
-                    color: AppColors.primary,
+                    color: context.colors.primary,
                     onRefresh: _onRefresh,
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
@@ -84,7 +84,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   Widget _header(BuildContext context) {
     return Container(
       width: double.infinity,
-      color: Colors.white,
+      color: context.colors.surface,
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
       child: Row(
         children: [
@@ -99,12 +99,12 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: AppColors.accentLight,
+                color: context.colors.accentLight,
                 borderRadius: BorderRadius.circular(15),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.directions_car_outlined,
-                color: AppColors.primary,
+                color: context.colors.primary,
                 size: 22,
               ),
             ),
@@ -117,7 +117,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 Text(
                   'Vehicles',
                   style: GoogleFonts.poppins(
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                     fontSize: 22,
                     fontWeight: FontWeight.w600,
                   ),
@@ -128,7 +128,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                     fontSize: 13,
                   ),
                 ),
@@ -152,11 +152,11 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),
       decoration: BoxDecoration(
-        color: AppColors.primaryDark,
+        color: context.colors.primaryDark,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryDark.withValues(alpha: 0.15),
+            color: context.colors.primaryDark.withValues(alpha: 0.15),
             blurRadius: 22,
             offset: const Offset(0, 12),
           ),
@@ -209,9 +209,9 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       height: 46,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Row(
         children: List.generate(_filters.length, (index) {
@@ -224,13 +224,13 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 duration: const Duration(milliseconds: 170),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: selected ? AppColors.primary : Colors.transparent,
+                  color: selected ? context.colors.primary : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   _filters[index],
                   style: GoogleFonts.poppins(
-                    color: selected ? Colors.white : AppColors.textSecondary,
+                    color: selected ? Colors.white : context.colors.textSecondary,
                     fontSize: 13,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                   ),
@@ -257,7 +257,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
               child: Text(
                 'My vehicles',
                 style: GoogleFonts.poppins(
-                  color: AppColors.textPrimary,
+                  color: context.colors.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -266,7 +266,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
             Text(
               '${vehicles.length} shown',
               style: GoogleFonts.poppins(
-                color: AppColors.textMuted,
+                color: context.colors.textMuted,
                 fontSize: 12,
               ),
             ),
@@ -310,7 +310,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
         ],
       ),
       child: Material(
-        color: Colors.white,
+        color: context.colors.cardSurface,
         borderRadius: BorderRadius.circular(24),
         child: InkWell(
           onTap: () => Navigator.push(
@@ -337,20 +337,20 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          AppColors.primary.withValues(alpha: 0.15),
-                          AppColors.primary.withValues(alpha: 0.05),
+                          context.colors.primary.withValues(alpha: 0.15),
+                          context.colors.primary.withValues(alpha: 0.05),
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.1),
+                        color: context.colors.primary.withValues(alpha: 0.1),
                       ),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.directions_car_rounded,
-                      color: AppColors.primary,
+                      color: context.colors.primary,
                       size: 28,
                     ),
                   ),
@@ -366,7 +366,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.poppins(
-                            color: AppColors.textSecondary,
+                            color: context.colors.textSecondary,
                             fontSize: 12,
                           ),
                         ),
@@ -374,9 +374,9 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Icon(
+                  Icon(
                     Icons.chevron_right_rounded,
-                    color: AppColors.textMuted,
+                    color: context.colors.textMuted,
                     size: 22,
                   ),
                 ],
@@ -446,7 +446,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
         ],
       ),
       child: Material(
-        color: Colors.white,
+        color: context.colors.cardSurface,
         borderRadius: BorderRadius.circular(24),
         child: InkWell(
           onTap: () => _showAddVehicleSheet(context),
@@ -470,9 +470,9 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                   ),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.add_rounded,
-                  color: AppColors.warning,
+                  color: context.colors.warning,
                   size: 26,
                 ),
               ),
@@ -484,7 +484,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                     Text(
                       'Add vehicle',
                       style: GoogleFonts.poppins(
-                        color: AppColors.textPrimary,
+                        color: context.colors.textPrimary,
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),
@@ -495,16 +495,16 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.poppins(
-                        color: AppColors.textSecondary,
+                        color: context.colors.textSecondary,
                         fontSize: 12,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
-                color: AppColors.textMuted,
+                color: context.colors.textMuted,
                 size: 22,
               ),
             ],
@@ -519,7 +519,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(26),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.cardSurface,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -533,7 +533,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
         'No vehicles match this filter',
         textAlign: TextAlign.center,
         style: GoogleFonts.poppins(
-          color: AppColors.textSecondary,
+          color: context.colors.textSecondary,
           fontSize: 13,
         ),
       ),
@@ -544,9 +544,9 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: AppColors.plateBg,
+        color: context.colors.plateBg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.plateYellow.withValues(alpha: 0.35)),
+        border: Border.all(color: context.colors.plateYellow.withValues(alpha: 0.35)),
       ),
       child: Text(
         plate,
@@ -564,16 +564,16 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
 
   Widget _statusChip(String label, bool active, {bool soft = false}) {
     final color = active
-        ? AppColors.success
+        ? context.colors.success
         : soft
-            ? AppColors.textSecondary
-            : AppColors.warning;
+            ? context.colors.textSecondary
+            : context.colors.warning;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: active
-            ? AppColors.successLight
+            ? context.colors.successLight
             : soft
                 ? const Color(0xFFF1F5F4)
                 : const Color(0xFFFFF7E6),
@@ -602,14 +602,14 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppColors.textMuted, size: 15),
+          Icon(icon, color: context.colors.textMuted, size: 15),
           const Spacer(),
           Text(
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
-              color: AppColors.textPrimary,
+              color: context.colors.textPrimary,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
@@ -620,7 +620,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
-              color: AppColors.textSecondary,
+              color: context.colors.textSecondary,
               fontSize: 10,
             ),
           ),
@@ -639,7 +639,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
         child: SizedBox(
           width: 42,
           height: 42,
-          child: Icon(icon, color: AppColors.textPrimary, size: 22),
+          child: Icon(icon, color: context.colors.textPrimary, size: 22),
         ),
       ),
     );
@@ -768,9 +768,9 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
           ),
           child: Container(
             padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+            decoration: BoxDecoration(
+              color: context.colors.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
             ),
             child: SafeArea(
               top: false,
@@ -783,7 +783,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                       width: 42,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: AppColors.border,
+                        color: context.colors.border,
                         borderRadius: BorderRadius.circular(999),
                       ),
                     ),
@@ -792,7 +792,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                   Text(
                     'Add vehicle',
                     style: GoogleFonts.poppins(
-                      color: AppColors.textPrimary,
+                      color: context.colors.textPrimary,
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
                     ),
@@ -839,7 +839,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
+                        backgroundColor: context.colors.primary,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
@@ -867,7 +867,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       controller: controller,
       textCapitalization: textCapitalization,
       style: GoogleFonts.poppins(
-        color: AppColors.textPrimary,
+        color: context.colors.textPrimary,
         fontSize: 14,
         fontWeight: FontWeight.w500,
       ),
@@ -875,19 +875,19 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
         labelText: label,
         hintText: hint,
         filled: true,
-        fillColor: AppColors.inputFill,
+        fillColor: context.colors.inputFill,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.inputBorder),
+          borderSide: BorderSide(color: context.colors.inputBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.inputBorder),
+          borderSide: BorderSide(color: context.colors.inputBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.6),
+          borderSide: BorderSide(color: context.colors.primary, width: 1.6),
         ),
       ),
     );

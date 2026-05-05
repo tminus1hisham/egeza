@@ -74,9 +74,9 @@ class CountryCodeSelector extends StatelessWidget {
         alignment: Alignment.center,
         decoration: decoration ??
             BoxDecoration(
-              color: Colors.white,
+              color: context.colors.inputFill,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.inputBorder),
+              border: Border.all(color: context.colors.inputBorder),
             ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -87,14 +87,14 @@ class CountryCodeSelector extends StatelessWidget {
               selected.dialCode,
               style: GoogleFonts.poppins(
                 fontSize: 15,
-                color: AppColors.textPrimary,
+                color: context.colors.textPrimary,
               ),
             ),
             const SizedBox(width: 4),
-            const Icon(
+            Icon(
               LucideIcons.chevronDown,
               size: 14,
-              color: AppColors.textSecondary,
+              color: context.colors.textSecondary,
             ),
           ],
         ),
@@ -106,7 +106,7 @@ class CountryCodeSelector extends StatelessWidget {
     showModalBottomSheet<CountryCode>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -174,7 +174,7 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.inputBorder,
+                  color: context.colors.inputBorder,
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
@@ -186,7 +186,7 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
                   style: GoogleFonts.poppins(
                     fontSize: 17,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                   ),
                 ),
               ),
@@ -199,21 +199,21 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
                   onChanged: _onSearch,
                   style: GoogleFonts.poppins(
                     fontSize: 14,
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                   ),
                   decoration: InputDecoration(
                     hintText: 'Search country or code…',
                     hintStyle: GoogleFonts.poppins(
                       fontSize: 14,
-                      color: AppColors.textMuted,
+                      color: context.colors.textMuted,
                     ),
-                    prefixIcon: const Icon(
+                    prefixIcon: Icon(
                       LucideIcons.search,
                       size: 18,
-                      color: AppColors.textMuted,
+                      color: context.colors.textMuted,
                     ),
                     filled: true,
-                    fillColor: AppColors.pageGrey,
+                    fillColor: context.colors.pageGrey,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 14,
                       vertical: 12,
@@ -228,8 +228,8 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(
-                        color: AppColors.primary,
+                      borderSide: BorderSide(
+                        color: context.colors.primary,
                         width: 1.5,
                       ),
                     ),
@@ -245,7 +245,7 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
                           'No countries found',
                           style: GoogleFonts.poppins(
                             fontSize: 14,
-                            color: AppColors.textMuted,
+                            color: context.colors.textMuted,
                           ),
                         ),
                       )
@@ -261,7 +261,7 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
                             onTap: () => widget.onSelected(code),
                             child: Container(
                               color: isSelected
-                                  ? AppColors.accentLight
+                                  ? context.colors.accentLight
                                   : Colors.transparent,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 20,
@@ -279,7 +279,7 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
                                       code.name,
                                       style: GoogleFonts.poppins(
                                         fontSize: 15,
-                                        color: AppColors.textPrimary,
+                                        color: context.colors.textPrimary,
                                       ),
                                     ),
                                   ),
@@ -287,15 +287,15 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
                                     code.dialCode,
                                     style: GoogleFonts.poppins(
                                       fontSize: 14,
-                                      color: AppColors.textSecondary,
+                                      color: context.colors.textSecondary,
                                     ),
                                   ),
                                   if (isSelected) ...[
                                     const SizedBox(width: 10),
-                                    const Icon(
+                                    Icon(
                                       LucideIcons.check,
                                       size: 16,
-                                      color: AppColors.primary,
+                                      color: context.colors.primary,
                                     ),
                                   ],
                                 ],

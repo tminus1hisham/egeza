@@ -74,7 +74,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     style: GoogleFonts.poppins(
                       fontSize: 30,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textPrimary,
+                      color: context.colors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -83,7 +83,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
                       fontSize: 15,
-                      color: AppColors.textSecondary,
+                      color: context.colors.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 30),
@@ -149,7 +149,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     ],
                     style: GoogleFonts.poppins(
                       fontSize: 15,
-                      color: AppColors.textPrimary,
+                      color: context.colors.textPrimary,
                     ),
                     decoration: InputDecoration(
                       border: InputBorder.none,
@@ -161,7 +161,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       ),
                       hintText: '712 345 678',
                       hintStyle: GoogleFonts.poppins(
-                        color: AppColors.textMuted,
+                        color: context.colors.textMuted,
                         fontSize: 15,
                       ),
                     ),
@@ -191,18 +191,18 @@ class _SignInScreenState extends State<SignInScreen> {
       key: key,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.accentLight,
+        color: context.colors.accentLight,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.mintBorder, width: 1.3),
+        border: Border.all(color: context.colors.mintBorder, width: 1.3),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 LucideIcons.shieldCheck,
-                color: AppColors.primary,
+                color: context.colors.primary,
                 size: 18,
               ),
               const SizedBox(width: 8),
@@ -212,7 +212,7 @@ class _SignInScreenState extends State<SignInScreen> {
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                   ),
                 ),
               ),
@@ -264,7 +264,7 @@ class _SignInScreenState extends State<SignInScreen> {
         style: GoogleFonts.poppins(
           fontSize: 20,
           fontWeight: FontWeight.w500,
-          color: AppColors.textPrimary,
+          color: context.colors.textPrimary,
         ),
         onChanged: (value) => _onOtpDigit(value, index),
         decoration: InputDecoration(
@@ -273,10 +273,10 @@ class _SignInScreenState extends State<SignInScreen> {
           counterText: '',
           contentPadding: EdgeInsets.zero,
           enabledBorder: _otpBorder(
-            filled ? AppColors.primary : AppColors.inputBorder,
+            filled ? context.colors.primary : context.colors.inputBorder,
             width: filled ? 2 : 1,
           ),
-          focusedBorder: _otpBorder(AppColors.primary, width: 2),
+          focusedBorder: _otpBorder(context.colors.primary, width: 2),
         ),
       ),
     );
@@ -297,7 +297,7 @@ class _SignInScreenState extends State<SignInScreen> {
             text: 'New to ParkIQ? ',
             style: GoogleFonts.poppins(
               fontSize: 14,
-              color: AppColors.textMuted,
+              color: context.colors.textMuted,
             ),
             children: [
               TextSpan(
@@ -305,7 +305,7 @@ class _SignInScreenState extends State<SignInScreen> {
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.primary,
+                  color: context.colors.primary,
                 ),
               ),
             ],
@@ -410,7 +410,7 @@ class _SignInScreenState extends State<SignInScreen> {
       style: GoogleFonts.poppins(
         fontSize: 14,
         fontWeight: FontWeight.w400,
-        color: AppColors.textSecondary,
+        color: context.colors.textSecondary,
       ),
     );
   }
@@ -419,7 +419,7 @@ class _SignInScreenState extends State<SignInScreen> {
     return BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: AppColors.border),
+      border: Border.all(color: context.colors.border),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.035),
@@ -434,7 +434,7 @@ class _SignInScreenState extends State<SignInScreen> {
     return BoxDecoration(
       color: color,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: AppColors.inputBorder),
+      border: Border.all(color: context.colors.inputBorder),
     );
   }
 

@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:equatable/equatable.dart';
 
 abstract class AppEvent extends Equatable {
@@ -178,4 +179,13 @@ class RemoveVehicle extends AppEvent {
 
   @override
   List<Object?> get props => [vehicleId, plateNumber];
+}
+
+class ChangeThemeMode extends AppEvent {
+  final ThemeMode themeMode;
+
+  const ChangeThemeMode(this.themeMode);
+
+  @override
+  List<Object?> get props => [themeMode];
 }

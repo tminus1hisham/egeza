@@ -37,7 +37,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF0F2F5),
+        backgroundColor: context.colors.pageGrey,
         body: BlocBuilder<AppBloc, AppState>(
           builder: (context, state) {
             final sessions = state.recentSessions
@@ -289,7 +289,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
   Widget _autoPayCard() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -328,7 +328,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                       Text(
                         'AutoPay',
                         style: GoogleFonts.poppins(
-                          color: _ink,
+                          color: context.colors.textPrimary,
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
                         ),
@@ -336,7 +336,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                       Text(
                         'Payments deduct automatically at exit',
                         style: GoogleFonts.poppins(
-                          color: _muted,
+                          color: context.colors.textSecondary,
                           fontSize: 13,
                         ),
                       ),
@@ -420,7 +420,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
     final duration = _durationLabel(session);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -642,7 +642,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
             Text(
               'Parking History',
               style: GoogleFonts.poppins(
-                color: _ink,
+                color: context.colors.textPrimary,
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
               ),
@@ -651,7 +651,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
             if (sessions.isNotEmpty)
               Text(
                 '${sessions.length} session${sessions.length == 1 ? '' : 's'}',
-                style: GoogleFonts.poppins(color: _muted, fontSize: 13),
+                style: GoogleFonts.poppins(color: context.colors.textSecondary, fontSize: 13),
               ),
           ],
         ),
@@ -704,7 +704,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
           Container(
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.colors.surface,
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
@@ -745,7 +745,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
-                    color: _ink,
+                    color: context.colors.textPrimary,
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
                   ),
@@ -755,7 +755,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                   _locationSubtitle(session),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(color: _muted, fontSize: 12),
+                  style: GoogleFonts.poppins(color: context.colors.textSecondary, fontSize: 12),
                 ),
                 const SizedBox(height: 6),
                 Row(
@@ -764,13 +764,13 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF1F3F6),
+                        color: context.colors.cardSurface,
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
                         _dateLabel(session.startTime),
                         style: GoogleFonts.poppins(
-                          color: _muted,
+                          color: context.colors.textSecondary,
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                         ),
@@ -779,7 +779,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                     const SizedBox(width: 6),
                     Text(
                       _durationLabel(session),
-                      style: GoogleFonts.poppins(color: _muted, fontSize: 12),
+                      style: GoogleFonts.poppins(color: context.colors.textSecondary, fontSize: 12),
                     ),
                   ],
                 ),
@@ -793,7 +793,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
               Text(
                 'KES ${session.cost.toStringAsFixed(0)}',
                 style: GoogleFonts.poppins(
-                  color: _ink,
+                  color: context.colors.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -853,7 +853,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
@@ -979,7 +979,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
         content: Text(
           'Are you sure you want to remove ${widget.vehicle.plateNumber} from your account?',
           style: GoogleFonts.poppins(
-              fontSize: 13, color: AppColors.textSecondary),
+              fontSize: 13, color: context.colors.textSecondary),
         ),
         actions: [
           TextButton(
@@ -987,7 +987,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
             child: Text(
               'Cancel',
               style: GoogleFonts.poppins(
-                color: AppColors.textSecondary,
+                color: context.colors.textSecondary,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -1006,7 +1006,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
             child: Text(
               'Remove',
               style: GoogleFonts.poppins(
-                color: AppColors.error,
+                color: context.colors.error,
                 fontWeight: FontWeight.w600,
               ),
             ),

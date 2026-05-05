@@ -18,12 +18,12 @@ class ParkIQLogo extends StatelessWidget {
           width: size,
           height: size,
           decoration: BoxDecoration(
-            color: dark ? Colors.white : AppColors.primary,
+            color: dark ? Colors.white : context.colors.primary,
             borderRadius: BorderRadius.circular(size * 0.28),
           ),
           child: Icon(
             LucideIcons.camera,
-            color: dark ? AppColors.primary : Colors.white,
+            color: dark ? context.colors.primary : Colors.white,
             size: size * 0.48,
           ),
         ),
@@ -31,7 +31,7 @@ class ParkIQLogo extends StatelessWidget {
         Text(
           'ParkIQ',
           style: GoogleFonts.poppins(
-            color: dark ? Colors.white : AppColors.textPrimary,
+            color: dark ? Colors.white : context.colors.textPrimary,
             fontWeight: FontWeight.w500,
             fontSize: size * 0.52,
           ),
@@ -77,7 +77,7 @@ class OnboardingStepHeader extends StatelessWidget {
                     style: GoogleFonts.poppins(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textMuted,
+                      color: context.colors.textMuted,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -88,7 +88,7 @@ class OnboardingStepHeader extends StatelessWidget {
                     style: GoogleFonts.poppins(
                       fontSize: 20,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textPrimary,
+                      color: context.colors.textPrimary,
                     ),
                   ),
                 ],
@@ -106,8 +106,8 @@ class OnboardingStepHeader extends StatelessWidget {
           child: LinearProgressIndicator(
             value: progress,
             minHeight: 4,
-            color: AppColors.primary,
-            backgroundColor: AppColors.border.withValues(alpha: 0.65),
+            color: context.colors.primary,
+            backgroundColor: context.colors.border.withValues(alpha: 0.65),
           ),
         ),
       ],
@@ -131,11 +131,11 @@ class OnboardingHeroIcon extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: AppColors.accentLight,
+        color: context.colors.accentLight,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppColors.mintBorder, width: 1.8),
+        border: Border.all(color: context.colors.mintBorder, width: 1.8),
       ),
-      child: Icon(icon, color: AppColors.primary, size: size * 0.34),
+      child: Icon(icon, color: context.colors.primary, size: size * 0.34),
     );
   }
 }
@@ -148,18 +148,18 @@ class _HeaderBackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.pageGrey,
+      color: context.colors.pageGrey,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(16),
-        child: const SizedBox(
+        child: SizedBox(
           width: 46,
           height: 46,
           child: Icon(
             LucideIcons.arrowLeft,
             size: 20,
-            color: AppColors.textPrimary,
+            color: context.colors.textPrimary,
           ),
         ),
       ),
@@ -190,7 +190,7 @@ class OnboardingStepper extends StatelessWidget {
           width: isActive ? 28 : 10,
           height: 10,
           decoration: BoxDecoration(
-            color: isActive || isDone ? AppColors.primary : AppColors.border,
+            color: isActive || isDone ? context.colors.primary : context.colors.border,
             borderRadius: BorderRadius.circular(5),
           ),
         );
@@ -216,7 +216,7 @@ class SectionLabel extends StatelessWidget {
           style: GoogleFonts.poppins(
             fontSize: 15,
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+            color: context.colors.textPrimary,
           ),
         ),
         if (action != null)
@@ -227,7 +227,7 @@ class SectionLabel extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: AppColors.primary,
+                color: context.colors.primary,
               ),
             ),
           ),
@@ -247,7 +247,7 @@ class StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: isActive ? AppColors.successLight : AppColors.border.withValues(alpha: 0.5),
+        color: isActive ? context.colors.successLight : context.colors.border.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -257,7 +257,7 @@ class StatusBadge extends StatelessWidget {
             Container(
               width: 6,
               height: 6,
-              decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
+              decoration: BoxDecoration(color: context.colors.success, shape: BoxShape.circle),
             ),
             const SizedBox(width: 4),
           ],
@@ -266,7 +266,7 @@ class StatusBadge extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: isActive ? AppColors.success : AppColors.textSecondary,
+              color: isActive ? context.colors.success : context.colors.textSecondary,
             ),
           ),
         ],

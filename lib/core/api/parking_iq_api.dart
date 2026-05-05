@@ -266,7 +266,7 @@ class ParkingIqApi {
         'phoneNumber': phoneNumber,
         'amount': amount,
         'accountReference': accountReference,
-        if (transactionDesc != null) 'transactionDesc': transactionDesc,
+        'transactionDesc': ?transactionDesc,
       },
     );
     return MpesaResponse.fromJson(_requiredObjectPayload(response));
@@ -653,9 +653,7 @@ class ParkingIqApi {
         ? _baseUri.path.substring(0, _baseUri.path.length - 1)
         : _baseUri.path;
     final requestPath = path.startsWith('/') ? path : '/$path';
-    final queryParameters = query == null
-        ? null
-        : query.map((key, value) => MapEntry(key, value.toString()));
+    final queryParameters = query?.map((key, value) => MapEntry(key, value.toString()));
 
     return _baseUri.replace(
       path: '$basePath$requestPath',
