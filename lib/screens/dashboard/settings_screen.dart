@@ -328,7 +328,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: const Color(0xFFF3F4F6),
+              color: context.colors.cardSurface,
               borderRadius: BorderRadius.circular(15),
             ),
             child: Icon(
@@ -343,13 +343,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _profileCard(AppState state) {
-    return Material(
-      color: context.colors.primaryDark,
-      borderRadius: BorderRadius.circular(24),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => _openPage(PersonalDetailsSettingsPage(state: state)),
-        child: Padding(
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.primary, AppColors.primaryDark],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.28),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(24),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => _openPage(PersonalDetailsSettingsPage(state: state)),
+          splashColor: Colors.white.withValues(alpha: 0.1),
+          child: Padding(
           padding: const EdgeInsets.all(20),
           child: Row(
             children: [
@@ -436,6 +453,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 

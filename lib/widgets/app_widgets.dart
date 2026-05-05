@@ -18,13 +18,29 @@ class ParkIQLogo extends StatelessWidget {
           width: size,
           height: size,
           decoration: BoxDecoration(
-            color: dark ? Colors.white : context.colors.primary,
+            gradient: dark
+                ? null
+                : const LinearGradient(
+                    colors: [AppColors.primary, AppColors.primaryDark],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+            color: dark ? Colors.white : null,
             borderRadius: BorderRadius.circular(size * 0.28),
+            boxShadow: dark
+                ? null
+                : [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
           ),
           child: Icon(
-            LucideIcons.camera,
+            Icons.local_parking_rounded,
             color: dark ? context.colors.primary : Colors.white,
-            size: size * 0.48,
+            size: size * 0.56,
           ),
         ),
         const SizedBox(width: 10),
@@ -32,7 +48,7 @@ class ParkIQLogo extends StatelessWidget {
           'ParkIQ',
           style: GoogleFonts.poppins(
             color: dark ? Colors.white : context.colors.textPrimary,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w700,
             fontSize: size * 0.52,
           ),
         ),

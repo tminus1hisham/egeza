@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -32,9 +34,12 @@ class _SignInScreenState extends State<SignInScreen> {
   bool _otpRequested = false;
   bool _navigatedAfterAuth = false;
   String? _pendingAction;
+  int _resendCountdown = 0;
+  Timer? _resendTimer;
 
   @override
   void dispose() {
+    _resendTimer?.cancel();
     _phoneController.dispose();
     for (final controller in _otpControllers) {
       controller.dispose();
@@ -43,6 +48,18 @@ class _SignInScreenState extends State<SignInScreen> {
       node.dispose();
     }
     super.dispose();
+  }
+
+  void _startResendTimer() {
+    _resendTimer?.cancel();
+    setState(() => _resendCountdown = 60);
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) { timer.cancel(); return; }
+      setState(() {
+        _resendCountdown--;
+        if (_resendCountdown <= 0) timer.cancel();
+      });
+    });
   }
 
   @override
@@ -58,22 +75,38 @@ class _SignInScreenState extends State<SignInScreen> {
         final isBusy = state.isLoading;
 
         return Scaffold(
-          backgroundColor: Colors.white,
-          body: SafeArea(
-            child: SingleChildScrollView(
+          backgroundColor: context.colors.background,
+          body: Stack(
+            children: [
+              // Subtle gradient wash behind the top area
+              Container(
+                height: 280,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.primary.withValues(alpha: 0.09),
+                      Colors.transparent,
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+              ),
+              SafeArea(
+                child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 34),
-                  const Center(child: ParkIQLogo(size: 42)),
-                  const SizedBox(height: 34),
+                  const SizedBox(height: 40),
+                  const Center(child: ParkIQLogo(size: 46)),
+                  const SizedBox(height: 36),
                   Text(
                     'Sign in',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
                       fontSize: 30,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w700,
                       color: context.colors.textPrimary,
                     ),
                   ),
@@ -86,7 +119,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       color: context.colors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 32),
                   _phoneCard(
                     isBusy: isBusy,
                     isRequestingOtp:
@@ -106,10 +139,12 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                   const SizedBox(height: 24),
                   _createAccountLink(),
-                  const SizedBox(height: 34),
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
+          ),
+            ],
           ),
         );
       },
@@ -133,13 +168,13 @@ class _SignInScreenState extends State<SignInScreen> {
               CountryCodeSelector(
                 selected: _selectedCountry,
                 onChanged: (code) => setState(() => _selectedCountry = code),
-                decoration: _inputBoxDecoration(Colors.white),
+                decoration: _inputBoxDecoration(null),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Container(
                   height: 54,
-                  decoration: _inputBoxDecoration(Colors.white),
+                  decoration: _inputBoxDecoration(null),
                   child: TextField(
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
@@ -172,10 +207,14 @@ class _SignInScreenState extends State<SignInScreen> {
           ),
           const SizedBox(height: 16),
           PrimaryButton(
-            text: _otpRequested ? 'Resend Code' : 'Send OTP',
+            text: _otpRequested
+                ? (_resendCountdown > 0
+                    ? 'Resend in ${_resendCountdown}s'
+                    : 'Resend Code')
+                : 'Send OTP',
             icon: LucideIcons.messageCircle,
             isLoading: isRequestingOtp,
-            onPressed: isBusy ? null : _requestOtp,
+            onPressed: (isBusy || _resendCountdown > 0) ? null : _requestOtp,
           ),
         ],
       ),
@@ -269,7 +308,7 @@ class _SignInScreenState extends State<SignInScreen> {
         onChanged: (value) => _onOtpDigit(value, index),
         decoration: InputDecoration(
           filled: true,
-          fillColor: Colors.white,
+          fillColor: context.colors.surface,
           counterText: '',
           contentPadding: EdgeInsets.zero,
           enabledBorder: _otpBorder(
@@ -373,6 +412,7 @@ class _SignInScreenState extends State<SignInScreen> {
       _otpRequested = true;
       _pendingAction = _SignInAction.requestOtp;
     });
+    _startResendTimer();
     context.read<AppBloc>().add(RequestLoginOtp(_normalizedPhoneNumber));
   }
 
@@ -417,22 +457,22 @@ class _SignInScreenState extends State<SignInScreen> {
 
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
-      color: Colors.white,
+      color: context.colors.surface,
       borderRadius: BorderRadius.circular(18),
       border: Border.all(color: context.colors.border),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.035),
-          blurRadius: 14,
+          color: Colors.black.withValues(alpha: 0.04),
+          blurRadius: 16,
           offset: const Offset(0, 6),
         ),
       ],
     );
   }
 
-  BoxDecoration _inputBoxDecoration(Color color) {
+  BoxDecoration _inputBoxDecoration(Color? color) {
     return BoxDecoration(
-      color: color,
+      color: color ?? context.colors.inputFill,
       borderRadius: BorderRadius.circular(14),
       border: Border.all(color: context.colors.inputBorder),
     );

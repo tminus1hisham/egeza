@@ -47,26 +47,27 @@ class _MainNavigationState extends State<MainNavigation> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
+              color: Colors.black.withValues(alpha: 0.07),
+              blurRadius: 16,
+              offset: const Offset(0, -3),
             ),
           ],
         ),
         child: SafeArea(
           child: SizedBox(
-            height: 66,
+            height: 64,
             child: Row(
               children: [
-                _navItem(0, Icons.home_outlined, 'Home'),
-                _navItem(1, Icons.directions_car_outlined, 'Vehicle'),
+                _navItem(0, Icons.home_rounded, Icons.home_outlined, 'Home'),
+                _navItem(1, Icons.directions_car_rounded, Icons.directions_car_outlined, 'Vehicle'),
                 _navItem(
                   2,
+                  Icons.account_balance_wallet_rounded,
                   Icons.account_balance_wallet_outlined,
                   'Wallet',
                 ),
-                _navItem(3, Icons.history_rounded, 'History'),
-                _navItem(4, Icons.settings_outlined, 'Settings'),
+                _navItem(3, Icons.history_rounded, Icons.history_rounded, 'History'),
+                _navItem(4, Icons.settings_rounded, Icons.settings_outlined, 'Settings'),
               ],
             ),
           ),
@@ -79,7 +80,7 @@ class _MainNavigationState extends State<MainNavigation> {
     setState(() => _index = index);
   }
 
-  Widget _navItem(int idx, IconData icon, String label) {
+  Widget _navItem(int idx, IconData activeIcon, IconData inactiveIcon, String label) {
     final isActive = _index == idx;
     return Expanded(
       child: GestureDetector(
@@ -88,29 +89,28 @@ class _MainNavigationState extends State<MainNavigation> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: isActive ? context.colors.primary : context.colors.textMuted,
-              size: 21,
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+              decoration: BoxDecoration(
+                color: isActive ? context.colors.accentLight : Colors.transparent,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Icon(
+                isActive ? activeIcon : inactiveIcon,
+                color: isActive ? context.colors.primary : context.colors.textMuted,
+                size: 21,
+              ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             Text(
               label,
               style: GoogleFonts.poppins(
-                fontSize: 11,
+                fontSize: 10,
                 height: 1,
-                fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
                 color: isActive ? context.colors.primary : context.colors.textMuted,
-              ),
-            ),
-            const SizedBox(height: 5),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              width: 3.5,
-              height: 3.5,
-              decoration: BoxDecoration(
-                color: isActive ? context.colors.primary : Colors.transparent,
-                shape: BoxShape.circle,
               ),
             ),
           ],

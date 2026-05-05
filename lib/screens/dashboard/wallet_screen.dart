@@ -157,12 +157,16 @@ class _WalletScreenState extends State<WalletScreen> {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),
       decoration: BoxDecoration(
-        color: context.colors.primaryDark,
+        gradient: const LinearGradient(
+          colors: [AppColors.primary, AppColors.primaryDark],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: context.colors.primaryDark.withValues(alpha: 0.18),
-            blurRadius: 22,
+            color: AppColors.primary.withValues(alpha: 0.3),
+            blurRadius: 24,
             offset: const Offset(0, 12),
           ),
         ],
@@ -308,7 +312,7 @@ class _WalletScreenState extends State<WalletScreen> {
             onChanged: (value) {
               final amount = double.tryParse(value);
               setState(() {
-                if (amount != null && amount > 0) {
+                if (amount != null && amount >= 100) {
                   _selectedAmount = amount;
                 } else {
                   _selectedAmount = null;
@@ -317,7 +321,7 @@ class _WalletScreenState extends State<WalletScreen> {
             },
             style: GoogleFonts.poppins(fontSize: 14, color: context.colors.textPrimary, fontWeight: FontWeight.w600),
             decoration: InputDecoration(
-              hintText: 'Enter custom amount',
+              hintText: 'Custom amount (min KES 100)',
               hintStyle: GoogleFonts.poppins(color: context.colors.textMuted, fontSize: 14, fontWeight: FontWeight.w400),
               prefixIcon: Padding(
                 padding: const EdgeInsets.only(left: 16, right: 10),
@@ -337,7 +341,7 @@ class _WalletScreenState extends State<WalletScreen> {
               ),
               prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
               filled: true,
-              fillColor: const Color(0xFFF6F7F9),
+              fillColor: context.colors.inputFill,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
@@ -356,7 +360,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEFFBF4),
+                  color: context.colors.successLight,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
@@ -437,13 +441,30 @@ class _WalletScreenState extends State<WalletScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Recent activity',
-          style: GoogleFonts.poppins(
-            color: context.colors.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Recent activity',
+              style: GoogleFonts.poppins(
+                color: context.colors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (state.recentSessions.isNotEmpty)
+              GestureDetector(
+                onTap: () {},
+                child: Text(
+                  'See all',
+                  style: GoogleFonts.poppins(
+                    color: context.colors.primary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 12),
         Container(
@@ -567,7 +588,7 @@ class _WalletScreenState extends State<WalletScreen> {
         duration: const Duration(milliseconds: 180),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? context.colors.accentLight : const Color(0xFFF6F7F9),
+          color: selected ? context.colors.accentLight : context.colors.cardSurface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected ? context.colors.primary : context.colors.border,
@@ -681,7 +702,7 @@ class _WalletScreenState extends State<WalletScreen> {
 
   Widget _iconButton(IconData icon, {required VoidCallback onTap}) {
     return Material(
-      color: const Color(0xFFF3F4F6),
+      color: context.colors.cardSurface,
       borderRadius: BorderRadius.circular(15),
       child: InkWell(
         onTap: onTap,
@@ -946,7 +967,7 @@ class _StkPushSheetState extends State<_StkPushSheet> {
             style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
             decoration: InputDecoration(
               filled: true,
-              fillColor: const Color(0xFFF6F7F9),
+              fillColor: context.colors.inputFill,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),

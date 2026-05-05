@@ -17,7 +17,15 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   int _filterIndex = 0;
+  bool _searchOpen = false;
+  final _searchController = TextEditingController();
   static const _filters = ['All', 'Paid', 'Active'];
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Future<void> _onRefresh() async {
     context.read<AppBloc>().add(LoadDashboardData());
@@ -65,52 +73,99 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _header() {
-    return Container(
-      width: double.infinity,
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: context.colors.accentLight,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Icon(
-              Icons.history_rounded,
-              color: context.colors.primary,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'History',
-                  style: GoogleFonts.poppins(
-                    color: context.colors.textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          color: context.colors.surface,
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: context.colors.accentLight,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(Icons.history_rounded, color: context.colors.primary, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'History',
+                      style: GoogleFonts.poppins(
+                        color: context.colors.textPrimary,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Parking sessions and payments',
+                      style: GoogleFonts.poppins(color: context.colors.textSecondary, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              GestureDetector(
+                onTap: () => setState(() {
+                  _searchOpen = !_searchOpen;
+                  if (!_searchOpen) _searchController.clear();
+                }),
+                child: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: _searchOpen ? context.colors.accentLight : context.colors.cardSurface,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Icon(
+                    _searchOpen ? Icons.close_rounded : Icons.search_rounded,
+                    color: _searchOpen ? context.colors.primary : context.colors.textPrimary,
+                    size: 21,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Parking sessions and payments',
-                  style: GoogleFonts.poppins(
-                    color: context.colors.textSecondary,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          _headerAction(Icons.search_rounded),
-        ],
-      ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeInOut,
+          child: _searchOpen
+              ? Container(
+                  color: context.colors.surface,
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                  child: TextField(
+                    controller: _searchController,
+                    autofocus: true,
+                    onChanged: (_) => setState(() {}),
+                    style: GoogleFonts.poppins(fontSize: 14, color: context.colors.textPrimary),
+                    decoration: InputDecoration(
+                      hintText: 'Search by location or plate…',
+                      hintStyle: GoogleFonts.poppins(color: context.colors.textMuted, fontSize: 14),
+                      prefixIcon: Icon(Icons.search_rounded, color: context.colors.textMuted, size: 20),
+                      filled: true,
+                      fillColor: context.colors.inputFill,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: context.colors.primary, width: 1.5),
+                      ),
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
     );
   }
 
@@ -123,8 +178,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
       decoration: BoxDecoration(
-        color: context.colors.primaryDeep,
+        gradient: const LinearGradient(
+          colors: [AppColors.primaryDark, AppColors.primaryDeep],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryDeep.withValues(alpha: 0.4),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -173,7 +239,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       height: 46,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: context.colors.border),
       ),
@@ -362,8 +428,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: active ? context.colors.successLight : const Color(0xFFF1F5F4),
+        color: active ? context.colors.successLight : context.colors.pageGrey,
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: active ? context.colors.success.withValues(alpha: 0.3) : context.colors.border,
+        ),
       ),
       child: Text(
         label,
@@ -373,18 +442,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
           fontWeight: FontWeight.w600,
         ),
       ),
-    );
-  }
-
-  Widget _headerAction(IconData icon) {
-    return Container(
-      width: 42,
-      height: 42,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF3F4F6),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Icon(icon, color: context.colors.textPrimary, size: 21),
     );
   }
 
@@ -445,7 +502,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   BoxDecoration _panelDecoration() {
     return BoxDecoration(
-      color: Colors.white,
+      color: context.colors.surface,
       borderRadius: BorderRadius.circular(20),
       border: Border.all(color: context.colors.border),
       boxShadow: [
@@ -459,13 +516,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   List<ParkingSession> _filteredSessions(List<ParkingSession> sessions) {
-    if (_filterIndex == 1) {
-      return sessions.where((session) => !session.isActive).toList();
+    var result = sessions;
+    if (_filterIndex == 1) result = result.where((s) => !s.isActive).toList();
+    if (_filterIndex == 2) result = result.where((s) => s.isActive).toList();
+
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      result = result
+          .where((s) =>
+              s.locationName.toLowerCase().contains(query) ||
+              s.vehicle.plateNumber.toLowerCase().contains(query))
+          .toList();
     }
-    if (_filterIndex == 2) {
-      return sessions.where((session) => session.isActive).toList();
-    }
-    return sessions;
+    return result;
   }
 
   String _durationLabel(ParkingSession session) {
@@ -474,9 +537,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final hours = duration.inHours;
     final minutes = duration.inMinutes % 60;
 
-    if (hours <= 0) return '${minutes}m parked';
-    if (minutes <= 0) return '${hours}h parked';
-    return '${hours}h ${minutes}m parked';
+    if (hours <= 0) return '$minutes min';
+    if (minutes <= 0) return '${hours}h';
+    return '${hours}h ${minutes}m';
   }
 
   String _dateTimeLabel(DateTime dateTime) {

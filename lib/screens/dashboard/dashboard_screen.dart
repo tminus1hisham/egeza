@@ -47,7 +47,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF2F4F3),
+        backgroundColor: context.colors.pageGrey,
         body: BlocBuilder<AppBloc, AppState>(
           builder: (context, state) {
             if (state.isLoading) {
@@ -88,10 +88,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // ── HEADER ───────────────────────────────────────────────────────────────
   Widget _buildHeader(BuildContext context, AppState state) {
     final autoPayCount = state.vehicles.where((v) => v.autoPayEnabled).length;
+    final isLowBalance = state.walletBalance < 500;
 
     return Container(
-      decoration: BoxDecoration(
-        color: context.colors.primary,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.primary, AppColors.primaryDark],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(28),
           bottomRight: Radius.circular(28),
@@ -113,7 +118,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Good morning 🔥',
+                          _greeting(),
                           style: GoogleFonts.poppins(
                             color: Colors.white.withValues(alpha: 0.75),
                             fontSize: 13,
@@ -207,6 +212,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         height: 1.1,
                       ),
                     ),
+                    if (isLowBalance) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppColors.warning.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.warning.withValues(alpha: 0.5)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 13),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Low balance — top up to avoid disruption',
+                              style: GoogleFonts.poppins(
+                                color: AppColors.warning,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 10),
                     Row(
                       children: [
@@ -279,7 +310,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
               decoration: BoxDecoration(
-                color: context.colors.primaryDark,
+                gradient: const LinearGradient(
+                  colors: [AppColors.primaryDark, AppColors.primaryDeep],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
@@ -370,7 +405,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: context.colors.border),
         ),
@@ -450,7 +485,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: context.colors.border),
       ),
@@ -496,7 +531,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       height: 7,
                       margin: const EdgeInsets.only(right: 5),
                       decoration: BoxDecoration(
-                        color: v.autoPayEnabled ? context.colors.success : context.colors.error,
+                        color: v.autoPayEnabled ? context.colors.success : context.colors.textMuted,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -556,17 +591,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _emptyVehicle() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: context.colors.border),
       ),
-      child: Center(
-        child: Text(
-          'No vehicles added yet',
-          style: GoogleFonts.poppins(color: context.colors.textSecondary, fontSize: 13),
-        ),
+      child: Column(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: context.colors.accentLight,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.directions_car_outlined, color: context.colors.primary, size: 26),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'No vehicles added yet',
+            style: GoogleFonts.poppins(
+              color: context.colors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Add a vehicle to start parking smarter',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(color: context.colors.textSecondary, fontSize: 12),
+          ),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: () => _openVehicles(context),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: context.colors.primary,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Text(
+                '+ Add Vehicle',
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -604,31 +680,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 12),
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.colors.surface,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: context.colors.border),
             ),
             child: state.recentSessions.isEmpty
                 ? Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Center(
-                      child: Text(
-                        'No recent sessions',
-                        style: GoogleFonts.poppins(
-                          color: context.colors.textSecondary,
-                          fontSize: 13,
+                    padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
+                    child: Column(
+                      children: [
+                        Icon(Icons.local_parking_rounded,
+                            color: context.colors.textMuted, size: 32),
+                        const SizedBox(height: 10),
+                        Text(
+                          'No parking sessions yet',
+                          style: GoogleFonts.poppins(
+                            color: context.colors.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Your session history will appear here',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.poppins(
+                            color: context.colors.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
                   )
                 : ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: state.recentSessions.length,
-                    separatorBuilder: (_, idx) => const Divider(
+                    separatorBuilder: (_, idx) => Divider(
                       height: 1,
                       indent: 64,
-                      color: Color(0xFFF0F4F2),
+                      color: context.colors.divider,
                     ),
                     itemBuilder: (context, i) =>
                         _sessionTile(context, state.recentSessions[i]),
@@ -800,6 +891,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ),
     );
+  }
+
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning ☀️';
+    if (hour < 17) return 'Good afternoon 👋';
+    return 'Good evening 🌙';
   }
 
   String _dayLabel(DateTime dt) {

@@ -540,7 +540,7 @@ class _LegalSegmentedControl extends StatelessWidget {
       height: 54,
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: context.colors.border),
       ),
@@ -928,7 +928,7 @@ class _SubPageHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      color: Colors.white,
+      color: context.colors.surface,
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
       child: Row(
         children: [
@@ -989,7 +989,7 @@ class _HeaderButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFFF3F4F6),
+      color: context.colors.cardSurface,
       borderRadius: BorderRadius.circular(15),
       child: InkWell(
         onTap: onTap,
@@ -1182,7 +1182,7 @@ class _PreferenceHero extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: context.colors.border),
       ),
@@ -1261,7 +1261,7 @@ class _InfoPanel extends StatelessWidget {
         Container(
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: context.colors.surface,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: context.colors.border),
           ),
@@ -1350,7 +1350,7 @@ class _ActionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: context.colors.surface,
       child: InkWell(
         onTap: onTap,
         child: Padding(
@@ -1528,7 +1528,7 @@ class _InputRow extends StatelessWidget {
             ),
             decoration: InputDecoration(
               filled: true,
-              fillColor: const Color(0xFFF6F7F9),
+              fillColor: context.colors.inputFill,
               hintText: '0712 345 678',
               hintStyle: GoogleFonts.poppins(
                 color: context.colors.textMuted,
@@ -1650,7 +1650,7 @@ class _StyledSwitch extends StatelessWidget {
         activeThumbColor: Colors.white,
         activeTrackColor: context.colors.primary,
         inactiveThumbColor: Colors.white,
-        inactiveTrackColor: const Color(0xFFD8DEE8),
+        inactiveTrackColor: context.colors.border,
         trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
         onChanged: onChanged,
       ),
