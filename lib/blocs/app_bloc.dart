@@ -188,7 +188,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
           fallbackName: user?.fullName ?? event.fullName,
           fallbackPhoneNumber: user?.phoneNumber ?? event.phoneNumber,
           fallbackEmail: user?.email ?? event.email,
-          requiresVehicleSetup: true,
+          requiresVehicleSetup: false,
           statusMessage: 'Account connected to Parking IQ',
         ),
       );

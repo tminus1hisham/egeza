@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../blocs/app_state.dart';
 import '../../core/theme/app_colors.dart';
+import '../../widgets/app_widgets.dart';
 
 class PersonalDetailsSettingsPage extends StatelessWidget {
   final AppState state;
@@ -926,80 +927,13 @@ class _SubPageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      color: context.colors.surface,
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
-      child: Row(
-        children: [
-          _HeaderButton(icon: Icons.arrow_back_rounded, onTap: onBack),
-          const SizedBox(width: 12),
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: context.colors.accentLight,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Icon(icon, color: context.colors.primary, size: 22),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    color: context.colors.textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    color: context.colors.textSecondary,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeaderButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _HeaderButton({
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: context.colors.cardSurface,
-      borderRadius: BorderRadius.circular(15),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
-        child: SizedBox(
-          width: 42,
-          height: 42,
-          child: Icon(icon, color: context.colors.textPrimary, size: 22),
-        ),
-      ),
+    return AppPageHeader(
+      title: title,
+      subtitle: subtitle,
+      icon: icon,
+      showBackButton: true,
+      showIconWithBack: true,
+      onBack: onBack,
     );
   }
 }

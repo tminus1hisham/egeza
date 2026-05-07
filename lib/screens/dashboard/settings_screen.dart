@@ -6,6 +6,7 @@ import '../../blocs/app_bloc.dart';
 import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
 import '../../core/theme/app_colors.dart';
+import '../../widgets/app_widgets.dart';
 import '../auth/sign_in_screen.dart';
 import 'settings_detail_screen.dart';
 import 'vehicles_screen.dart';
@@ -279,65 +280,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _header() {
-    return Container(
-      width: double.infinity,
-      color: context.colors.surface,
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: context.colors.accentLight,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Icon(
-              Icons.settings_outlined,
-              color: context.colors.primary,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Settings',
-                  style: GoogleFonts.poppins(
-                    color: context.colors.textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Account, parking, and payment controls',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    color: context.colors.textSecondary,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: context.colors.cardSurface,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Icon(
-              Icons.more_horiz_rounded,
-              color: context.colors.textPrimary,
-              size: 22,
-            ),
-          ),
-        ],
+    return AppPageHeader(
+      title: 'Settings',
+      subtitle: 'Account, parking, and payment controls',
+      icon: Icons.settings_outlined,
+      trailing: AppHeaderButton(
+        icon: Icons.more_horiz_rounded,
+        tooltip: 'More settings',
+        onTap: () {},
       ),
     );
   }

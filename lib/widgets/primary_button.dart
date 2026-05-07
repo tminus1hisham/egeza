@@ -22,25 +22,36 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDisabled = isLoading || onPressed == null;
+    final radius = BorderRadius.circular(16);
+
     if (isOutlined) {
       return SizedBox(
         width: width ?? double.infinity,
         height: 52,
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            foregroundColor: context.colors.primary,
+            backgroundColor: context.colors.surface,
+            disabledBackgroundColor: context.colors.surface,
+            foregroundColor: isDisabled
+                ? context.colors.textMuted
+                : context.colors.primary,
+            disabledForegroundColor: context.colors.textMuted,
             elevation: 0,
-            side: BorderSide(color: context.colors.primary, width: 1.5),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            shadowColor: Colors.transparent,
+            side: BorderSide(
+              color: isDisabled
+                  ? context.colors.border
+                  : context.colors.primary.withValues(alpha: 0.7),
+              width: 1.4,
+            ),
+            shape: RoundedRectangleBorder(borderRadius: radius),
           ),
-          onPressed: isLoading ? null : onPressed,
-          child: _buildChild(context),
+          onPressed: isDisabled ? null : onPressed,
+          child: _buildChild(context, disabled: isDisabled),
         ),
       );
     }
-
-    final isDisabled = isLoading || onPressed == null;
 
     return SizedBox(
       width: width ?? double.infinity,
@@ -50,44 +61,60 @@ class PrimaryButton extends StatelessWidget {
           gradient: LinearGradient(
             colors: isDisabled
                 ? [const Color(0xFFB8C4C0), const Color(0xFFA8B5B0)]
-                : [AppColors.primary, const Color(0xFF096B5D)],
+                : [const Color(0xFF0B8A7A), AppColors.primaryDark],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: radius,
           boxShadow: isDisabled
               ? []
               : [
                   BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.38),
-                    blurRadius: 14,
-                    offset: const Offset(0, 5),
+                    color: AppColors.primary.withValues(alpha: 0.28),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
                   ),
                 ],
         ),
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-          child: InkWell(
-            onTap: isDisabled ? null : onPressed,
-            borderRadius: BorderRadius.circular(14),
-            splashColor: Colors.white.withValues(alpha: 0.18),
-            highlightColor: Colors.white.withValues(alpha: 0.08),
-            child: Center(child: _buildChild(context)),
+        child: ElevatedButton(
+          onPressed: isDisabled ? null : onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            disabledBackgroundColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            disabledForegroundColor: Colors.white,
+            shadowColor: Colors.transparent,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 18),
+            shape: RoundedRectangleBorder(borderRadius: radius),
+          ).copyWith(
+            overlayColor: WidgetStatePropertyAll(
+              Colors.white.withValues(alpha: 0.12),
+            ),
           ),
+          child: _buildChild(context, disabled: isDisabled),
         ),
       ),
     );
   }
 
-  Widget _buildChild(BuildContext context) {
+  Widget _buildChild(BuildContext context, {required bool disabled}) {
     if (isLoading) {
-      return const SizedBox(
+      return SizedBox(
         height: 20,
         width: 20,
-        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+        child: CircularProgressIndicator(
+          color: isOutlined ? context.colors.primary : Colors.white,
+          strokeWidth: 2,
+        ),
       );
     }
+    final foreground = isOutlined
+        ? disabled
+            ? context.colors.textMuted
+            : context.colors.primary
+        : Colors.white;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
@@ -96,7 +123,7 @@ class PrimaryButton extends StatelessWidget {
           Icon(
             icon,
             size: 18,
-            color: isOutlined ? context.colors.primary : Colors.white,
+            color: foreground,
           ),
           const SizedBox(width: 8),
         ],
@@ -107,7 +134,7 @@ class PrimaryButton extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: isOutlined ? context.colors.primary : Colors.white,
+              color: foreground,
             ),
           ),
         ),

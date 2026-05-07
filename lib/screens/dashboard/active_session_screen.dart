@@ -54,7 +54,28 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
       body: Column(
         children: [
           Container(
-            color: context.colors.primaryDark,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  context.colors.primaryDeep,
+                  context.colors.primaryDark,
+                  context.colors.primary,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(32),
+                bottomRight: Radius.circular(32),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryDeep.withValues(alpha: 0.26),
+                  blurRadius: 28,
+                  offset: const Offset(0, 14),
+                ),
+              ],
+            ),
             child: SafeArea(
               bottom: false,
               child: Padding(
@@ -63,15 +84,49 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                   children: [
                     Row(
                       children: [
-                        GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                        Material(
+                          color: Colors.white.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(14),
+                          child: InkWell(
+                            onTap: () => Navigator.pop(context),
+                            borderRadius: BorderRadius.circular(14),
+                            child: const SizedBox(
+                              width: 40,
+                              height: 40,
+                              child: Icon(
+                                Icons.arrow_back_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                          ),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
-                          child: Text(
-                            'Active Session',
-                            style: GoogleFonts.poppins(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Active Session',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              Text(
+                                'Live billing in progress',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white.withValues(alpha: 0.62),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         const StatusBadge(label: 'Active Now', isActive: true),
@@ -99,9 +154,12 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(30),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.1),
+                        ),
                       ),
                       child: Text(
-                        '${widget.session.vehicle.plateNumber}  •  ${widget.session.vehicle.make}',
+                        '${widget.session.vehicle.plateNumber} - ${widget.session.vehicle.make}',
                         style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13),
                       ),
                     ),
@@ -116,17 +174,39 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Session Details',
-                    style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600, color: context.colors.textPrimary)),
+                  Text(
+                    'Session Details',
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: context.colors.textPrimary,
+                    ),
+                  ),
                   const SizedBox(height: 14),
-                  _detailRow('Rate', 'KES ${widget.session.cost.toStringAsFixed(0)}/hr'),
-                  _detailRow('Started', _formatTime(widget.session.startTime)),
-                  _detailRow('Location', widget.session.locationName),
-                  _detailRow('Vehicle', '${widget.session.vehicle.make} ${widget.session.vehicle.model}'),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: context.colors.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: context.colors.border),
+                    ),
+                    child: Column(
+                      children: [
+                        _detailRow('Rate', 'KES ${widget.session.cost.toStringAsFixed(0)}/hr'),
+                        _detailRow('Started', _formatTime(widget.session.startTime)),
+                        _detailRow('Location', widget.session.locationName),
+                        _detailRow('Vehicle', '${widget.session.vehicle.make} ${widget.session.vehicle.model}'),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 28),
                   Container(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: context.colors.accentLight, borderRadius: BorderRadius.circular(14)),
+                    decoration: BoxDecoration(
+                      color: context.colors.accentLight,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: context.colors.mintBorder),
+                    ),
                     child: Row(
                       children: [
                         Icon(Icons.info_outline_rounded, color: context.colors.primary, size: 20),
@@ -141,7 +221,10 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                     ),
                   ),
                   const SizedBox(height: 28),
-                  PrimaryButton(text: 'End Session & Pay', onPressed: () => _showEndDialog(context)),
+                  PrimaryButton(
+                    text: 'End Session & Pay',
+                    onPressed: () => _showEndDialog(context),
+                  ),
                 ],
               ),
             ),
@@ -159,7 +242,20 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: GoogleFonts.poppins(fontSize: 13, color: context.colors.textSecondary)),
-          Text(value, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: context.colors.textPrimary)),
+          const SizedBox(width: 16),
+          Flexible(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: context.colors.textPrimary,
+              ),
+            ),
+          ),
         ],
       ),
     );

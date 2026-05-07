@@ -5,8 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../blocs/app_bloc.dart';
 import '../blocs/app_event.dart';
 import '../core/theme/app_colors.dart';
-import 'auth/sign_in_screen.dart';
 import 'dashboard/main_nav.dart';
+import 'onboarding/walkthrough_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -32,7 +32,7 @@ class _SplashScreenState extends State<SplashScreen> {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (_, animation, _) =>
-            isAuthenticated ? const MainNavigation() : const SignInScreen(),
+            isAuthenticated ? const MainNavigation() : const WalkthroughScreen(),
         transitionsBuilder: (_, animation, _, child) => FadeTransition(
           opacity: animation,
           child: child,

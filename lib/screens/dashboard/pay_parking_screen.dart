@@ -10,6 +10,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/payment/payment_validation.dart';
 import '../../models/parking_session.dart';
 import '../../models/vehicle.dart';
+import '../../widgets/app_widgets.dart';
 import '../../widgets/primary_button.dart';
 
 class PayParkingScreen extends StatefulWidget {
@@ -122,14 +123,14 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
       },
 
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: context.colors.background,
         body: SafeArea(
           child: Column(
             children: [
               _header(context),
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
                   child: BlocBuilder<AppBloc, AppState>(
                     builder: (context, state) {
                       return Column(
@@ -169,8 +170,22 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                   ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
+                decoration: BoxDecoration(
+                  color: context.colors.surface,
+                  border: Border(
+                    top: BorderSide(color: context.colors.border),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 18,
+                      offset: const Offset(0, -6),
+                    ),
+                  ],
+                ),
                 child: BlocBuilder<AppBloc, AppState>(
                   builder: (context, state) {
                     return PrimaryButton(
@@ -189,50 +204,13 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
   }
 
   Widget _header(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF4F6F5),
-                shape: BoxShape.circle,
-                border: Border.all(color: context.colors.border),
-              ),
-              child: Icon(
-                Icons.arrow_back_rounded,
-                size: 18,
-                color: context.colors.textPrimary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Pay Parking',
-                style: GoogleFonts.poppins(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: context.colors.textPrimary,
-                ),
-              ),
-              Text(
-                'Enter plate to initiate payment',
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  color: context.colors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+    return AppPageHeader(
+      title: 'Pay Parking',
+      subtitle: 'Enter plate to initiate payment',
+      icon: Icons.local_parking_rounded,
+      showBackButton: true,
+      showIconWithBack: true,
+      onBack: () => Navigator.pop(context),
     );
   }
 
@@ -347,15 +325,22 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
       width: double.infinity,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF8E1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF59E0B), width: 2),
+        color: context.colors.plateBg,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: context.colors.plateYellow, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: context.colors.plateYellow.withValues(alpha: 0.16),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.symmetric(vertical: 9),
             color: context.colors.plateYellow,
             child: Center(
               child: Text(
@@ -370,7 +355,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 18),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 19),
             child: FittedBox(
               fit: BoxFit.scaleDown,
               child: Row(
@@ -415,10 +400,10 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
         decoration: InputDecoration(
           counterText: '',
           filled: true,
-          fillColor: Colors.white,
+          fillColor: context.colors.surface,
           contentPadding: EdgeInsets.zero,
-          border: _plateBorder(const Color(0xFFF59E0B), 1.5),
-          enabledBorder: _plateBorder(const Color(0xFFF59E0B), 1.5),
+          border: _plateBorder(context.colors.plateYellow, 1.4),
+          enabledBorder: _plateBorder(context.colors.plateYellow, 1.4),
           focusedBorder: _plateBorder(context.colors.primaryDark, 2.5),
         ),
         onChanged: (value) {
@@ -441,7 +426,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
   Widget _orDivider() {
     return Row(
       children: [
-        const Expanded(child: Divider(color: Color(0xFFE0E8E4))),
+        Expanded(child: Divider(color: context.colors.divider)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text(
@@ -452,74 +437,84 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
             ),
           ),
         ),
-        const Expanded(child: Divider(color: Color(0xFFE0E8E4))),
+        Expanded(child: Divider(color: context.colors.divider)),
       ],
     );
   }
 
   Widget _vehicleTile(Vehicle vehicle) {
-    return GestureDetector(
-      onTap: () => _lookupPlate(vehicle.plateNumber),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: context.colors.border),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: context.colors.accentLight,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                Icons.directions_car_rounded,
-                color: context.colors.primary,
-                size: 22,
-              ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          onTap: () => _lookupPlate(vehicle.plateNumber),
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: context.colors.border),
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: context.colors.accentLight,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    Icons.directions_car_rounded,
+                    color: context.colors.primary,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        runSpacing: 5,
+                        children: [
+                          Text(
+                            vehicle.plateNumber,
+                            style: GoogleFonts.poppins(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: context.colors.textPrimary,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          if (vehicle.autoPayEnabled) _autoPayBadge(),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
                       Text(
-                        vehicle.plateNumber,
+                        '${vehicle.make} ${vehicle.model}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: context.colors.textPrimary,
-                          letterSpacing: 0.5,
+                          fontSize: 12,
+                          color: context.colors.textSecondary,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      if (vehicle.autoPayEnabled) _autoPayBadge(),
                     ],
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    '${vehicle.make} ${vehicle.model}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: context.colors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: context.colors.textMuted,
+                  size: 20,
+                ),
+              ],
             ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: context.colors.textMuted,
-              size: 20,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -548,18 +543,28 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: context.colors.background,
-        borderRadius: BorderRadius.circular(16),
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: context.colors.border),
       ),
-      child: Center(
-        child: Text(
-          'No registered vehicles',
-          style: GoogleFonts.poppins(
-            color: context.colors.textSecondary,
-            fontSize: 13,
+      child: Column(
+        children: [
+          Icon(
+            Icons.directions_car_outlined,
+            color: context.colors.textMuted,
+            size: 30,
           ),
-        ),
+          const SizedBox(height: 10),
+          Text(
+            'No registered vehicles',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              color: context.colors.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -604,7 +609,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -656,7 +661,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              '${session.locationName} · ${_durationLabel(session)} · KES ${session.cost.toStringAsFixed(0)}',
+              '${session.locationName} - ${_durationLabel(session)} - KES ${session.cost.toStringAsFixed(0)}',
               style: GoogleFonts.poppins(
                 fontSize: 13,
                 color: context.colors.textSecondary,
@@ -743,7 +748,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: context.colors.surface,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -769,7 +774,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
           }
 
           return SingleChildScrollView(
-            // Scrolls up when keyboard appears — prevents overflow
+            // Scrolls up when keyboard appears to prevent overflow.
             padding: EdgeInsets.fromLTRB(
               24,
               24,
@@ -1052,7 +1057,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Send button — label updates live with entered amount
+                  // Send button label updates live with entered amount.
                   SizedBox(
                     width: double.infinity,
                     height: 54,
@@ -1107,7 +1112,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
         },
       ),
     ).then((_) {
-      // Safe disposal — only runs after the sheet is fully closed
+      // Safe disposal after the sheet is fully closed.
       phoneCtrl.dispose();
       amountCtrl.dispose();
     });
@@ -1123,7 +1128,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
       builder: (_) => PopScope(
         canPop: false,
         child: Dialog(
-          backgroundColor: Colors.white,
+          backgroundColor: context.colors.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
@@ -1237,13 +1242,13 @@ class _PaymentReceiptPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final plateNumber = session.vehicle.plateNumber.isEmpty
-        ? '—'
+        ? '-'
         : session.vehicle.plateNumber;
     final amount = session.amountPaid > 0 ? session.amountPaid : session.cost;
-    final exitTime = session.endTime != null ? _fmt(session.endTime!) : '—';
+    final exitTime = session.endTime != null ? _fmt(session.endTime!) : '-';
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.colors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),

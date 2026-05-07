@@ -47,12 +47,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: context.colors.pageGrey,
+        backgroundColor: context.colors.background,
         body: BlocBuilder<AppBloc, AppState>(
           builder: (context, state) {
             if (state.isLoading) {
-              return Center(
-                child: CircularProgressIndicator(color: context.colors.primary),
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      context.colors.primaryDeep,
+                      context.colors.primaryDark,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Center(
+                  child: CircularProgressIndicator(color: context.colors.accent),
+                ),
               );
             }
             return Column(
@@ -65,7 +77,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: SingleChildScrollView(
                       child: Column(
                         children: [
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 22),
                           _buildQuickActions(context),
                           const SizedBox(height: 24),
                           _buildVehicles(context, state),
@@ -89,27 +101,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildHeader(BuildContext context, AppState state) {
     final autoPayCount = state.vehicles.where((v) => v.autoPayEnabled).length;
     final isLowBalance = state.walletBalance < 500;
+    final autoPayLabel = state.vehicles.isEmpty
+        ? 'No vehicles yet'
+        : '$autoPayCount/${state.vehicles.length} AutoPay';
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryDark],
+          colors: [
+            AppColors.primaryDeep,
+            AppColors.primaryDark,
+            context.colors.primary,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
+          stops: const [0, 0.58, 1],
         ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(28),
-          bottomRight: Radius.circular(28),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryDeep.withValues(alpha: 0.26),
+            blurRadius: 28,
+            offset: const Offset(0, 14),
+          ),
+        ],
       ),
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 26),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Greeting row
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -117,48 +143,95 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          _greeting(),
-                          style: GoogleFonts.poppins(
-                            color: Colors.white.withValues(alpha: 0.75),
-                            fontSize: 13,
-                          ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _darkHeaderChip(
+                              Icons.local_parking_rounded,
+                              'ParkIQ',
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                _greeting(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white.withValues(alpha: 0.74),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
+                        const SizedBox(height: 7),
                         Text(
                           state.userName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.poppins(
                             color: Colors.white,
-                            fontSize: 22,
+                            fontSize: 24,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.notifications_outlined,
-                      color: Colors.white,
-                      size: 20,
+                  Material(
+                    color: Colors.white.withValues(alpha: 0.13),
+                    borderRadius: BorderRadius.circular(15),
+                    child: InkWell(
+                      onTap: () {},
+                      borderRadius: BorderRadius.circular(15),
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.12),
+                          ),
+                        ),
+                        child: Stack(
+                          children: [
+                            const Center(
+                              child: Icon(
+                                Icons.notifications_outlined,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                            Positioned(
+                              right: 11,
+                              top: 11,
+                              child: Container(
+                                width: 7,
+                                height: 7,
+                                decoration: BoxDecoration(
+                                  color: context.colors.accent,
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-
-              // Wallet balance sub-card
+              const SizedBox(height: 22),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+                padding: const EdgeInsets.fromLTRB(18, 17, 18, 18),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.12),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -171,29 +244,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           style: GoogleFonts.poppins(
                             color: Colors.white.withValues(alpha: 0.75),
                             fontSize: 13,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                        GestureDetector(
-                          onTap: () => _openWallet(context),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
+                        Material(
+                          color: Colors.white.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(999),
+                          child: InkWell(
+                            onTap: () => _openWallet(context),
+                            borderRadius: BorderRadius.circular(999),
                             child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.add, color: Colors.white, size: 14),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Top Up',
-                                  style: GoogleFonts.poppins(
+                                const Padding(
+                                  padding: EdgeInsets.only(left: 10),
+                                  child: Icon(
+                                    Icons.add_rounded,
                                     color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
+                                    size: 14,
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(4, 6, 12, 6),
+                                  child: Text(
+                                    'Top Up',
+                                    style: GoogleFonts.poppins(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -207,7 +286,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       'KES ${state.walletBalance.toStringAsFixed(0).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',')}',
                       style: GoogleFonts.poppins(
                         color: Colors.white,
-                        fontSize: 32,
+                        fontSize: 34,
                         fontWeight: FontWeight.w700,
                         height: 1.1,
                       ),
@@ -227,7 +306,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 13),
                             const SizedBox(width: 5),
                             Text(
-                              'Low balance — top up to avoid disruption',
+                              'Low balance - top up to avoid disruption',
                               style: GoogleFonts.poppins(
                                 color: AppColors.warning,
                                 fontSize: 11,
@@ -238,37 +317,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 16),
                     Row(
                       children: [
-                        const Icon(
-                          Icons.check_circle,
-                          color: Color(0xFF7DDFB0),
-                          size: 14,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          '$autoPayCount of ${state.vehicles.length} cars on AutoPay',
-                          style: GoogleFonts.poppins(
-                            color: Colors.white.withValues(alpha: 0.8),
-                            fontSize: 12,
+                        Expanded(
+                          child: _headerMetric(
+                            Icons.check_circle_rounded,
+                            autoPayLabel,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Container(
-                          width: 4,
-                          height: 4,
-                          decoration: const BoxDecoration(
-                            color: Colors.white54,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'M-Pesa linked',
-                          style: GoogleFonts.poppins(
-                            color: Colors.white.withValues(alpha: 0.8),
-                            fontSize: 12,
+                        _headerDivider(),
+                        Expanded(
+                          child: _headerMetric(
+                            Icons.phone_android_rounded,
+                            'M-Pesa linked',
                           ),
                         ),
                       ],
@@ -284,6 +346,62 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // ── QUICK ACTIONS ────────────────────────────────────────────────────────
+  Widget _headerMetric(IconData icon, String label) {
+    return Row(
+      children: [
+        Icon(icon, color: const Color(0xFF9BE7BE), size: 15),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.poppins(
+              color: Colors.white.withValues(alpha: 0.82),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _darkHeaderChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.11),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: context.colors.accent, size: 13),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _headerDivider() {
+    return Container(
+      width: 1,
+      height: 20,
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      color: Colors.white.withValues(alpha: 0.14),
+    );
+  }
+
   Widget _buildQuickActions(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -300,67 +418,100 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Pay Parking wide card
-          GestureDetector(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const PayParkingScreen()),
-            ),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.primaryDark, AppColors.primaryDeep],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryDeep.withValues(alpha: 0.18),
+                  blurRadius: 20,
+                  offset: const Offset(0, 9),
                 ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.credit_card_rounded,
-                      color: Colors.white,
-                      size: 22,
-                    ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
+              clipBehavior: Clip.antiAlias,
+              child: Ink(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.primaryDark, AppColors.primaryDeep],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+                child: InkWell(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PayParkingScreen()),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 17,
+                    ),
+                    child: Row(
                       children: [
-                        Text(
-                          'Pay Parking',
-                          style: GoogleFonts.poppins(
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.1),
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.credit_card_rounded,
                             color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
+                            size: 22,
                           ),
                         ),
-                        Text(
-                          'Enter plate to initiate payment',
-                          style: GoogleFonts.poppins(
-                            color: Colors.white.withValues(alpha: 0.6),
-                            fontSize: 12,
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Pay Parking',
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Find a session and pay with M-Pesa',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white.withValues(alpha: 0.64),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.chevron_right_rounded,
+                            color: Colors.white,
+                            size: 22,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: Colors.white54,
-                    size: 22,
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -400,36 +551,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _quickTile(IconData icon, String label, {required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: context.colors.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: context.colors.border),
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: context.colors.accentLight,
-                borderRadius: BorderRadius.circular(12),
+    return Material(
+      color: context.colors.surface,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          height: 104,
+          padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: context.colors.border),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.025),
+                blurRadius: 12,
+                offset: const Offset(0, 5),
               ),
-              child: Icon(icon, color: context.colors.primary, size: 20),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: context.colors.textPrimary,
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: context.colors.accentLight,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: context.colors.primary, size: 20),
               ),
-            ),
-          ],
+              const SizedBox(height: 9),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: context.colors.textPrimary,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -452,14 +618,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   color: context.colors.textPrimary,
                 ),
               ),
-              GestureDetector(
-                onTap: () => _openVehicles(context),
-                child: Text(
-                  '+ Add Vehicle',
-                  style: GoogleFonts.poppins(
+              TextButton.icon(
+                onPressed: () => _openVehicles(context),
+                icon: const Icon(Icons.add_rounded, size: 16),
+                label: const Text('Add Vehicle'),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 36),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: GoogleFonts.poppins(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: context.colors.primary,
                   ),
                 ),
               ),
@@ -476,85 +645,106 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _vehicleTile(Vehicle v) {
-    return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => VehicleDetailScreen(vehicle: v)),
-      ),
-      child: Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
         color: context.colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.colors.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: context.colors.accentLight,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.directions_car_rounded,
-              color: context.colors.primary,
-              size: 22,
-            ),
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => VehicleDetailScreen(vehicle: v)),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      v.plateNumber,
-                      style: GoogleFonts.poppins(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: context.colors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _autoPayBadge(v.autoPayEnabled),
-                  ],
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: context.colors.border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 12,
+                  offset: const Offset(0, 5),
                 ),
-                const SizedBox(height: 3),
-                Row(
-                  children: [
-                    Container(
-                      width: 7,
-                      height: 7,
-                      margin: const EdgeInsets.only(right: 5),
-                      decoration: BoxDecoration(
-                        color: v.autoPayEnabled ? context.colors.success : context.colors.textMuted,
-                        shape: BoxShape.circle,
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: context.colors.accentLight,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    Icons.directions_car_rounded,
+                    color: context.colors.primary,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          Text(
+                            v.plateNumber,
+                            style: GoogleFonts.poppins(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: context.colors.textPrimary,
+                            ),
+                          ),
+                          _autoPayBadge(v.autoPayEnabled),
+                        ],
                       ),
-                    ),
-                    Text(
-                      '${v.make} ${v.model} · ${v.type}',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        color: context.colors.textSecondary,
+                      const SizedBox(height: 5),
+                      Row(
+                        children: [
+                          Container(
+                            width: 7,
+                            height: 7,
+                            margin: const EdgeInsets.only(right: 6),
+                            decoration: BoxDecoration(
+                              color: v.autoPayEnabled
+                                  ? context.colors.success
+                                  : context.colors.textMuted,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              '${v.make} ${v.model} - ${v.type}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: context.colors.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: context.colors.textMuted,
+                  size: 20,
                 ),
               ],
             ),
           ),
-          Icon(
-            Icons.chevron_right_rounded,
-            color: context.colors.textMuted,
-            size: 20,
-          ),
-        ],
+        ),
       ),
-    ),
     );
   }
 
@@ -562,10 +752,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: active ? context.colors.accentLight : const Color(0xFFF0F0F0),
+        color: active ? context.colors.accentLight : context.colors.pageGrey,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: active ? context.colors.accent : const Color(0xFFD0D0D0),
+          color: active ? context.colors.accent : context.colors.border,
           width: 1,
         ),
       ),
@@ -594,8 +784,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
       decoration: BoxDecoration(
         color: context.colors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: context.colors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.025),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -604,7 +801,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             height: 52,
             decoration: BoxDecoration(
               color: context.colors.accentLight,
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(17),
             ),
             child: Icon(Icons.directions_car_outlined, color: context.colors.primary, size: 26),
           ),
@@ -624,21 +821,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             style: GoogleFonts.poppins(color: context.colors.textSecondary, fontSize: 12),
           ),
           const SizedBox(height: 16),
-          GestureDetector(
-            onTap: () => _openVehicles(context),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                color: context.colors.primary,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Text(
-                '+ Add Vehicle',
-                style: GoogleFonts.poppins(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
+          ElevatedButton.icon(
+            onPressed: () => _openVehicles(context),
+            icon: const Icon(Icons.add_rounded, size: 17),
+            label: const Text('Add Vehicle'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+              minimumSize: const Size(0, 0),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              textStyle: GoogleFonts.poppins(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -664,16 +857,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   color: context.colors.textPrimary,
                 ),
               ),
-              GestureDetector(
-                onTap: _openHistory,
-                child: Text(
-                  'View all',
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: context.colors.primary,
-                  ),
+              TextButton(
+                onPressed: _openHistory,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 36),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
+                child: const Text('View all'),
               ),
             ],
           ),
@@ -681,8 +872,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Container(
             decoration: BoxDecoration(
               color: context.colors.surface,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(color: context.colors.border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.025),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
             child: state.recentSessions.isEmpty
                 ? Padding(
@@ -780,16 +978,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Row(
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 5,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       _platePill(session.vehicle.plateNumber),
-                      const SizedBox(width: 6),
                       Icon(
                         Icons.access_time_rounded,
                         size: 12,
                         color: context.colors.textMuted,
                       ),
-                      const SizedBox(width: 3),
                       Text(
                         durationStr,
                         style: GoogleFonts.poppins(
@@ -797,7 +996,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           color: context.colors.textSecondary,
                         ),
                       ),
-                      const SizedBox(width: 6),
                       Text(
                         dayStr,
                         style: GoogleFonts.poppins(
@@ -895,9 +1093,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   String _greeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning ☀️';
-    if (hour < 17) return 'Good afternoon 👋';
-    return 'Good evening 🌙';
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
   }
 
   String _dayLabel(DateTime dt) {

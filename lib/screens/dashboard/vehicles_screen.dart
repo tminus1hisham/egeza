@@ -8,6 +8,7 @@ import '../../blocs/app_state.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/parking_session.dart';
 import '../../models/vehicle.dart';
+import '../../widgets/app_widgets.dart';
 import 'vehicle_detail_screen.dart';
 
 class VehiclesScreen extends StatefulWidget {
@@ -82,64 +83,17 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   }
 
   Widget _header(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      color: context.colors.surface,
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
-      child: Row(
-        children: [
-          if (widget.showBackButton) ...[
-            _headerButton(
-              Icons.arrow_back_rounded,
-              onTap: () => Navigator.pop(context),
-            ),
-            const SizedBox(width: 14),
-          ] else ...[
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: context.colors.accentLight,
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Icon(
-                Icons.directions_car_outlined,
-                color: context.colors.primary,
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 14),
-          ],
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Vehicles',
-                  style: GoogleFonts.poppins(
-                    color: context.colors.textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Plates, AutoPay, and parking status',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    color: context.colors.textSecondary,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _headerButton(
-            Icons.add_rounded,
-            onTap: () => _showAddVehicleSheet(context),
-          ),
-        ],
+    return AppPageHeader(
+      title: 'Vehicles',
+      subtitle: 'Plates, AutoPay, and parking status',
+      icon: Icons.directions_car_outlined,
+      showBackButton: widget.showBackButton,
+      onBack: () => Navigator.pop(context),
+      trailing: AppHeaderButton(
+        icon: Icons.add_rounded,
+        tooltip: 'Add vehicle',
+        active: true,
+        onTap: () => _showAddVehicleSheet(context),
       ),
     );
   }
@@ -625,22 +579,6 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _headerButton(IconData icon, {required VoidCallback onTap}) {
-    return Material(
-      color: const Color(0xFFF3F4F6),
-      borderRadius: BorderRadius.circular(15),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
-        child: SizedBox(
-          width: 42,
-          height: 42,
-          child: Icon(icon, color: context.colors.textPrimary, size: 22),
-        ),
       ),
     );
   }

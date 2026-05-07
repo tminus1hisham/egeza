@@ -7,6 +7,7 @@ import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/parking_session.dart';
+import '../../widgets/app_widgets.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -75,62 +76,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget _header() {
     return Column(
       children: [
-        Container(
-          width: double.infinity,
-          color: context.colors.surface,
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: context.colors.accentLight,
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Icon(Icons.history_rounded, color: context.colors.primary, size: 22),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'History',
-                      style: GoogleFonts.poppins(
-                        color: context.colors.textPrimary,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Parking sessions and payments',
-                      style: GoogleFonts.poppins(color: context.colors.textSecondary, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-              GestureDetector(
-                onTap: () => setState(() {
-                  _searchOpen = !_searchOpen;
-                  if (!_searchOpen) _searchController.clear();
-                }),
-                child: Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: _searchOpen ? context.colors.accentLight : context.colors.cardSurface,
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Icon(
-                    _searchOpen ? Icons.close_rounded : Icons.search_rounded,
-                    color: _searchOpen ? context.colors.primary : context.colors.textPrimary,
-                    size: 21,
-                  ),
-                ),
-              ),
-            ],
+        AppPageHeader(
+          title: 'History',
+          subtitle: 'Parking sessions and payments',
+          icon: Icons.history_rounded,
+          trailing: AppHeaderButton(
+            icon: _searchOpen ? Icons.close_rounded : Icons.search_rounded,
+            active: _searchOpen,
+            tooltip: _searchOpen ? 'Close search' : 'Search history',
+            onTap: () => setState(() {
+              _searchOpen = !_searchOpen;
+              if (!_searchOpen) _searchController.clear();
+            }),
           ),
         ),
         AnimatedSize(
@@ -146,7 +103,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     onChanged: (_) => setState(() {}),
                     style: GoogleFonts.poppins(fontSize: 14, color: context.colors.textPrimary),
                     decoration: InputDecoration(
-                      hintText: 'Search by location or plate…',
+                      hintText: 'Search by location or plate...',
                       hintStyle: GoogleFonts.poppins(color: context.colors.textMuted, fontSize: 14),
                       prefixIcon: Icon(Icons.search_rounded, color: context.colors.textMuted, size: 20),
                       filled: true,

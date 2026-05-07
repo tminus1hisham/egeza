@@ -9,6 +9,7 @@ import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/parking_session.dart';
+import '../../widgets/app_widgets.dart';
 
 class WalletScreen extends StatefulWidget {
   final bool showBackButton;
@@ -105,49 +106,16 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Widget _header(BuildContext context, AppState state) {
-    return Container(
-      width: double.infinity,
-      color: context.colors.surface,
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
-      child: Row(
-        children: [
-          if (widget.showBackButton) ...[
-            _iconButton(
-              Icons.arrow_back_rounded,
-              onTap: () => Navigator.pop(context),
-            ),
-            const SizedBox(width: 14),
-          ] else ...[
-            _headerIcon(Icons.account_balance_wallet_outlined),
-            const SizedBox(width: 14),
-          ],
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Wallet',
-                  style: GoogleFonts.poppins(
-                    color: context.colors.textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'KES ${_formatAmount(state.walletBalance)} available',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    color: context.colors.textSecondary,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _iconButton(Icons.receipt_long_outlined, onTap: () {}),
-        ],
+    return AppPageHeader(
+      title: 'Wallet',
+      subtitle: 'KES ${_formatAmount(state.walletBalance)} available',
+      icon: Icons.account_balance_wallet_outlined,
+      showBackButton: widget.showBackButton,
+      onBack: () => Navigator.pop(context),
+      trailing: AppHeaderButton(
+        icon: Icons.receipt_long_outlined,
+        tooltip: 'Receipts',
+        onTap: () {},
       ),
     );
   }
@@ -697,34 +665,6 @@ class _WalletScreenState extends State<WalletScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _iconButton(IconData icon, {required VoidCallback onTap}) {
-    return Material(
-      color: context.colors.cardSurface,
-      borderRadius: BorderRadius.circular(15),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
-        child: SizedBox(
-          width: 42,
-          height: 42,
-          child: Icon(icon, color: context.colors.textPrimary, size: 21),
-        ),
-      ),
-    );
-  }
-
-  Widget _headerIcon(IconData icon) {
-    return Container(
-      width: 42,
-      height: 42,
-      decoration: BoxDecoration(
-        color: context.colors.accentLight,
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Icon(icon, color: context.colors.primary, size: 22),
     );
   }
 

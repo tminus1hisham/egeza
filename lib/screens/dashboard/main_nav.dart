@@ -39,37 +39,46 @@ class _MainNavigationState extends State<MainNavigation> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _index, children: _screens),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: context.colors.surface,
-          border: Border(
-            top: BorderSide(color: context.colors.border, width: 1),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+        child: Container(
+          height: 70,
+          decoration: BoxDecoration(
+            color: context.colors.surface,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: context.colors.border),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.09),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.07),
-              blurRadius: 16,
-              offset: const Offset(0, -3),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: SizedBox(
-            height: 64,
-            child: Row(
-              children: [
-                _navItem(0, Icons.home_rounded, Icons.home_outlined, 'Home'),
-                _navItem(1, Icons.directions_car_rounded, Icons.directions_car_outlined, 'Vehicle'),
-                _navItem(
-                  2,
-                  Icons.account_balance_wallet_rounded,
-                  Icons.account_balance_wallet_outlined,
-                  'Wallet',
-                ),
-                _navItem(3, Icons.history_rounded, Icons.history_rounded, 'History'),
-                _navItem(4, Icons.settings_rounded, Icons.settings_outlined, 'Settings'),
-              ],
-            ),
+          child: Row(
+            children: [
+              _navItem(0, Icons.home_rounded, Icons.home_outlined, 'Home'),
+              _navItem(
+                1,
+                Icons.directions_car_rounded,
+                Icons.directions_car_outlined,
+                'Vehicle',
+              ),
+              _navItem(
+                2,
+                Icons.account_balance_wallet_rounded,
+                Icons.account_balance_wallet_outlined,
+                'Wallet',
+              ),
+              _navItem(3, Icons.history_rounded, Icons.history_outlined, 'History'),
+              _navItem(
+                4,
+                Icons.settings_rounded,
+                Icons.settings_outlined,
+                'Settings',
+              ),
+            ],
           ),
         ),
       ),
@@ -83,37 +92,44 @@ class _MainNavigationState extends State<MainNavigation> {
   Widget _navItem(int idx, IconData activeIcon, IconData inactiveIcon, String label) {
     final isActive = _index == idx;
     return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _index = idx),
-        behavior: HitTestBehavior.opaque,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-              decoration: BoxDecoration(
-                color: isActive ? context.colors.accentLight : Colors.transparent,
-                borderRadius: BorderRadius.circular(20),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => setState(() => _index = idx),
+          borderRadius: BorderRadius.circular(22),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                width: isActive ? 42 : 34,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: isActive ? context.colors.accentLight : Colors.transparent,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  isActive ? activeIcon : inactiveIcon,
+                  color: isActive ? context.colors.primary : context.colors.textMuted,
+                  size: 21,
+                ),
               ),
-              child: Icon(
-                isActive ? activeIcon : inactiveIcon,
-                color: isActive ? context.colors.primary : context.colors.textMuted,
-                size: 21,
+              const SizedBox(height: 4),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.poppins(
+                  fontSize: 10,
+                  height: 1,
+                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                  color: isActive ? context.colors.primary : context.colors.textMuted,
+                ),
               ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: GoogleFonts.poppins(
-                fontSize: 10,
-                height: 1,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                color: isActive ? context.colors.primary : context.colors.textMuted,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
