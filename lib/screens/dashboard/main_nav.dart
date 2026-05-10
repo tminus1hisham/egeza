@@ -3,9 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../blocs/app_bloc.dart';
+import '../../blocs/app_state.dart';
 import '../../core/api/parking_iq_api.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/api_models.dart';
+import '../onboarding/walkthrough_screen.dart';
 import 'dashboard_screen.dart';
 import 'history_screen.dart';
 import 'settings_screen.dart';
@@ -123,7 +125,10 @@ class _MainNavigationState extends State<MainNavigation> {
     final selectedIndex = tabs.indexWhere((tab) => tab.id == _selectedTabId);
     final effectiveIndex = selectedIndex < 0 ? 0 : selectedIndex;
 
-    return Scaffold(
+    return BlocListener<AppBloc, AppState>(
+      listenWhen: (prev, curr) => !prev.sessionExpired && curr.sessionExpired,
+      listener: (context, state) => _showSessionExpiredDialog(context),
+      child: Scaffold(
       body: IndexedStack(
         index: effectiveIndex,
         children: [for (final tab in tabs) tab.screen],
@@ -152,6 +157,16 @@ class _MainNavigationState extends State<MainNavigation> {
           ),
         ),
       ),
+    ),
+    );
+  }
+
+  void _showSessionExpiredDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.65),
+      builder: (_) => const _SessionExpiredDialog(),
     );
   }
 
@@ -221,4 +236,106 @@ class _NavTab {
     required this.label,
     required this.screen,
   });
+}
+
+class _SessionExpiredDialog extends StatelessWidget {
+  const _SessionExpiredDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colors = context.colors;
+
+    return PopScope(
+      canPop: false,
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(28, 36, 28, 28),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1A2420) : Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.18),
+                blurRadius: 40,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: colors.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.lock_outline_rounded,
+                  size: 34,
+                  color: colors.primary,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Session Expired',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: colors.textPrimary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Your session has expired. Please sign in again to continue.',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color: colors.textSecondary,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: colors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    textStyle: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                      PageRouteBuilder(
+                        pageBuilder: (_, animation, _) =>
+                            const WalkthroughScreen(),
+                        transitionsBuilder: (_, animation, _, child) =>
+                            FadeTransition(opacity: animation, child: child),
+                        transitionDuration: const Duration(milliseconds: 400),
+                      ),
+                      (_) => false,
+                    );
+                  },
+                  child: const Text('Sign In Again'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

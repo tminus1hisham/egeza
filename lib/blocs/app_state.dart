@@ -19,6 +19,7 @@ class AppState extends Equatable {
   final bool isWaitingForPayment;
   final PaymentStatusSnapshot? activePayment;
   final bool isLoading;
+  final bool sessionExpired;
   final String? errorMessage;
   final String? statusMessage;
   final ThemeMode themeMode;
@@ -38,6 +39,7 @@ class AppState extends Equatable {
     this.isWaitingForPayment = false,
     this.activePayment,
     this.isLoading = false,
+    this.sessionExpired = false,
     this.errorMessage,
     this.statusMessage,
     this.themeMode = ThemeMode.system,
@@ -60,9 +62,11 @@ class AppState extends Equatable {
     bool? isWaitingForPayment,
     PaymentStatusSnapshot? activePayment,
     bool? isLoading,
+    bool? sessionExpired,
     String? errorMessage,
     String? statusMessage,
     ThemeMode? themeMode,
+    bool clearAuthToken = false,
     bool clearSelectedSession = false,
     bool clearActivePayment = false,
     bool clearMessages = false,
@@ -71,7 +75,7 @@ class AppState extends Equatable {
       userName: userName ?? this.userName,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       email: email ?? this.email,
-      authToken: authToken ?? this.authToken,
+      authToken: clearAuthToken ? null : (authToken ?? this.authToken),
       requiresVehicleSetup:
           requiresVehicleSetup ?? this.requiresVehicleSetup,
       walletBalance: walletBalance ?? this.walletBalance,
@@ -85,6 +89,7 @@ class AppState extends Equatable {
       activePayment:
           clearActivePayment ? null : activePayment ?? this.activePayment,
       isLoading: isLoading ?? this.isLoading,
+      sessionExpired: sessionExpired ?? this.sessionExpired,
       errorMessage: clearMessages ? null : errorMessage ?? this.errorMessage,
       statusMessage: clearMessages ? null : statusMessage ?? this.statusMessage,
       themeMode: themeMode ?? this.themeMode,
@@ -107,6 +112,7 @@ class AppState extends Equatable {
         isWaitingForPayment,
         activePayment,
         isLoading,
+        sessionExpired,
         errorMessage,
         statusMessage,
         themeMode,

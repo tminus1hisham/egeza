@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -6,7 +7,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../blocs/app_bloc.dart';
-import '../blocs/app_event.dart';
 import '../core/theme/app_colors.dart';
 import 'dashboard/main_nav.dart';
 import 'onboarding/walkthrough_screen.dart';
@@ -29,9 +29,6 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
     final bloc = context.read<AppBloc>();
     final isAuthenticated = bloc.state.isAuthenticated;
-    if (isAuthenticated) {
-      bloc.add(LoadDashboardData());
-    }
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (_, animation, _) =>
@@ -60,7 +57,7 @@ class _SplashScreenState extends State<SplashScreen> {
             72,
             150,
           );
-          final sceneTop = _clamp(size.height * 0.49, 330, size.height * 0.56);
+          final sceneTop = _clamp(size.height * 0.49, 330, math.max(330, size.height * 0.56));
           final sceneHeight = _clamp(size.height * 0.32, 224, 320);
 
           return Stack(
@@ -191,6 +188,7 @@ class _SplashBackgroundPainter extends CustomPainter {
                 const Color(0xFFDCF6F0).withValues(alpha: 0.5),
                 Colors.transparent,
               ],
+        const [0.0, 0.5, 1.0],
       );
     canvas.drawRect(lowerMistRect, lowerMist);
 
@@ -577,6 +575,7 @@ class _ParkingScenePainter extends CustomPainter {
                 Colors.white.withValues(alpha: 0.72),
                 Colors.transparent,
               ],
+        const [0.0, 0.5, 1.0],
       );
     canvas.drawRect(ground, paint);
 

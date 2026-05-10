@@ -94,6 +94,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
       if (auth != null && auth.token.isNotEmpty) {
         _logSuccess('RequestLoginOtp', 'auto-signed in, token received');
         await UserPrefs.saveToken(auth.token);
+        _log('Token saved [RequestLoginOtp]: length=${auth.token.length} prefix=${auth.token.substring(0, auth.token.length.clamp(0, 8))}…');
         emit(
           _authenticatedState(
             auth,
@@ -138,6 +139,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
 
       _logSuccess('SignInWithOtp', 'authenticated, token received');
       await UserPrefs.saveToken(auth.token);
+      _log('Token saved [SignInWithOtp]: length=${auth.token.length} prefix=${auth.token.substring(0, auth.token.length.clamp(0, 8))}…');
       emit(
         _authenticatedState(
           auth,
@@ -182,6 +184,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
         ),
         UserPrefs.saveToken(auth.token),
       ]);
+      _log('Token saved [RegisterAccount]: length=${auth.token.length} prefix=${auth.token.substring(0, auth.token.length.clamp(0, 8))}…');
       emit(
         _authenticatedState(
           auth,
@@ -224,51 +227,58 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     }
 
     try {
-      final profileFuture = _api.me().then<Object?>((value) => value).catchError(
-            (e, st) {
-              _logError('LoadDashboardData/me', e, st);
+      bool unauthorized = false;
+
+      void trackUnauthorized(Object e, StackTrace st, String tag) {
+        if (_isUnauthorized(e)) unauthorized = true;
+        _logError('LoadDashboardData/$tag', e, st);
+      }
+
+      final profileFuture = _api.me().then<Object?>((v) => v).catchError(
+            (Object e, StackTrace st) {
+              trackUnauthorized(e, st, 'me');
               return null;
             },
           );
       final balanceFuture = _api
           .walletBalance()
-          .then<Object?>((value) => value)
-          .catchError((e, st) {
-            _logError('LoadDashboardData/walletBalance', e, st);
-            return null;
-          });
+          .then<Object?>((v) => v)
+          .catchError((Object e, StackTrace st) {
+        trackUnauthorized(e, st, 'walletBalance');
+        return null;
+      });
       final vehiclesFuture = _api
           .listVehicles()
-          .then<Object?>((value) => value)
-          .catchError((e, st) {
-            _logError('LoadDashboardData/listVehicles', e, st);
-            return null;
-          });
+          .then<Object?>((v) => v)
+          .catchError((Object e, StackTrace st) {
+        trackUnauthorized(e, st, 'listVehicles');
+        return null;
+      });
       final transactionsFuture = _api
           .walletTransactions()
-          .then<Object?>((value) => value)
-          .catchError((e, st) {
-            _logError('LoadDashboardData/walletTransactions', e, st);
-            return null;
-          });
+          .then<Object?>((v) => v)
+          .catchError((Object e, StackTrace st) {
+        trackUnauthorized(e, st, 'walletTransactions');
+        return null;
+      });
       final locationsFuture = _api
           .listLocations()
-          .then<Object?>((value) => value)
-          .catchError((e, st) {
-            _logError('LoadDashboardData/listLocations', e, st);
-            return null;
-          });
+          .then<Object?>((v) => v)
+          .catchError((Object e, StackTrace st) {
+        trackUnauthorized(e, st, 'listLocations');
+        return null;
+      });
       final recentSessionsFuture = _api
           .recentParkingSessions()
-          .then<Object?>((value) => value)
-          .catchError((e, st) {
-            _logError('LoadDashboardData/recentParkingSessions', e, st);
-            return null;
-          });
+          .then<Object?>((v) => v)
+          .catchError((Object e, StackTrace st) {
+        trackUnauthorized(e, st, 'recentParkingSessions');
+        return null;
+      });
       final activeSessionsFuture = _activeParkingSessionsWithAmounts()
-          .then<Object?>((value) => value)
-          .catchError((e, st) {
-        _logError('LoadDashboardData/activeParkingSessions', e, st);
+          .then<Object?>((v) => v)
+          .catchError((Object e, StackTrace st) {
+        trackUnauthorized(e, st, 'activeParkingSessions');
         return null;
       });
 
@@ -281,6 +291,14 @@ class AppBloc extends Bloc<AppEvent, AppState> {
         recentSessionsFuture,
         activeSessionsFuture,
       ]);
+
+      if (unauthorized) {
+        _log('LoadDashboardData: token rejected (403), session expired');
+        _api.setToken(null);
+        await UserPrefs.clearToken();
+        emit(state.copyWith(isLoading: false, sessionExpired: true, clearAuthToken: true));
+        return;
+      }
 
       final profile = results[0] is UserProfile ? results[0] as UserProfile : null;
       final balance = results[1] is double ? results[1] as double : null;
@@ -991,6 +1009,9 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     return plateNumber.replaceAll(RegExp(r'\s+'), '').toUpperCase();
   }
 
+  bool _isUnauthorized(Object error) =>
+      error is ApiException && error.statusCode == 403;
+
   String _friendlyError(Object error) {
     if (error is ApiException) return error.message;
     return error.toString().replaceFirst('Exception: ', '');
@@ -1024,6 +1045,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
       email: user?.email ?? fallbackEmail ?? state.email,
       requiresVehicleSetup: requiresVehicleSetup ?? auth.requiresVehicle,
       isLoading: false,
+      sessionExpired: false,
       statusMessage: statusMessage,
     );
   }
