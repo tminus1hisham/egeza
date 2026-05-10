@@ -280,7 +280,7 @@ class _WalletScreenState extends State<WalletScreen> {
             onChanged: (value) {
               final amount = double.tryParse(value);
               setState(() {
-                if (amount != null && amount >= 100) {
+                if (amount != null && amount >= 1) {
                   _selectedAmount = amount;
                 } else {
                   _selectedAmount = null;
@@ -853,7 +853,7 @@ class _StkPushSheetState extends State<_StkPushSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'M-Pesa STK Push',
+                    'M-Pesa prompt',
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -956,7 +956,7 @@ class _StkPushSheetState extends State<_StkPushSheet> {
                 ),
               ),
               child: Text(
-                'Send STK Push',
+                'Send prompt',
                 style: GoogleFonts.poppins(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,

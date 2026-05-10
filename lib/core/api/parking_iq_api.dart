@@ -452,6 +452,55 @@ class ParkingIqApi {
     return _dataList(response).map(ParkingLocation.fromJson).toList();
   }
 
+  Future<List<ParkingLocation>> fetchParkingLocations() async {
+    const endpoint = '/parking/locations';
+    if (_debug) {
+      dev.log(
+        'fetchParkingLocations: loading request tenancy locations from '
+        'GET $endpoint',
+        name: 'ParkingIQ',
+      );
+    }
+
+    try {
+      final response = await _request('GET', endpoint);
+      final locations = _dataList(response)
+          .map(ParkingLocation.fromJson)
+          .toList();
+
+      if (_debug) {
+        dev.log(
+          'fetchParkingLocations: loaded ${locations.length} locations '
+          'for request tenancy: '
+          '${locations.map((location) => location.name).join(', ')}',
+          name: 'ParkingIQ',
+        );
+      }
+
+      return locations;
+    } catch (error, stackTrace) {
+      if (_debug) {
+        dev.log(
+          'fetchParkingLocations: failed to load request tenancy locations '
+          'from GET $endpoint',
+          name: 'ParkingIQ',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
+      rethrow;
+    }
+  }
+
+  Future<TenancyPolicy> fetchTenancyPolicy(String locationId) async {
+    final response = await _request(
+      'GET',
+      '/parking/locations/$locationId/tenancy-policy',
+      authenticated: false,
+    );
+    return TenancyPolicy.fromJson(_requiredDataMap(response));
+  }
+
   Future<ParkingLocation> createLocation(Map<String, dynamic> body) async {
     final response = await _request('POST', '/admin/rates', body: body);
     return ParkingLocation.fromJson(_requiredDataMap(response));
@@ -501,6 +550,65 @@ class ParkingIqApi {
   Future<OccupancyReport> occupancyReport() async {
     final response = await _request('GET', '/admin/reports/occupancy');
     return OccupancyReport.fromJson(_requiredDataMap(response));
+  }
+
+  Future<TenancyRequest> submitTenancyRequest({
+    required String locationId,
+    required String tenantName,
+    required String plateNumber,
+    required String message,
+  }) async {
+    final response = await _request(
+      'POST',
+      '/tenancy/requests',
+      body: {
+        'locationId': locationId,
+        'tenantName': tenantName,
+        'plateNumber': plateNumber,
+        'message': message,
+      },
+    );
+    return TenancyRequest.fromJson(_requiredDataMap(response));
+  }
+
+  Future<List<TenancyRequest>> fetchTenancyRequests() async {
+    final response = await _request('GET', '/tenancy/requests');
+    return _dataList(response).map(TenancyRequest.fromJson).toList();
+  }
+
+  Future<List<TenantProfile>> fetchMyTenantProfiles() async {
+    final response = await _request('GET', '/tenancy/my-profiles');
+    return _dataList(response).map(TenantProfile.fromJson).toList();
+  }
+
+  Future<List<TenantSubscription>> fetchTenantSubscriptions(
+    String tenantId,
+  ) async {
+    final response = await _request(
+      'GET',
+      '/tenancy/tenants/$tenantId/subscriptions',
+    );
+    return _dataList(response).map(TenantSubscription.fromJson).toList();
+  }
+
+  Future<MpesaResponse> payTenantSubscription({
+    required String tenantId,
+    required String phoneNumber,
+  }) async {
+    final response = await _request(
+      'POST',
+      '/tenancy/tenants/$tenantId/subscriptions/pay',
+      body: {'phoneNumber': phoneNumber},
+    );
+    return MpesaResponse.fromJson(_requiredObjectPayload(response));
+  }
+
+  Future<TenantPaymentStatus> tenantPaymentStatus(String tenantId) async {
+    final response = await _request(
+      'GET',
+      '/tenancy/tenants/$tenantId/payment-status',
+    );
+    return TenantPaymentStatus.fromJson(_requiredObjectPayload(response));
   }
 
   Future<Map<String, dynamic>> barrierCommand({
@@ -714,6 +822,10 @@ class ParkingIqApi {
         'vehicles',
         'transactions',
         'locations',
+        'profiles',
+        'tenants',
+        'requests',
+        'subscriptions',
       };
 
       for (final key in listKeys) {

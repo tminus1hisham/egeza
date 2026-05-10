@@ -46,7 +46,8 @@ class AuthResult {
     final userJson = json['user'];
 
     return AuthResult(
-      token: jsonString(json['token']) ??
+      token:
+          jsonString(json['token']) ??
           jsonString(json['accessToken']) ??
           jsonString(json['access_token']) ??
           jsonString(json['authToken']) ??
@@ -85,7 +86,7 @@ class UserProfile {
     return UserProfile(
       id: jsonString(json['id']) ?? '',
       phoneNumber: jsonString(json['phoneNumber']) ?? '',
-      fullName: jsonString(json['fullName']) ?? 'ParkIQ User',
+      fullName: jsonString(json['fullName']) ?? 'egesha User',
       email: jsonString(json['email']),
       idNumber: jsonString(json['idNumber']),
       county: jsonString(json['county']),
@@ -184,18 +185,25 @@ class MpesaResponse {
   });
 
   factory MpesaResponse.fromJson(Map<String, dynamic> json) {
-    dev.log('MpesaResponse.fromJson: keys=${json.keys.toList()} values=${json.values.toList()}', name: 'ApiModels');
+    dev.log(
+      'MpesaResponse.fromJson: keys=${json.keys.toList()} values=${json.values.toList()}',
+      name: 'ApiModels',
+    );
     final result = MpesaResponse(
       paymentId: jsonString(json['paymentId']) ?? jsonString(json['id']),
-      merchantRequestId: jsonString(json['merchantRequestId']) ??
+      merchantRequestId:
+          jsonString(json['merchantRequestId']) ??
           jsonString(json['MerchantRequestID']),
-      checkoutRequestId: jsonString(json['checkoutRequestId']) ??
+      checkoutRequestId:
+          jsonString(json['checkoutRequestId']) ??
           jsonString(json['CheckoutRequestID']),
-      responseCode: jsonString(json['responseCode']) ??
-          jsonString(json['ResponseCode']),
-      responseDescription: jsonString(json['responseDescription']) ??
+      responseCode:
+          jsonString(json['responseCode']) ?? jsonString(json['ResponseCode']),
+      responseDescription:
+          jsonString(json['responseDescription']) ??
           jsonString(json['ResponseDescription']),
-      customerMessage: jsonString(json['customerMessage']) ??
+      customerMessage:
+          jsonString(json['customerMessage']) ??
           jsonString(json['CustomerMessage']),
       status: jsonString(json['status']),
     );
@@ -226,16 +234,19 @@ class PaymentStatusSnapshot {
   factory PaymentStatusSnapshot.fromJson(Map<String, dynamic> json) {
     return PaymentStatusSnapshot(
       paymentId: jsonString(json['paymentId']) ?? jsonString(json['id']),
-      checkoutRequestId: jsonString(json['checkoutRequestId']) ??
+      checkoutRequestId:
+          jsonString(json['checkoutRequestId']) ??
           jsonString(json['CheckoutRequestID']),
-      sessionId: jsonString(json['sessionId']) ??
-          jsonString(json['parkingSessionId']),
-      status: (jsonString(json['status']) ??
-              jsonString(json['paymentStatus']) ??
-              jsonString(json['ResultDesc']) ??
-              'PENDING')
-          .toUpperCase(),
-      message: jsonString(json['message']) ??
+      sessionId:
+          jsonString(json['sessionId']) ?? jsonString(json['parkingSessionId']),
+      status:
+          (jsonString(json['status']) ??
+                  jsonString(json['paymentStatus']) ??
+                  jsonString(json['ResultDesc']) ??
+                  'PENDING')
+              .toUpperCase(),
+      message:
+          jsonString(json['message']) ??
           jsonString(json['resultDesc']) ??
           jsonString(json['ResultDesc']) ??
           jsonString(json['customerMessage']),
@@ -245,14 +256,14 @@ class PaymentStatusSnapshot {
   bool get isSuccess => status == 'SUCCESS' || status == 'COMPLETED';
 
   bool get isTerminal => const {
-        'SUCCESS',
-        'COMPLETED',
-        'FAILED',
-        'CANCELLED',
-        'CANCELED',
-        'TIMEOUT',
-        'TIMED_OUT',
-      }.contains(status);
+    'SUCCESS',
+    'COMPLETED',
+    'FAILED',
+    'CANCELLED',
+    'CANCELED',
+    'TIMEOUT',
+    'TIMED_OUT',
+  }.contains(status);
 
   bool get isFailure => isTerminal && !isSuccess;
 }
@@ -311,9 +322,9 @@ class DashboardStats {
       revenueToday: jsonDouble(json['revenueToday']),
       locations: locationsJson is List
           ? locationsJson
-              .whereType<Map<String, dynamic>>()
-              .map(ParkingLocation.fromJson)
-              .toList()
+                .whereType<Map<String, dynamic>>()
+                .map(ParkingLocation.fromJson)
+                .toList()
           : const [],
     );
   }
@@ -356,10 +367,339 @@ class OccupancyReport {
     return OccupancyReport(
       locations: locationsJson is List
           ? locationsJson
-              .whereType<Map<String, dynamic>>()
-              .map(ParkingLocation.fromJson)
-              .toList()
+                .whereType<Map<String, dynamic>>()
+                .map(ParkingLocation.fromJson)
+                .toList()
           : const [],
+    );
+  }
+}
+
+class TenancyPolicy {
+  final String id;
+  final String locationId;
+  final String locationName;
+  final String name;
+  final int allocatedSlots;
+  final double subscriptionFee;
+  final String pricingPlanName;
+  final String slotEnforcement;
+  final int subscriptionDurationDays;
+  final int gracePeriodDays;
+  final bool active;
+
+  const TenancyPolicy({
+    required this.id,
+    required this.locationId,
+    required this.locationName,
+    required this.name,
+    required this.allocatedSlots,
+    required this.subscriptionFee,
+    required this.pricingPlanName,
+    required this.slotEnforcement,
+    required this.subscriptionDurationDays,
+    required this.gracePeriodDays,
+    required this.active,
+  });
+
+  factory TenancyPolicy.fromJson(Map<String, dynamic> json) {
+    return TenancyPolicy(
+      id: jsonString(json['id']) ?? '',
+      locationId: jsonString(json['locationId']) ?? '',
+      locationName: jsonString(json['locationName']) ?? '',
+      name: jsonString(json['name']) ?? 'Tenant Parking',
+      allocatedSlots: jsonInt(json['allocatedSlots']),
+      subscriptionFee: jsonDouble(json['subscriptionFee']),
+      pricingPlanName:
+          jsonString(json['pricingPlanName']) ?? 'Tenant Parking',
+      slotEnforcement:
+          jsonString(json['slotEnforcement']) ?? 'ALLOCATED_SLOTS',
+      subscriptionDurationDays: jsonInt(json['subscriptionDurationDays']),
+      gracePeriodDays: jsonInt(json['gracePeriodDays']),
+      active: jsonBool(json['active'], true),
+    );
+  }
+}
+
+class TenantProfile {
+  final String id;
+  final String name;
+  final String clientId;
+  final String clientName;
+  final String locationId;
+  final String locationName;
+  final int allocatedSlots;
+  final String status;
+  final String paymentStatus;
+  final String slotEnforcement;
+  final double subscriptionFee;
+  final String pricingPlanName;
+  final DateTime? subscriptionStartDate;
+  final DateTime? subscriptionEndDate;
+  final List<String> plateNumbers;
+  final String ownerId;
+  final String ownerName;
+  final String ownerPhoneNumber;
+
+  const TenantProfile({
+    required this.id,
+    required this.name,
+    required this.clientId,
+    required this.clientName,
+    required this.locationId,
+    required this.locationName,
+    required this.allocatedSlots,
+    required this.status,
+    required this.paymentStatus,
+    required this.slotEnforcement,
+    required this.subscriptionFee,
+    required this.pricingPlanName,
+    this.subscriptionStartDate,
+    this.subscriptionEndDate,
+    this.plateNumbers = const [],
+    required this.ownerId,
+    required this.ownerName,
+    required this.ownerPhoneNumber,
+  });
+
+  factory TenantProfile.fromJson(Map<String, dynamic> json) {
+    final plates = json['plateNumbers'];
+
+    return TenantProfile(
+      id: jsonString(json['id']) ?? '',
+      name: jsonString(json['name']) ??
+          jsonString(json['tenantName']) ??
+          'Tenant profile',
+      clientId: jsonString(json['clientId']) ?? '',
+      clientName: jsonString(json['clientName']) ?? '',
+      locationId: jsonString(json['locationId']) ?? '',
+      locationName: jsonString(json['locationName']) ?? '',
+      allocatedSlots: jsonInt(json['allocatedSlots']),
+      status: (jsonString(json['status']) ?? 'PENDING').toUpperCase(),
+      paymentStatus:
+          (jsonString(json['paymentStatus']) ?? 'PENDING').toUpperCase(),
+      slotEnforcement:
+          jsonString(json['slotEnforcement']) ?? 'ALLOCATED_SLOTS',
+      subscriptionFee: jsonDouble(json['subscriptionFee']),
+      pricingPlanName:
+          jsonString(json['pricingPlanName']) ?? 'Tenant Parking',
+      subscriptionStartDate: jsonDateTime(json['subscriptionStartDate']),
+      subscriptionEndDate: jsonDateTime(json['subscriptionEndDate']),
+      plateNumbers: plates is List
+          ? plates.map((item) => item.toString()).where((v) => v.isNotEmpty).toList()
+          : const [],
+      ownerId: jsonString(json['ownerId']) ?? '',
+      ownerName: jsonString(json['ownerName']) ?? '',
+      ownerPhoneNumber: jsonString(json['ownerPhoneNumber']) ?? '',
+    );
+  }
+
+  bool get isActivePaid => status == 'ACTIVE' && paymentStatus == 'PAID';
+
+  bool get canPay {
+    if (status == 'SUSPENDED') return false;
+    if (isActivePaid) return false;
+    return const {
+      'PENDING',
+      'OVERDUE',
+      'EXPIRED',
+      'UNPAID',
+    }.contains(status) ||
+        const {
+          'PENDING',
+          'OVERDUE',
+          'UNPAID',
+          'FAILED',
+        }.contains(paymentStatus);
+  }
+}
+
+class TenantSubscription {
+  final String id;
+  final String tenantId;
+  final String tenantName;
+  final String pricingType;
+  final double amount;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final String status;
+  final String paymentStatus;
+  final int gracePeriodDays;
+  final DateTime? createdAt;
+
+  const TenantSubscription({
+    required this.id,
+    required this.tenantId,
+    required this.tenantName,
+    required this.pricingType,
+    required this.amount,
+    this.startDate,
+    this.endDate,
+    required this.status,
+    required this.paymentStatus,
+    required this.gracePeriodDays,
+    this.createdAt,
+  });
+
+  factory TenantSubscription.fromJson(Map<String, dynamic> json) {
+    return TenantSubscription(
+      id: jsonString(json['id']) ?? '',
+      tenantId: jsonString(json['tenantId']) ?? '',
+      tenantName: jsonString(json['tenantName']) ?? '',
+      pricingType: jsonString(json['pricingType']) ?? 'FIXED_FEE',
+      amount: jsonDouble(json['amount']),
+      startDate: jsonDateTime(json['startDate']),
+      endDate: jsonDateTime(json['endDate']),
+      status: (jsonString(json['status']) ?? 'PENDING').toUpperCase(),
+      paymentStatus:
+          (jsonString(json['paymentStatus']) ?? 'PENDING').toUpperCase(),
+      gracePeriodDays: jsonInt(json['gracePeriodDays']),
+      createdAt: jsonDateTime(json['createdAt']),
+    );
+  }
+
+  bool get isActivePaid => status == 'ACTIVE' && paymentStatus == 'PAID';
+}
+
+class TenantPaymentStatus {
+  final String? paymentId;
+  final String? checkoutRequestId;
+  final String? accountReference;
+  final String type;
+  final String paymentStatus;
+  final String? mpesaReceiptNumber;
+  final String? tenantId;
+  final String? tenantName;
+  final String? subscriptionId;
+  final String tenantPaymentStatus;
+  final String subscriptionStatus;
+  final String? customerMessage;
+
+  const TenantPaymentStatus({
+    this.paymentId,
+    this.checkoutRequestId,
+    this.accountReference,
+    this.type = 'TENANT_SUBSCRIPTION',
+    required this.paymentStatus,
+    this.mpesaReceiptNumber,
+    this.tenantId,
+    this.tenantName,
+    this.subscriptionId,
+    this.tenantPaymentStatus = 'PENDING',
+    this.subscriptionStatus = 'PENDING',
+    this.customerMessage,
+  });
+
+  factory TenantPaymentStatus.fromJson(Map<String, dynamic> json) {
+    return TenantPaymentStatus(
+      paymentId: jsonString(json['paymentId']) ?? jsonString(json['id']),
+      checkoutRequestId:
+          jsonString(json['checkoutRequestId']) ??
+          jsonString(json['CheckoutRequestID']),
+      accountReference: jsonString(json['accountReference']),
+      type: jsonString(json['type']) ?? 'TENANT_SUBSCRIPTION',
+      paymentStatus:
+          (jsonString(json['paymentStatus']) ??
+                  jsonString(json['status']) ??
+                  'PENDING')
+              .toUpperCase(),
+      mpesaReceiptNumber: jsonString(json['mpesaReceiptNumber']),
+      tenantId: jsonString(json['tenantId']),
+      tenantName: jsonString(json['tenantName']),
+      subscriptionId: jsonString(json['subscriptionId']),
+      tenantPaymentStatus:
+          (jsonString(json['tenantPaymentStatus']) ?? 'PENDING')
+              .toUpperCase(),
+      subscriptionStatus:
+          (jsonString(json['subscriptionStatus']) ?? 'PENDING').toUpperCase(),
+      customerMessage:
+          jsonString(json['customerMessage']) ?? jsonString(json['message']),
+    );
+  }
+
+  bool get isSuccess =>
+      paymentStatus == 'SUCCESS' ||
+      paymentStatus == 'COMPLETED' ||
+      (tenantPaymentStatus == 'PAID' && subscriptionStatus == 'ACTIVE');
+
+  bool get isTerminal => const {
+        'SUCCESS',
+        'COMPLETED',
+        'FAILED',
+        'CANCELLED',
+        'CANCELED',
+        'TIMEOUT',
+        'TIMED_OUT',
+      }.contains(paymentStatus) ||
+      isSuccess;
+
+  bool get isFailure => isTerminal && !isSuccess;
+}
+
+class TenancyRequest {
+  final String id;
+  final String requesterId;
+  final String requesterName;
+  final String locationId;
+  final String locationName;
+  final String tenantName;
+  final String plateNumber;
+  final String message;
+  final String status;
+  final String? reviewedById;
+  final String? reviewComment;
+  final int allocatedSlots;
+  final double subscriptionFee;
+  final String? pricingPlanName;
+  final String? slotEnforcement;
+  final DateTime? subscriptionStartDate;
+  final DateTime? subscriptionEndDate;
+  final DateTime? createdAt;
+  final DateTime? reviewedAt;
+
+  const TenancyRequest({
+    required this.id,
+    required this.requesterId,
+    required this.requesterName,
+    required this.locationId,
+    required this.locationName,
+    required this.tenantName,
+    required this.plateNumber,
+    required this.message,
+    required this.status,
+    this.reviewedById,
+    this.reviewComment,
+    this.allocatedSlots = 0,
+    this.subscriptionFee = 0,
+    this.pricingPlanName,
+    this.slotEnforcement,
+    this.subscriptionStartDate,
+    this.subscriptionEndDate,
+    this.createdAt,
+    this.reviewedAt,
+  });
+
+  factory TenancyRequest.fromJson(Map<String, dynamic> json) {
+    return TenancyRequest(
+      id: jsonString(json['id']) ?? '',
+      requesterId: jsonString(json['requesterId']) ?? '',
+      requesterName: jsonString(json['requesterName']) ?? '',
+      locationId: jsonString(json['locationId']) ?? '',
+      locationName: jsonString(json['locationName']) ?? '',
+      tenantName: jsonString(json['tenantName']) ?? '',
+      plateNumber: jsonString(json['plateNumber']) ?? '',
+      message: jsonString(json['message']) ?? '',
+      status: jsonString(json['status']) ?? 'PENDING',
+      reviewedById: jsonString(json['reviewedById']),
+      reviewComment: jsonString(json['reviewComment']),
+      allocatedSlots: jsonInt(json['allocatedSlots']),
+      subscriptionFee: jsonDouble(json['subscriptionFee']),
+      pricingPlanName: jsonString(json['pricingPlanName']),
+      slotEnforcement: jsonString(json['slotEnforcement']),
+      subscriptionStartDate: jsonDateTime(json['subscriptionStartDate']),
+      subscriptionEndDate: jsonDateTime(json['subscriptionEndDate']),
+      createdAt: jsonDateTime(json['createdAt']),
+      reviewedAt: jsonDateTime(json['reviewedAt']),
     );
   }
 }
@@ -387,7 +727,8 @@ Vehicle vehicleFromParkingSessionJson(Map<String, dynamic> json) {
   if (vehicleJson is Map<String, dynamic>) {
     final vehicle = Vehicle.fromJson({
       ...vehicleJson,
-      'plateNumber': _firstMapValue(vehicleJson, const [
+      'plateNumber':
+          _firstMapValue(vehicleJson, const [
             'plateNumber',
             'plate',
             'registrationNumber',
@@ -408,20 +749,23 @@ Vehicle vehicleFromParkingSessionJson(Map<String, dynamic> json) {
 
   return Vehicle(
     id: jsonString(_firstMapValue(json, const ['vehicleId', 'vehicleID'])),
-    plateNumber: jsonString(_firstMapValue(json, const [
-          'plateNumber',
-          'vehiclePlateNumber',
-          'registrationNumber',
-        ])) ??
+    plateNumber:
+        jsonString(
+          _firstMapValue(json, const [
+            'plateNumber',
+            'vehiclePlateNumber',
+            'registrationNumber',
+          ]),
+        ) ??
         '',
-    type: Vehicle.vehicleTypeLabel(jsonString(_firstMapValue(json, const [
-      'vehicleType',
-      'type',
-    ]))),
+    type: Vehicle.vehicleTypeLabel(
+      jsonString(_firstMapValue(json, const ['vehicleType', 'type'])),
+    ),
     make: jsonString(json['make']) ?? '',
     model: jsonString(json['model']) ?? '',
-    autoPayEnabled:
-        jsonBool(_firstMapValue(json, const ['autoPayEnabled', 'autoPay'])),
+    autoPayEnabled: jsonBool(
+      _firstMapValue(json, const ['autoPayEnabled', 'autoPay']),
+    ),
   );
 }
 

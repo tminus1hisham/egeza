@@ -314,127 +314,80 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
 
   Widget _autoPayCard() {
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: context.colors.surface,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 20,
+            blurRadius: 16,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
+      child: Row(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: _autoPayOn
+                  ? _teal.withValues(alpha: 0.1)
+                  : const Color(0xFFF1F3F6),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Icon(
+              Icons.bolt_rounded,
+              color: _autoPayOn ? _teal : _muted,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 54,
-                  height: 54,
-                  decoration: BoxDecoration(
-                    color: _autoPayOn
-                        ? _teal.withValues(alpha: 0.1)
-                        : const Color(0xFFF1F3F6),
-                    borderRadius: BorderRadius.circular(17),
-                  ),
-                  child: Icon(
-                    Icons.bolt_rounded,
-                    color: _autoPayOn ? _teal : _muted,
-                    size: 26,
+                Text(
+                  'AutoPay',
+                  style: GoogleFonts.poppins(
+                    color: context.colors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'AutoPay',
-                        style: GoogleFonts.poppins(
-                          color: context.colors.textPrimary,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        'Payments deduct automatically at exit',
-                        style: GoogleFonts.poppins(
-                          color: context.colors.textSecondary,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Transform.scale(
-                  scale: 0.9,
-                  child: Switch(
-                    value: _autoPayOn,
-                    activeTrackColor: _teal,
-                    activeThumbColor: Colors.white,
-                    inactiveTrackColor: const Color(0xFFE3E7ED),
-                    inactiveThumbColor: Colors.white,
-                    trackOutlineColor:
-                        const WidgetStatePropertyAll(Colors.transparent),
-                    onChanged: (value) {
-                      setState(() => _autoPayOn = value);
-                      context.read<AppBloc>().add(
-                            SetVehicleAutoPay(
-                              vehicleId: widget.vehicle.id,
-                              plateNumber: widget.vehicle.plateNumber,
-                              enabled: value,
-                            ),
-                          );
-                    },
+                Text(
+                  _autoPayOn
+                      ? 'Exits processed automatically'
+                      : 'Deducts automatically at exit',
+                  style: GoogleFonts.poppins(
+                    color: _autoPayOn ? _teal : context.colors.textSecondary,
+                    fontSize: 12,
                   ),
                 ),
               ],
             ),
           ),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeInOut,
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-            decoration: BoxDecoration(
-              color: _autoPayOn
-                  ? const Color(0xFFEFFFFB)
-                  : const Color(0xFFF6F7F9),
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(24),
-                bottomRight: Radius.circular(24),
-              ),
-              border: Border(
-                top: BorderSide(
-                  color: _autoPayOn ? const Color(0xFFC8F5EC) : _line,
-                ),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  _autoPayOn
-                      ? Icons.check_circle_rounded
-                      : Icons.info_outline_rounded,
-                  color: _autoPayOn ? _teal : _muted,
-                  size: 15,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    _autoPayOn
-                        ? 'AutoPay is ON — exits are processed automatically.'
-                        : 'AutoPay is OFF. Enable to skip manual payment at exit.',
-                    style: GoogleFonts.poppins(
-                      color: _autoPayOn ? _teal : const Color(0xFF6D7889),
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ],
+          Transform.scale(
+            scale: 0.85,
+            child: Switch(
+              value: _autoPayOn,
+              activeTrackColor: _teal,
+              activeThumbColor: Colors.white,
+              inactiveTrackColor: const Color(0xFFE3E7ED),
+              inactiveThumbColor: Colors.white,
+              trackOutlineColor:
+                  const WidgetStatePropertyAll(Colors.transparent),
+              onChanged: (value) {
+                setState(() => _autoPayOn = value);
+                context.read<AppBloc>().add(
+                      SetVehicleAutoPay(
+                        vehicleId: widget.vehicle.id,
+                        plateNumber: widget.vehicle.plateNumber,
+                        enabled: value,
+                      ),
+                    );
+              },
             ),
           ),
         ],
@@ -941,25 +894,35 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
     );
   }
 
+  // Treat naive (non-UTC) datetimes from the API as UTC
+  DateTime _asUtc(DateTime dt) => dt.isUtc
+      ? dt
+      : DateTime.utc(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second);
+
   String _durationLabel(ParkingSession session) {
-    final endTime = session.endTime ?? DateTime.now();
-    final duration = endTime.difference(session.startTime);
+    final start = _asUtc(session.startTime);
+    final end = session.endTime != null
+        ? _asUtc(session.endTime!)
+        : DateTime.now().toUtc();
+    final duration = end.difference(start);
     final hours = duration.inHours;
     final minutes = duration.inMinutes % 60;
 
+    if (duration.isNegative || (hours <= 0 && minutes <= 0)) return '0m';
     if (hours <= 0) return '${minutes}m';
     if (minutes <= 0) return '${hours}h';
     return '${hours}h ${minutes}m';
   }
 
   String _timeLabel(DateTime dateTime) {
-    final hour = dateTime.hour == 0
+    final eat = _asUtc(dateTime).add(const Duration(hours: 3));
+    final hour = eat.hour == 0
         ? 12
-        : dateTime.hour > 12
-            ? dateTime.hour - 12
-            : dateTime.hour;
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    final period = dateTime.hour >= 12 ? 'PM' : 'AM';
+        : eat.hour > 12
+            ? eat.hour - 12
+            : eat.hour;
+    final minute = eat.minute.toString().padLeft(2, '0');
+    final period = eat.hour >= 12 ? 'PM' : 'AM';
     return '$hour:$minute $period';
   }
 

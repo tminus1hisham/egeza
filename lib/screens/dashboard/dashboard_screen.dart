@@ -63,7 +63,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 child: Center(
-                  child: CircularProgressIndicator(color: context.colors.accent),
+                  child: CircularProgressIndicator(
+                    color: context.colors.accent,
+                  ),
                 ),
               );
             }
@@ -148,7 +150,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           children: [
                             _darkHeaderChip(
                               Icons.local_parking_rounded,
-                              'ParkIQ',
+                              'egesha',
                             ),
                             const SizedBox(width: 8),
                             Flexible(
@@ -265,7 +267,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                 ),
                                 Padding(
-                                  padding: const EdgeInsets.fromLTRB(4, 6, 12, 6),
+                                  padding: const EdgeInsets.fromLTRB(
+                                    4,
+                                    6,
+                                    12,
+                                    6,
+                                  ),
                                   child: Text(
                                     'Top Up',
                                     style: GoogleFonts.poppins(
@@ -294,16 +301,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     if (isLowBalance) ...[
                       const SizedBox(height: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.warning.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppColors.warning.withValues(alpha: 0.5)),
+                          border: Border.all(
+                            color: AppColors.warning.withValues(alpha: 0.5),
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 13),
+                            const Icon(
+                              Icons.warning_amber_rounded,
+                              color: AppColors.warning,
+                              size: 13,
+                            ),
                             const SizedBox(width: 5),
                             Text(
                               'Low balance - top up to avoid disruption',
@@ -550,7 +566,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _quickTile(IconData icon, String label, {required VoidCallback onTap}) {
+  Widget _quickTile(
+    IconData icon,
+    String label, {
+    required VoidCallback onTap,
+  }) {
     return Material(
       color: context.colors.surface,
       borderRadius: BorderRadius.circular(18),
@@ -763,7 +783,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (active) ...[
-            Icon(Icons.check_circle_rounded, size: 11, color: context.colors.success),
+            Icon(
+              Icons.check_circle_rounded,
+              size: 11,
+              color: context.colors.success,
+            ),
             const SizedBox(width: 3),
           ],
           Text(
@@ -771,7 +795,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             style: GoogleFonts.poppins(
               fontSize: 10,
               fontWeight: FontWeight.w600,
-              color: active ? context.colors.success : context.colors.textSecondary,
+              color: active
+                  ? context.colors.success
+                  : context.colors.textSecondary,
             ),
           ),
         ],
@@ -803,7 +829,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               color: context.colors.accentLight,
               borderRadius: BorderRadius.circular(17),
             ),
-            child: Icon(Icons.directions_car_outlined, color: context.colors.primary, size: 26),
+            child: Icon(
+              Icons.directions_car_outlined,
+              color: context.colors.primary,
+              size: 26,
+            ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -818,7 +848,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Text(
             'Add a vehicle to start parking smarter',
             textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(color: context.colors.textSecondary, fontSize: 12),
+            style: GoogleFonts.poppins(
+              color: context.colors.textSecondary,
+              fontSize: 12,
+            ),
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
@@ -884,11 +917,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             child: state.recentSessions.isEmpty
                 ? Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 28,
+                      horizontal: 24,
+                    ),
                     child: Column(
                       children: [
-                        Icon(Icons.local_parking_rounded,
-                            color: context.colors.textMuted, size: 32),
+                        Icon(
+                          Icons.local_parking_rounded,
+                          color: context.colors.textMuted,
+                          size: 32,
+                        ),
                         const SizedBox(height: 10),
                         Text(
                           'No parking sessions yet',
@@ -941,11 +980,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       borderRadius: BorderRadius.circular(16),
       onTap: session.isActive
           ? () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (ctx) => ActiveSessionScreen(session: session),
-                ),
-              )
+              context,
+              MaterialPageRoute(
+                builder: (ctx) => ActiveSessionScreen(session: session),
+              ),
+            )
           : null,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

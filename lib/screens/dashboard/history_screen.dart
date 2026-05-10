@@ -6,7 +6,7 @@ import '../../blocs/app_bloc.dart';
 import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
 import '../../core/theme/app_colors.dart';
-import '../../models/parking_session.dart';
+import '../../models/api_models.dart';
 import '../../widgets/app_widgets.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -20,7 +20,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   int _filterIndex = 0;
   bool _searchOpen = false;
   final _searchController = TextEditingController();
-  static const _filters = ['All', 'Paid', 'Active'];
+  static const _filters = ['All', 'Paid', 'AutoPay'];
 
   @override
   void dispose() {
@@ -41,7 +41,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         bottom: false,
         child: BlocBuilder<AppBloc, AppState>(
           builder: (context, state) {
-            final sessions = _filteredSessions(state.recentSessions);
+            final transactions = _filteredTransactions(state.walletTransactions);
 
             return Column(
               children: [
@@ -55,11 +55,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _overviewCard(state.recentSessions),
+                          _overviewCard(state.walletTransactions),
                           const SizedBox(height: 18),
                           _filterBar(),
                           const SizedBox(height: 18),
-                          _historyList(sessions),
+                          _historyList(transactions),
                         ],
                       ),
                     ),
@@ -78,7 +78,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       children: [
         AppPageHeader(
           title: 'History',
-          subtitle: 'Parking sessions and payments',
+          subtitle: 'Wallet transactions and payments',
           icon: Icons.history_rounded,
           trailing: AppHeaderButton(
             icon: _searchOpen ? Icons.close_rounded : Icons.search_rounded,
@@ -103,7 +103,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     onChanged: (_) => setState(() {}),
                     style: GoogleFonts.poppins(fontSize: 14, color: context.colors.textPrimary),
                     decoration: InputDecoration(
-                      hintText: 'Search by location or plate...',
+                      hintText: 'Search by description or reference...',
                       hintStyle: GoogleFonts.poppins(color: context.colors.textMuted, fontSize: 14),
                       prefixIcon: Icon(Icons.search_rounded, color: context.colors.textMuted, size: 20),
                       filled: true,
@@ -126,10 +126,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _overviewCard(List<ParkingSession> sessions) {
-    final total = sessions.fold<double>(0, (sum, session) => sum + session.cost);
-    final paid = sessions.where((session) => !session.isActive).length;
-    final active = sessions.where((session) => session.isActive).length;
+  Widget _overviewCard(List<WalletTransaction> transactions) {
+    final payments = transactions.where((t) => t.type.toUpperCase() != 'DEPOSIT');
+    final totalSpend = payments.fold<double>(0, (sum, t) => sum + t.amount);
+    final completed = transactions.where((t) {
+      final s = t.status.toUpperCase();
+      return s == 'COMPLETED' || s == 'SUCCESS';
+    }).length;
+    final autoPayCount = transactions.where(_isAutoPay).length;
 
     return Container(
       width: double.infinity,
@@ -168,7 +172,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
           const SizedBox(height: 10),
           Text(
-            'KES ${_formatAmount(total)}',
+            'KES ${_formatAmount(totalSpend)}',
             style: GoogleFonts.poppins(
               color: Colors.white,
               fontSize: 32,
@@ -179,11 +183,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
           const SizedBox(height: 22),
           Row(
             children: [
-              Expanded(child: _overviewMetric('Sessions', '${sessions.length}')),
+              Expanded(child: _overviewMetric('Transactions', '${transactions.length}')),
               _metricDivider(),
-              Expanded(child: _overviewMetric('Paid', '$paid')),
+              Expanded(child: _overviewMetric('Completed', '$completed')),
               _metricDivider(),
-              Expanded(child: _overviewMetric('Active', '$active')),
+              Expanded(child: _overviewMetric('AutoPay', '$autoPayCount')),
             ],
           ),
         ],
@@ -211,7 +215,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 duration: const Duration(milliseconds: 170),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: selected ? context.colors.primary : Colors.transparent,
+                  color: selected
+                      ? (index == 2 ? const Color(0xFF7C3AED) : context.colors.primary)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -230,7 +236,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _historyList(List<ParkingSession> sessions) {
+  Widget _historyList(List<WalletTransaction> transactions) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -247,7 +253,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
             ),
             Text(
-              '${sessions.length} records',
+              '${transactions.length} records',
               style: GoogleFonts.poppins(
                 color: context.colors.textMuted,
                 fontSize: 12,
@@ -260,11 +266,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
           width: double.infinity,
           clipBehavior: Clip.antiAlias,
           decoration: _panelDecoration(),
-          child: sessions.isEmpty
+          child: transactions.isEmpty
               ? Padding(
                   padding: const EdgeInsets.all(26),
                   child: Text(
-                    'No sessions match this filter',
+                    'No transactions match this filter',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
                       color: context.colors.textSecondary,
@@ -274,9 +280,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 )
               : Column(
                   children: [
-                    for (var i = 0; i < sessions.length; i++) ...[
-                      _historyRow(sessions[i]),
-                      if (i != sessions.length - 1)
+                    for (var i = 0; i < transactions.length; i++) ...[
+                      _transactionRow(transactions[i]),
+                      if (i != transactions.length - 1)
                         Divider(
                           color: context.colors.divider,
                           height: 1,
@@ -290,8 +296,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _historyRow(ParkingSession session) {
-    final active = session.isActive;
+  Widget _transactionRow(WalletTransaction tx) {
+    final autoPay = _isAutoPay(tx);
+    final isDeposit = tx.type.toUpperCase() == 'DEPOSIT';
+    final isPending = tx.status.toUpperCase() == 'PENDING';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
@@ -301,12 +309,24 @@ class _HistoryScreenState extends State<HistoryScreen> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: active ? context.colors.successLight : context.colors.accentLight,
+              color: isDeposit
+                  ? context.colors.successLight
+                  : autoPay
+                      ? const Color(0xFF7C3AED).withValues(alpha: 0.1)
+                      : context.colors.accentLight,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(
-              active ? Icons.local_parking_rounded : Icons.receipt_long_outlined,
-              color: active ? context.colors.success : context.colors.primary,
+              isDeposit
+                  ? Icons.add_circle_outline_rounded
+                  : autoPay
+                      ? Icons.bolt_rounded
+                      : Icons.payments_outlined,
+              color: isDeposit
+                  ? context.colors.success
+                  : autoPay
+                      ? const Color(0xFF7C3AED)
+                      : context.colors.primary,
               size: 21,
             ),
           ),
@@ -316,7 +336,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  session.locationName,
+                  tx.description ?? _txTypeLabel(tx.type),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
@@ -325,32 +345,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '${session.vehicle.plateNumber} - ${_dateTimeLabel(session.startTime)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    color: context.colors.textSecondary,
-                    fontSize: 12,
+                if (tx.reference != null && tx.reference!.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    tx.reference!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                      color: context.colors.textSecondary,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    _statusChip(active ? 'Active' : 'Paid', active),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        _durationLabel(session),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.poppins(
-                          color: context.colors.textMuted,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
+                    _statusChip(_txStatusLabel(tx.status), isPending),
+                    if (autoPay) ...[
+                      const SizedBox(width: 8),
+                      _autoPayPill(),
+                    ],
                   ],
                 ),
               ],
@@ -361,18 +375,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                'KES ${_formatAmount(session.cost)}',
+                '${isDeposit ? '+' : '-'} KES ${_formatAmount(tx.amount)}',
                 style: GoogleFonts.poppins(
-                  color: context.colors.textPrimary,
+                  color: isDeposit ? context.colors.success : context.colors.textPrimary,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 5),
-              Icon(
-                active ? Icons.timer_outlined : Icons.check_circle_rounded,
-                color: active ? context.colors.warning : context.colors.success,
-                size: 17,
+              Text(
+                _dateTimeLabel(tx.createdAt ?? DateTime.now()),
+                style: GoogleFonts.poppins(
+                  color: context.colors.textMuted,
+                  fontSize: 11,
+                ),
               ),
             ],
           ),
@@ -381,20 +397,48 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _statusChip(String label, bool active) {
+  Widget _autoPayPill() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: active ? context.colors.successLight : context.colors.pageGrey,
+        color: const Color(0xFF7C3AED).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFF7C3AED).withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.bolt_rounded, size: 10, color: Color(0xFF7C3AED)),
+          const SizedBox(width: 3),
+          Text(
+            'AutoPay',
+            style: GoogleFonts.poppins(
+              color: const Color(0xFF7C3AED),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusChip(String label, bool isPending) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: isPending ? context.colors.pageGrey : context.colors.successLight,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: active ? context.colors.success.withValues(alpha: 0.3) : context.colors.border,
+          color: isPending
+              ? context.colors.border
+              : context.colors.success.withValues(alpha: 0.3),
         ),
       ),
       child: Text(
         label,
         style: GoogleFonts.poppins(
-          color: active ? context.colors.success : context.colors.textSecondary,
+          color: isPending ? context.colors.textSecondary : context.colors.success,
           fontSize: 10,
           fontWeight: FontWeight.w600,
         ),
@@ -472,31 +516,66 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  List<ParkingSession> _filteredSessions(List<ParkingSession> sessions) {
-    var result = sessions;
-    if (_filterIndex == 1) result = result.where((s) => !s.isActive).toList();
-    if (_filterIndex == 2) result = result.where((s) => s.isActive).toList();
+  bool _isAutoPay(WalletTransaction tx) {
+    final desc = (tx.description ?? '').toLowerCase();
+    final type = tx.type.toLowerCase();
+    return desc.contains('autopay') ||
+        desc.contains('auto pay') ||
+        desc.contains('auto-pay') ||
+        type.contains('autopay') ||
+        type.contains('auto_debit') ||
+        type == 'auto';
+  }
+
+  List<WalletTransaction> _filteredTransactions(List<WalletTransaction> transactions) {
+    var result = transactions;
+    if (_filterIndex == 1) {
+      result = result.where((t) {
+        final s = t.status.toUpperCase();
+        return s == 'COMPLETED' || s == 'SUCCESS';
+      }).toList();
+    }
+    if (_filterIndex == 2) result = result.where(_isAutoPay).toList();
 
     final query = _searchController.text.trim().toLowerCase();
     if (query.isNotEmpty) {
       result = result
-          .where((s) =>
-              s.locationName.toLowerCase().contains(query) ||
-              s.vehicle.plateNumber.toLowerCase().contains(query))
+          .where((t) =>
+              (t.description?.toLowerCase().contains(query) ?? false) ||
+              (t.reference?.toLowerCase().contains(query) ?? false))
           .toList();
     }
     return result;
   }
 
-  String _durationLabel(ParkingSession session) {
-    final endTime = session.endTime ?? DateTime.now();
-    final duration = endTime.difference(session.startTime);
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes % 60;
+  String _txTypeLabel(String type) {
+    switch (type.toUpperCase()) {
+      case 'DEPOSIT':
+        return 'Wallet Top-up';
+      case 'PAYMENT':
+        return 'Parking Payment';
+      case 'WITHDRAWAL':
+        return 'Withdrawal';
+      default:
+        return type;
+    }
+  }
 
-    if (hours <= 0) return '$minutes min';
-    if (minutes <= 0) return '${hours}h';
-    return '${hours}h ${minutes}m';
+  String _txStatusLabel(String status) {
+    switch (status.toUpperCase()) {
+      case 'COMPLETED':
+      case 'SUCCESS':
+        return 'Paid';
+      case 'PENDING':
+        return 'Pending';
+      case 'FAILED':
+        return 'Failed';
+      case 'CANCELLED':
+      case 'CANCELED':
+        return 'Cancelled';
+      default:
+        return status;
+    }
   }
 
   String _dateTimeLabel(DateTime dateTime) {
@@ -527,18 +606,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   String _monthDay(DateTime dateTime) {
     const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
     return '${dateTime.day} ${months[dateTime.month - 1]}';
   }

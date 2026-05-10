@@ -21,12 +21,20 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   late Timer _timer;
   late Duration _elapsed;
 
+  // Treat naive (non-UTC) API datetimes as UTC to match server intent
+  DateTime get _startUtc {
+    final dt = widget.session.startTime;
+    return dt.isUtc
+        ? dt
+        : DateTime.utc(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second);
+  }
+
   @override
   void initState() {
     super.initState();
-    _elapsed = DateTime.now().difference(widget.session.startTime);
+    _elapsed = DateTime.now().toUtc().difference(_startUtc);
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      setState(() => _elapsed = DateTime.now().difference(widget.session.startTime));
+      setState(() => _elapsed = DateTime.now().toUtc().difference(_startUtc));
     });
   }
 
@@ -262,7 +270,13 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   }
 
   String _formatTime(DateTime dt) {
-    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    final eat = (dt.isUtc ? dt : DateTime.utc(
+      dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second,
+    )).add(const Duration(hours: 3));
+    final hour = eat.hour == 0 ? 12 : eat.hour > 12 ? eat.hour - 12 : eat.hour;
+    final minute = eat.minute.toString().padLeft(2, '0');
+    final period = eat.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $period';
   }
 
   void _showEndDialog(BuildContext context) {

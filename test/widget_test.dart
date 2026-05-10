@@ -3,7 +3,7 @@ import 'package:park_iq/main.dart';
 
 void main() {
   testWidgets('App smoke test', (WidgetTester tester) async {
-    await tester.pumpWidget(const ParkIQApp());
-    expect(find.byType(ParkIQApp), findsOneWidget);
+    await tester.pumpWidget(const egeshaApp());
+    expect(find.byType(egeshaApp), findsOneWidget);
   });
 }

@@ -8,7 +8,7 @@
 PRODUCT_NAME = park_iq
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.parkIq
+PRODUCT_BUNDLE_IDENTIFIER = com.example.egesha
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.

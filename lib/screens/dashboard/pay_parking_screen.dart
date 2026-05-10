@@ -820,7 +820,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'M-Pesa STK Push',
+                            'M-Pesa prompt',
                             style: GoogleFonts.poppins(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -1069,7 +1069,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                           final enteredAmt = double.tryParse(amountCtrl.text.trim());
                           final label = enteredAmt != null && enteredAmt > 0
                               ? 'Send KES ${enteredAmt.toStringAsFixed(0)} via M-Pesa'
-                              : 'Send STK Push';
+                              : 'Send prompt';
                           return Text(
                             label,
                             style: GoogleFonts.poppins(

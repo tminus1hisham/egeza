@@ -4,10 +4,10 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../core/theme/app_colors.dart';
 
 /// Logo widget used in headers
-class ParkIQLogo extends StatelessWidget {
+class egeshaLogo extends StatelessWidget {
   final bool dark;
   final double size;
-  const ParkIQLogo({super.key, this.dark = false, this.size = 40});
+  const egeshaLogo({super.key, this.dark = false, this.size = 40});
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +45,7 @@ class ParkIQLogo extends StatelessWidget {
         ),
         const SizedBox(width: 10),
         Text(
-          'ParkIQ',
+          'egesha',
           style: GoogleFonts.poppins(
             color: dark ? Colors.white : context.colors.textPrimary,
             fontWeight: FontWeight.w700,
@@ -100,12 +100,14 @@ class OnboardingStepHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              _HeaderBackButton(onPressed: onBack ?? () => Navigator.pop(context)),
+              _HeaderBackButton(
+                onPressed: onBack ?? () => Navigator.pop(context),
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                  children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 9,
@@ -139,10 +141,7 @@ class OnboardingStepHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              if (trailing != null) ...[
-                const SizedBox(width: 12),
-                trailing!,
-              ],
+              if (trailing != null) ...[const SizedBox(width: 12), trailing!],
             ],
           ),
           const SizedBox(height: 16),
@@ -165,11 +164,7 @@ class OnboardingHeroIcon extends StatelessWidget {
   final IconData icon;
   final double size;
 
-  const OnboardingHeroIcon({
-    super.key,
-    required this.icon,
-    this.size = 92,
-  });
+  const OnboardingHeroIcon({super.key, required this.icon, this.size = 92});
 
   @override
   Widget build(BuildContext context) {
@@ -315,9 +310,9 @@ class AppPageHeader extends StatelessWidget {
               ),
             ),
           ],
-        
+        ),
       ),
-    ));
+    );
   }
 }
 
@@ -371,11 +366,7 @@ class AppHeaderButton extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
-          child: Icon(
-            icon,
-            color: foreground,
-            size: 21,
-          ),
+          child: Icon(icon, color: foreground, size: 21),
         ),
       ),
     );
@@ -397,10 +388,7 @@ class _AppHeaderIcon extends StatelessWidget {
       height: 50,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            context.colors.primary,
-            context.colors.primaryDark,
-          ],
+          colors: [context.colors.primary, context.colors.primaryDark],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -428,9 +416,7 @@ class _AppHeaderIcon extends StatelessWidget {
               ),
             ),
           ),
-          Center(
-            child: Icon(icon, color: Colors.white, size: 24),
-          ),
+          Center(child: Icon(icon, color: Colors.white, size: 24)),
         ],
       ),
     );
@@ -491,7 +477,9 @@ class OnboardingStepper extends StatelessWidget {
           width: isActive ? 28 : 10,
           height: 10,
           decoration: BoxDecoration(
-            color: isActive || isDone ? context.colors.primary : context.colors.border,
+            color: isActive || isDone
+                ? context.colors.primary
+                : context.colors.border,
             borderRadius: BorderRadius.circular(5),
           ),
         );
@@ -505,7 +493,12 @@ class SectionLabel extends StatelessWidget {
   final String label;
   final String? action;
   final VoidCallback? onAction;
-  const SectionLabel({super.key, required this.label, this.action, this.onAction});
+  const SectionLabel({
+    super.key,
+    required this.label,
+    this.action,
+    this.onAction,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -548,7 +541,9 @@ class StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: isActive ? context.colors.successLight : context.colors.border.withValues(alpha: 0.5),
+        color: isActive
+            ? context.colors.successLight
+            : context.colors.border.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -558,7 +553,10 @@ class StatusBadge extends StatelessWidget {
             Container(
               width: 6,
               height: 6,
-              decoration: BoxDecoration(color: context.colors.success, shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: context.colors.success,
+                shape: BoxShape.circle,
+              ),
             ),
             const SizedBox(width: 4),
           ],
@@ -567,7 +565,9 @@ class StatusBadge extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: isActive ? context.colors.success : context.colors.textSecondary,
+              color: isActive
+                  ? context.colors.success
+                  : context.colors.textSecondary,
             ),
           ),
         ],

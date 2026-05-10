@@ -261,6 +261,177 @@ void main() {
       expect(snapshot.isSuccess, isTrue);
     });
 
+    test('fetchTenancyPolicy uses public location policy endpoint', () async {
+      final api = ParkingIqApi(
+        baseUrl: 'https://example.test/api/v1',
+        token: 'token',
+        debug: false,
+        client: MockClient((request) async {
+          expect(request.method, 'GET');
+          expect(
+            request.url.path,
+            '/api/v1/parking/locations/loc-1/tenancy-policy',
+          );
+          expect(request.headers['Authorization'], isNull);
+          return http.Response(
+            jsonEncode({
+              'data': {
+                'id': 'policy-1',
+                'locationId': 'loc-1',
+                'locationName': 'Sarit Basement Parking',
+                'allocatedSlots': 4,
+                'subscriptionFee': 5000,
+                'pricingPlanName': 'Monthly Tenant Parking',
+                'slotEnforcement': 'ALLOCATED_SLOTS',
+                'subscriptionDurationDays': 30,
+                'gracePeriodDays': 3,
+                'active': true,
+              },
+            }),
+            200,
+          );
+        }),
+      );
+
+      final policy = await api.fetchTenancyPolicy('loc-1');
+
+      expect(policy.subscriptionFee, 5000);
+      expect(policy.allocatedSlots, 4);
+      expect(policy.subscriptionDurationDays, 30);
+    });
+
+    test('submitTenancyRequest does not send policy-owned values', () async {
+      late Map<String, dynamic> requestBody;
+      final api = ParkingIqApi(
+        baseUrl: 'https://example.test/api/v1',
+        token: 'token',
+        debug: false,
+        client: MockClient((request) async {
+          expect(request.method, 'POST');
+          expect(request.url.path, '/api/v1/tenancy/requests');
+          requestBody = jsonDecode(request.body) as Map<String, dynamic>;
+          return http.Response(
+            jsonEncode({
+              'data': {
+                'id': 'tenancy-req-1',
+                'locationId': requestBody['locationId'],
+                'tenantName': requestBody['tenantName'],
+                'plateNumber': requestBody['plateNumber'],
+                'message': requestBody['message'],
+                'status': 'PENDING',
+                'allocatedSlots': 4,
+                'subscriptionFee': 5000,
+              },
+            }),
+            200,
+          );
+        }),
+      );
+
+      final request = await api.submitTenancyRequest(
+        locationId: 'loc-sarit',
+        tenantName: 'Carrefour Sarit',
+        plateNumber: 'KDS132A',
+        message: 'Requesting tenant parking.',
+      );
+
+      expect(requestBody.keys, unorderedEquals({
+        'locationId',
+        'tenantName',
+        'plateNumber',
+        'message',
+      }));
+      expect(request.subscriptionFee, 5000);
+      expect(request.allocatedSlots, 4);
+    });
+
+    test('tenant profile payment uses the tapped tenantId', () async {
+      final api = ParkingIqApi(
+        baseUrl: 'https://example.test/api/v1',
+        token: 'token',
+        debug: false,
+        client: MockClient((request) async {
+          if (request.method == 'GET' &&
+              request.url.path == '/api/v1/tenancy/my-profiles') {
+            return http.Response(
+              jsonEncode({
+                'data': [
+                  {
+                    'id': 'tenant_sarit',
+                    'name': 'Carrefour Sarit',
+                    'locationName': 'Sarit Basement Parking',
+                    'status': 'ACTIVE',
+                    'paymentStatus': 'PAID',
+                  },
+                  {
+                    'id': 'tenant_two_rivers',
+                    'name': 'Carrefour Two Rivers',
+                    'locationName': 'Two Rivers Basement Parking',
+                    'status': 'PENDING',
+                    'paymentStatus': 'PENDING',
+                    'subscriptionFee': 8000,
+                  },
+                ],
+              }),
+              200,
+            );
+          }
+
+          if (request.method == 'POST') {
+            expect(
+              request.url.path,
+              '/api/v1/tenancy/tenants/tenant_two_rivers/subscriptions/pay',
+            );
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            expect(body, {'phoneNumber': '254711111111'});
+            return http.Response(
+              jsonEncode({
+                'data': {
+                  'paymentId': 'pay-two-rivers',
+                  'checkoutRequestId': 'ws_CO_123',
+                  'customerMessage': 'STK sent',
+                },
+              }),
+              200,
+            );
+          }
+
+          if (request.method == 'GET') {
+            expect(
+              request.url.path,
+              '/api/v1/tenancy/tenants/tenant_two_rivers/payment-status',
+            );
+            return http.Response(
+              jsonEncode({
+                'data': {
+                  'paymentId': 'pay-two-rivers',
+                  'paymentStatus': 'SUCCESS',
+                  'tenantId': 'tenant_two_rivers',
+                  'subscriptionStatus': 'ACTIVE',
+                  'tenantPaymentStatus': 'PAID',
+                },
+              }),
+              200,
+            );
+          }
+
+          return http.Response('{}', 404);
+        }),
+      );
+
+      final profiles = await api.fetchMyTenantProfiles();
+      final response = await api.payTenantSubscription(
+        tenantId: profiles[1].id,
+        phoneNumber: '254711111111',
+      );
+      final status = await api.tenantPaymentStatus(profiles[1].id);
+
+      expect(profiles[1].id, 'tenant_two_rivers');
+      expect(response.paymentId, 'pay-two-rivers');
+      expect(status.tenantId, 'tenant_two_rivers');
+      expect(status.isSuccess, isTrue);
+    });
+
     test('ParkingSession.fromJson maps sessionId, entryTime, exitTime, status',
         () {
       final json = {

@@ -9,26 +9,28 @@ import 'screens/splash_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final saved = await UserPrefs.load();
-  
+
   ThemeMode initialThemeMode = ThemeMode.system;
   if (saved.theme == 'light') initialThemeMode = ThemeMode.light;
   if (saved.theme == 'dark') initialThemeMode = ThemeMode.dark;
 
-  runApp(ParkIQApp(
-    initialUserName: saved.name,
-    initialPhoneNumber: saved.phone,
-    initialAuthToken: saved.token,
-    initialThemeMode: initialThemeMode,
-  ));
+  runApp(
+    egeshaApp(
+      initialUserName: saved.name,
+      initialPhoneNumber: saved.phone,
+      initialAuthToken: saved.token,
+      initialThemeMode: initialThemeMode,
+    ),
+  );
 }
 
-class ParkIQApp extends StatelessWidget {
+class egeshaApp extends StatelessWidget {
   final String? initialUserName;
   final String? initialPhoneNumber;
   final String? initialAuthToken;
   final ThemeMode initialThemeMode;
 
-  const ParkIQApp({
+  const egeshaApp({
     super.key,
     this.initialUserName,
     this.initialPhoneNumber,

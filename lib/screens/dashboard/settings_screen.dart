@@ -46,229 +46,235 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: context.colors.primary,
                     onRefresh: _onRefresh,
                     child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _profileCard(state),
-                        const SizedBox(height: 22),
-                        _settingsSection(
-                          title: 'Account',
-                          children: [
-                            _settingsRow(
-                              icon: Icons.person_outline_rounded,
-                              title: 'Personal details',
-                              subtitle: state.userName,
-                              onTap: () => _openPage(
-                                PersonalDetailsSettingsPage(state: state),
-                              ),
-                            ),
-                            _settingsRow(
-                              icon: Icons.directions_car_outlined,
-                              title: 'Vehicles',
-                              subtitle: '${state.vehicles.length} registered',
-                              onTap: () => _openPage(
-                                const VehiclesScreen(showBackButton: true),
-                              ),
-                            ),
-                            _settingsRow(
-                              icon: Icons.lock_outline_rounded,
-                              title: 'Security',
-                              subtitle: 'PIN and device access',
-                              onTap: _openSecurityPage,
-                            ),
-                            _settingsRow(
-                              icon: Icons.brightness_6_outlined,
-                              title: 'App Theme',
-                              subtitle: state.themeMode == ThemeMode.system 
-                                  ? 'System default' 
-                                  : state.themeMode == ThemeMode.dark 
-                                      ? 'Dark mode' 
-                                      : 'Light mode',
-                              onTap: null, // the trailing widget handles it
-                              trailing: SegmentedButton<ThemeMode>(
-                                segments: const [
-                                  ButtonSegment<ThemeMode>(
-                                    value: ThemeMode.light,
-                                    icon: Icon(Icons.light_mode, size: 16),
-                                  ),
-                                  ButtonSegment<ThemeMode>(
-                                    value: ThemeMode.system,
-                                    icon: Icon(Icons.brightness_auto, size: 16),
-                                  ),
-                                  ButtonSegment<ThemeMode>(
-                                    value: ThemeMode.dark,
-                                    icon: Icon(Icons.dark_mode, size: 16),
-                                  ),
-                                ],
-                                selected: {state.themeMode},
-                                onSelectionChanged: (Set<ThemeMode> newSelection) {
-                                  context.read<AppBloc>().add(
-                                    ChangeThemeMode(newSelection.first)
-                                  );
-                                },
-                                style: SegmentedButton.styleFrom(
-                                  backgroundColor: context.colors.background,
-                                  selectedBackgroundColor: context.colors.primary,
-                                  selectedForegroundColor: Colors.white,
-                                  visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _profileCard(state),
+                          const SizedBox(height: 22),
+                          _settingsSection(
+                            title: 'Account',
+                            children: [
+                              _settingsRow(
+                                icon: Icons.person_outline_rounded,
+                                title: 'Personal details',
+                                subtitle: state.userName,
+                                onTap: () => _openPage(
+                                  PersonalDetailsSettingsPage(state: state),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 18),
-                        _settingsSection(
-                          title: 'Parking',
-                          children: [
-                            _settingsRow(
-                              icon: Icons.bolt_outlined,
-                              title: 'AutoPay',
-                              subtitle: _autoPay
-                                  ? 'Automatic exit payments'
-                                  : 'Manual payments',
-                              onTap: () => _openPreferencePage(
-                                title: 'AutoPay',
-                                subtitle: 'Automatic parking payments',
+                              _settingsRow(
+                                icon: Icons.directions_car_outlined,
+                                title: 'Vehicles',
+                                subtitle: '${state.vehicles.length} registered',
+                                onTap: () => _openPage(
+                                  const VehiclesScreen(showBackButton: true),
+                                ),
+                              ),
+                              _settingsRow(
+                                icon: Icons.lock_outline_rounded,
+                                title: 'Security',
+                                subtitle: 'PIN and device access',
+                                onTap: _openSecurityPage,
+                              ),
+                              _settingsRow(
+                                icon: Icons.brightness_6_outlined,
+                                title: 'App Theme',
+                                subtitle: state.themeMode == ThemeMode.system
+                                    ? 'System default'
+                                    : state.themeMode == ThemeMode.dark
+                                    ? 'Dark mode'
+                                    : 'Light mode',
+                                onTap: null, // the trailing widget handles it
+                                trailing: SegmentedButton<ThemeMode>(
+                                  segments: const [
+                                    ButtonSegment<ThemeMode>(
+                                      value: ThemeMode.light,
+                                      icon: Icon(Icons.light_mode, size: 16),
+                                    ),
+                                    ButtonSegment<ThemeMode>(
+                                      value: ThemeMode.system,
+                                      icon: Icon(
+                                        Icons.brightness_auto,
+                                        size: 16,
+                                      ),
+                                    ),
+                                    ButtonSegment<ThemeMode>(
+                                      value: ThemeMode.dark,
+                                      icon: Icon(Icons.dark_mode, size: 16),
+                                    ),
+                                  ],
+                                  selected: {state.themeMode},
+                                  onSelectionChanged:
+                                      (Set<ThemeMode> newSelection) {
+                                        context.read<AppBloc>().add(
+                                          ChangeThemeMode(newSelection.first),
+                                        );
+                                      },
+                                  style: SegmentedButton.styleFrom(
+                                    backgroundColor: context.colors.background,
+                                    selectedBackgroundColor:
+                                        context.colors.primary,
+                                    selectedForegroundColor: Colors.white,
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 18),
+                          _settingsSection(
+                            title: 'Parking',
+                            children: [
+                              _settingsRow(
                                 icon: Icons.bolt_outlined,
-                                value: _autoPay,
-                                enabledText: 'Automatic exit payments',
-                                disabledText: 'Manual parking payments',
-                                details: const [
-                                  'Use your wallet balance for eligible exits.',
-                                  'Vehicle-specific AutoPay can still be changed from Vehicles.',
-                                  'Receipts stay available in parking history.',
-                                ],
-                                onSaved: (value) => _autoPay = value,
+                                title: 'AutoPay',
+                                subtitle: _autoPay
+                                    ? 'Automatic exit payments'
+                                    : 'Manual payments',
+                                onTap: () => _openPreferencePage(
+                                  title: 'AutoPay',
+                                  subtitle: 'Automatic parking payments',
+                                  icon: Icons.bolt_outlined,
+                                  value: _autoPay,
+                                  enabledText: 'Automatic exit payments',
+                                  disabledText: 'Manual parking payments',
+                                  details: const [
+                                    'Use your wallet balance for eligible exits.',
+                                    'Vehicle-specific AutoPay can still be changed from Vehicles.',
+                                    'Receipts stay available in parking history.',
+                                  ],
+                                  onSaved: (value) => _autoPay = value,
+                                ),
+                                trailing: _switch(
+                                  value: _autoPay,
+                                  onChanged: (value) =>
+                                      setState(() => _autoPay = value),
+                                ),
                               ),
-                              trailing: _switch(
-                                value: _autoPay,
-                                onChanged: (value) =>
-                                    setState(() => _autoPay = value),
-                              ),
-                            ),
-                            _settingsRow(
-                              icon: Icons.notifications_none_rounded,
-                              title: 'Parking alerts',
-                              subtitle: 'Entry, exit, and receipt updates',
-                              onTap: () => _openPreferencePage(
-                                title: 'Parking alerts',
-                                subtitle: 'Session and payment notifications',
+                              _settingsRow(
                                 icon: Icons.notifications_none_rounded,
-                                value: _pushAlerts,
-                                enabledText: 'Entry, exit, and receipt updates',
-                                disabledText: 'Alerts are muted',
-                                details: const [
-                                  'Get updates when a parking session starts.',
-                                  'Know when payment is completed or needs action.',
-                                  'Keep receipt notifications visible after exit.',
-                                ],
-                                onSaved: (value) => _pushAlerts = value,
+                                title: 'Parking alerts',
+                                subtitle: 'Entry, exit, and receipt updates',
+                                onTap: () => _openPreferencePage(
+                                  title: 'Parking alerts',
+                                  subtitle: 'Session and payment notifications',
+                                  icon: Icons.notifications_none_rounded,
+                                  value: _pushAlerts,
+                                  enabledText:
+                                      'Entry, exit, and receipt updates',
+                                  disabledText: 'Alerts are muted',
+                                  details: const [
+                                    'Get updates when a parking session starts.',
+                                    'Know when payment is completed or needs action.',
+                                    'Keep receipt notifications visible after exit.',
+                                  ],
+                                  onSaved: (value) => _pushAlerts = value,
+                                ),
+                                trailing: _switch(
+                                  value: _pushAlerts,
+                                  onChanged: (value) =>
+                                      setState(() => _pushAlerts = value),
+                                ),
                               ),
-                              trailing: _switch(
-                                value: _pushAlerts,
-                                onChanged: (value) =>
-                                    setState(() => _pushAlerts = value),
-                              ),
-                            ),
-                            _settingsRow(
-                              icon: Icons.fingerprint_rounded,
-                              title: 'Biometric approval',
-                              subtitle: 'Require biometrics for top-ups',
-                              onTap: () => _openPreferencePage(
-                                title: 'Biometric approval',
-                                subtitle: 'Top-up confirmation security',
+                              _settingsRow(
                                 icon: Icons.fingerprint_rounded,
-                                value: _biometrics,
-                                enabledText: 'Biometrics required for top-ups',
-                                disabledText: 'Top-ups use device unlock only',
-                                details: const [
-                                  'Add an extra approval step before wallet top-ups.',
-                                  'Uses the biometric method configured on this device.',
-                                  'You can still approve payments with your device passcode.',
-                                ],
-                                onSaved: (value) => _biometrics = value,
+                                title: 'Biometric approval',
+                                subtitle: 'Require biometrics for top-ups',
+                                onTap: () => _openPreferencePage(
+                                  title: 'Biometric approval',
+                                  subtitle: 'Top-up confirmation security',
+                                  icon: Icons.fingerprint_rounded,
+                                  value: _biometrics,
+                                  enabledText:
+                                      'Biometrics required for top-ups',
+                                  disabledText:
+                                      'Top-ups use device unlock only',
+                                  details: const [
+                                    'Add an extra approval step before wallet top-ups.',
+                                    'Uses the biometric method configured on this device.',
+                                    'You can still approve payments with your device passcode.',
+                                  ],
+                                  onSaved: (value) => _biometrics = value,
+                                ),
+                                trailing: _switch(
+                                  value: _biometrics,
+                                  onChanged: (value) =>
+                                      setState(() => _biometrics = value),
+                                ),
                               ),
-                              trailing: _switch(
-                                value: _biometrics,
-                                onChanged: (value) =>
-                                    setState(() => _biometrics = value),
+                            ],
+                          ),
+                          const SizedBox(height: 18),
+                          _settingsSection(
+                            title: 'Payments',
+                            children: [
+                              _settingsRow(
+                                icon: Icons.phone_android_rounded,
+                                title: 'M-Pesa number',
+                                subtitle: _displayPhone(
+                                  _paymentPhoneNumber ?? state.phoneNumber,
+                                ),
+                                onTap: () => _openMpesaNumberPage(
+                                  _paymentPhoneNumber ?? state.phoneNumber,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 18),
-                        _settingsSection(
-                          title: 'Payments',
-                          children: [
-                            _settingsRow(
-                              icon: Icons.phone_android_rounded,
-                              title: 'M-Pesa number',
-                              subtitle: _displayPhone(
-                                _paymentPhoneNumber ?? state.phoneNumber,
-                              ),
-                              onTap: () => _openMpesaNumberPage(
-                                _paymentPhoneNumber ?? state.phoneNumber,
-                              ),
-                            ),
-                            _settingsRow(
-                              icon: Icons.account_balance_wallet_outlined,
-                              title: 'Low balance alert',
-                              subtitle: 'Notify below KES 500',
-                              onTap: () => _openPreferencePage(
-                                title: 'Low balance alert',
-                                subtitle: 'Wallet balance reminders',
+                              _settingsRow(
                                 icon: Icons.account_balance_wallet_outlined,
-                                value: _lowBalance,
-                                enabledText: 'Notify below KES 500',
-                                disabledText: 'Low balance reminders are off',
-                                details: const [
-                                  'Warn before wallet funds are too low for AutoPay.',
-                                  'Alert threshold is set to KES 500.',
-                                  'Top up from Wallet when the alert appears.',
-                                ],
-                                onSaved: (value) => _lowBalance = value,
+                                title: 'Low balance alert',
+                                subtitle: 'Notify below KES 500',
+                                onTap: () => _openPreferencePage(
+                                  title: 'Low balance alert',
+                                  subtitle: 'Wallet balance reminders',
+                                  icon: Icons.account_balance_wallet_outlined,
+                                  value: _lowBalance,
+                                  enabledText: 'Notify below KES 500',
+                                  disabledText: 'Low balance reminders are off',
+                                  details: const [
+                                    'Warn before wallet funds are too low for AutoPay.',
+                                    'Alert threshold is set to KES 500.',
+                                    'Top up from Wallet when the alert appears.',
+                                  ],
+                                  onSaved: (value) => _lowBalance = value,
+                                ),
+                                trailing: _switch(
+                                  value: _lowBalance,
+                                  onChanged: (value) =>
+                                      setState(() => _lowBalance = value),
+                                ),
                               ),
-                              trailing: _switch(
-                                value: _lowBalance,
-                                onChanged: (value) =>
-                                    setState(() => _lowBalance = value),
+                            ],
+                          ),
+                          const SizedBox(height: 18),
+                          _settingsSection(
+                            title: 'Support',
+                            children: [
+                              _settingsRow(
+                                icon: Icons.help_outline_rounded,
+                                title: 'Help center',
+                                subtitle: 'FAQs and contact support',
+                                onTap: () =>
+                                    _openPage(const HelpCenterSettingsPage()),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 18),
-                        _settingsSection(
-                          title: 'Support',
-                          children: [
-                            _settingsRow(
-                              icon: Icons.help_outline_rounded,
-                              title: 'Help center',
-                              subtitle: 'FAQs and contact support',
-                              onTap: () => _openPage(
-                                const HelpCenterSettingsPage(),
+                              _settingsRow(
+                                icon: Icons.privacy_tip_outlined,
+                                title: 'Privacy and terms',
+                                subtitle: 'Data, payments, and app terms',
+                                onTap: () =>
+                                    _openPage(const PrivacyTermsSettingsPage()),
                               ),
-                            ),
-                            _settingsRow(
-                              icon: Icons.privacy_tip_outlined,
-                              title: 'Privacy and terms',
-                              subtitle: 'Data, payments, and app terms',
-                              onTap: () => _openPage(
-                                const PrivacyTermsSettingsPage(),
+                              _settingsRow(
+                                icon: Icons.logout_rounded,
+                                title: 'Sign out',
+                                subtitle: 'Leave this device',
+                                danger: true,
+                                onTap: _confirmSignOut,
                               ),
-                            ),
-                            _settingsRow(
-                              icon: Icons.logout_rounded,
-                              title: 'Sign out',
-                              subtitle: 'Leave this device',
-                              danger: true,
-                              onTap: _confirmSignOut,
-                            ),
-                          ],
-                        ),
-                      ],
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
                   ),
                 ),
               ],
@@ -317,101 +323,98 @@ class _SettingsScreenState extends State<SettingsScreen> {
           onTap: () => _openPage(PersonalDetailsSettingsPage(state: state)),
           splashColor: Colors.white.withValues(alpha: 0.1),
           child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              Container(
-                width: 58,
-                height: 58,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(19),
-                ),
-                child: Text(
-                  _initials(state.userName),
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  width: 58,
+                  height: 58,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(19),
+                  ),
+                  child: Text(
+                    _initials(state.userName),
+                    style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      state.userName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'ParkIQ member',
-                      style: GoogleFonts.poppins(
-                        color: Colors.white.withValues(alpha: 0.66),
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.account_balance_wallet_outlined,
-                          color: context.colors.accent,
-                          size: 16,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        state.userName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
                         ),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            'KES ${_formatAmount(state.walletBalance)} wallet balance',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.poppins(
-                              color: Colors.white.withValues(alpha: 0.82),
-                              fontSize: 12,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'egesha member',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white.withValues(alpha: 0.66),
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.account_balance_wallet_outlined,
+                            color: context.colors.accent,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              'KES ${_formatAmount(state.walletBalance)} wallet balance',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(
+                                color: Colors.white.withValues(alpha: 0.82),
+                                fontSize: 12,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
+                const SizedBox(width: 12),
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(
+                    Icons.edit_outlined,
+                    color: Colors.white,
+                    size: 18,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.edit_outlined,
-                  color: Colors.white,
-                  size: 18,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
-    ),
     );
   }
 
   Future<void> _openPage<T>(Widget page) {
-    return Navigator.push<T>(
-      context,
-      MaterialPageRoute(builder: (_) => page),
-    );
+    return Navigator.push<T>(context, MaterialPageRoute(builder: (_) => page));
   }
 
   Future<void> _openPreferencePage({
@@ -447,9 +450,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => SecuritySettingsPage(
-          biometricsEnabled: _biometrics,
-        ),
+        builder: (_) => SecuritySettingsPage(biometricsEnabled: _biometrics),
       ),
     );
 
@@ -575,11 +576,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               for (var i = 0; i < children.length; i++) ...[
                 children[i],
                 if (i != children.length - 1)
-                  Divider(
-                    height: 1,
-                    color: context.colors.divider,
-                    indent: 74,
-                  ),
+                  Divider(height: 1, color: context.colors.divider, indent: 74),
               ],
             ],
           ),
@@ -610,8 +607,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color:
-                      danger ? const Color(0xFFFFECEB) : context.colors.accentLight,
+                  color: danger
+                      ? const Color(0xFFFFECEB)
+                      : context.colors.accentLight,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(icon, color: color, size: 21),
@@ -626,8 +624,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.poppins(
-                        color:
-                            danger ? context.colors.error : context.colors.textPrimary,
+                        color: danger
+                            ? context.colors.error
+                            : context.colors.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
@@ -659,10 +658,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _switch({
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
+  Widget _switch({required bool value, required ValueChanged<bool> onChanged}) {
     return Transform.scale(
       scale: 0.86,
       child: Switch(
@@ -686,9 +682,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   String _formatAmount(num amount) {
-    return amount.toStringAsFixed(0).replaceAllMapped(
-          RegExp(r'\B(?=(\d{3})+(?!\d))'),
-          (match) => ',',
-        );
+    return amount
+        .toStringAsFixed(0)
+        .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ',');
   }
 }

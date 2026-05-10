@@ -26,8 +26,10 @@ class SignInScreen extends StatefulWidget {
 
 class _SignInScreenState extends State<SignInScreen> {
   final _phoneController = TextEditingController();
-  final List<TextEditingController> _otpControllers =
-      List.generate(6, (_) => TextEditingController());
+  final List<TextEditingController> _otpControllers = List.generate(
+    6,
+    (_) => TextEditingController(),
+  );
   final List<FocusNode> _otpFocusNodes = List.generate(6, (_) => FocusNode());
 
   CountryCode _selectedCountry = kCountryCodes.first;
@@ -54,7 +56,10 @@ class _SignInScreenState extends State<SignInScreen> {
     _resendTimer?.cancel();
     setState(() => _resendCountdown = 60);
     _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) { timer.cancel(); return; }
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       setState(() {
         _resendCountdown--;
         if (_resendCountdown <= 0) timer.cancel();
@@ -94,56 +99,58 @@ class _SignInScreenState extends State<SignInScreen> {
               ),
               SafeArea(
                 child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 40),
-                  const Center(child: ParkIQLogo(size: 46)),
-                  const SizedBox(height: 36),
-                  Text(
-                    'Sign in',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(
-                      fontSize: 30,
-                      fontWeight: FontWeight.w700,
-                      color: context.colors.textPrimary,
-                    ),
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 40),
+                      const Center(child: egeshaLogo(size: 46)),
+                      const SizedBox(height: 36),
+                      Text(
+                        'Sign in',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w700,
+                          color: context.colors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Continue with your egesha account',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          color: context.colors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      _phoneCard(
+                        isBusy: isBusy,
+                        isRequestingOtp:
+                            isBusy &&
+                            _pendingAction == _SignInAction.requestOtp,
+                      ),
+                      const SizedBox(height: 18),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        child: _otpRequested
+                            ? _otpCard(
+                                key: const ValueKey('otp-card'),
+                                isBusy: isBusy,
+                                isSigningIn:
+                                    isBusy &&
+                                    _pendingAction == _SignInAction.signIn,
+                              )
+                            : const SizedBox.shrink(key: ValueKey('otp-empty')),
+                      ),
+                      const SizedBox(height: 24),
+                      _createAccountLink(),
+                      const SizedBox(height: 40),
+                    ],
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Continue with your ParkIQ account',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(
-                      fontSize: 15,
-                      color: context.colors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  _phoneCard(
-                    isBusy: isBusy,
-                    isRequestingOtp:
-                        isBusy && _pendingAction == _SignInAction.requestOtp,
-                  ),
-                  const SizedBox(height: 18),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    child: _otpRequested
-                        ? _otpCard(
-                            key: const ValueKey('otp-card'),
-                            isBusy: isBusy,
-                            isSigningIn: isBusy &&
-                                _pendingAction == _SignInAction.signIn,
-                          )
-                        : const SizedBox.shrink(key: ValueKey('otp-empty')),
-                  ),
-                  const SizedBox(height: 24),
-                  _createAccountLink(),
-                  const SizedBox(height: 40),
-                ],
+                ),
               ),
-            ),
-          ),
             ],
           ),
         );
@@ -151,10 +158,7 @@ class _SignInScreenState extends State<SignInScreen> {
     );
   }
 
-  Widget _phoneCard({
-    required bool isBusy,
-    required bool isRequestingOtp,
-  }) {
+  Widget _phoneCard({required bool isBusy, required bool isRequestingOtp}) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
@@ -209,8 +213,8 @@ class _SignInScreenState extends State<SignInScreen> {
           PrimaryButton(
             text: _otpRequested
                 ? (_resendCountdown > 0
-                    ? 'Resend in ${_resendCountdown}s'
-                    : 'Resend Code')
+                      ? 'Resend in ${_resendCountdown}s'
+                      : 'Resend Code')
                 : 'Send OTP',
             icon: LucideIcons.messageCircle,
             isLoading: isRequestingOtp,
@@ -333,7 +337,7 @@ class _SignInScreenState extends State<SignInScreen> {
       child: Center(
         child: RichText(
           text: TextSpan(
-            text: 'New to ParkIQ? ',
+            text: 'New to egesha? ',
             style: GoogleFonts.poppins(
               fontSize: 14,
               color: context.colors.textMuted,
@@ -361,9 +365,9 @@ class _SignInScreenState extends State<SignInScreen> {
 
     final error = state.errorMessage;
     if (error != null && error.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
       return;
     }
 
@@ -384,9 +388,9 @@ class _SignInScreenState extends State<SignInScreen> {
 
     final message = state.statusMessage;
     if (message != null && message.isNotEmpty && !state.isAuthenticated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -419,19 +423,16 @@ class _SignInScreenState extends State<SignInScreen> {
   void _signIn() {
     final otp = _otpControllers.map((controller) => controller.text).join();
     if (otp.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter the 6-digit code')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter the 6-digit code')));
       return;
     }
 
     setState(() => _pendingAction = _SignInAction.signIn);
     context.read<AppBloc>().add(
-          SignInWithOtp(
-            phoneNumber: _normalizedPhoneNumber,
-            otp: otp,
-          ),
-        );
+      SignInWithOtp(phoneNumber: _normalizedPhoneNumber, otp: otp),
+    );
   }
 
   bool get _hasValidPhoneNumber {

@@ -13,10 +13,7 @@ import 'verify_otp_screen.dart';
 class CreateAccountScreen extends StatefulWidget {
   final bool showGuideOnOpen;
 
-  const CreateAccountScreen({
-    super.key,
-    this.showGuideOnOpen = true,
-  });
+  const CreateAccountScreen({super.key, this.showGuideOnOpen = true});
 
   @override
   State<CreateAccountScreen> createState() => _CreateAccountScreenState();
@@ -62,23 +59,23 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              OnboardingStepHeader(
-                step: 1,
-                totalSteps: 2,
-                title: 'Create Account',
-                onBack: _goToSignIn,
-                trailing: AppHeaderButton(
-                  icon: LucideIcons.helpCircle,
-                  onTap: _showSetupGuide,
-                  tooltip: 'Setup guide',
-                ),
-              ),
-              const SizedBox(height: 24),
-              const Center(child: ParkIQLogo(size: 42)),
-              const SizedBox(height: 22),
+              // OnboardingStepHeader(
+              //   step: 1,
+              //   totalSteps: 2,
+              //   title: 'Create Account',
+              //   onBack: _goToSignIn,
+              //   trailing: AppHeaderButton(
+              //     icon: LucideIcons.helpCircle,
+              //     onTap: _showSetupGuide,
+              //     tooltip: 'Setup guide',
+              //   ),
+              // ),
+              // const SizedBox(height: 24),
+              // const Center(child: egeshaLogo(size: 42)),
+              // const SizedBox(height: 22),
               Center(
                 child: Text(
-                  "Let's set up your account",
+                  "Create your account",
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 27,
@@ -89,16 +86,16 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 ),
               ),
               const SizedBox(height: 6),
-              Text(
-                'Set up once. Park hands-free with a verified ParkIQ profile.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  color: context.colors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 24),
-              _setupOverviewCard(),
+              // Text(
+              //   'Set up once. Park hands-free with a verified egesha profile.',
+              //   textAlign: TextAlign.center,
+              //   style: GoogleFonts.poppins(
+              //     fontSize: 15,
+              //     color: context.colors.textSecondary,
+              //   ),
+              // ),
+              // const SizedBox(height: 24),
+              // _setupOverviewCard(),
               const SizedBox(height: 18),
               _phoneCard(),
               const SizedBox(height: 18),
@@ -228,7 +225,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           _overviewItem(
             icon: LucideIcons.car,
             title: 'Next: add your vehicle',
-            description: 'Your plate connects parking sessions to your account.',
+            description:
+                'Your plate connects parking sessions to your account.',
           ),
         ],
       ),
@@ -400,9 +398,21 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
             color: context.colors.textPrimary,
           ),
           dropdownColor: context.colors.surface,
-          items: ['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret', 'Thika', 'Nyeri']
-              .map((county) => DropdownMenuItem(value: county, child: Text(county)))
-              .toList(),
+          items:
+              [
+                    'Nairobi',
+                    'Mombasa',
+                    'Kisumu',
+                    'Nakuru',
+                    'Eldoret',
+                    'Thika',
+                    'Nyeri',
+                  ]
+                  .map(
+                    (county) =>
+                        DropdownMenuItem(value: county, child: Text(county)),
+                  )
+                  .toList(),
           onChanged: (value) => setState(() => _selectedCounty = value),
         ),
       ],
@@ -583,12 +593,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 _guideSheetStep(
                   icon: LucideIcons.contact,
                   title: 'Enter matching personal details',
-                  description: 'Your full name, ID number, and county help secure the account.',
+                  description:
+                      'Your full name, ID number, and county help secure the account.',
                 ),
                 _guideSheetStep(
                   icon: LucideIcons.car,
                   title: 'Add your vehicle after OTP',
-                  description: 'Your plate is what ParkIQ uses to match parking sessions.',
+                  description:
+                      'Your plate is what egesha uses to match parking sessions.',
                 ),
                 const SizedBox(height: 18),
                 PrimaryButton(
@@ -667,7 +679,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
     if (!_hasValidPhoneNumber || fullName.isEmpty || idNumber.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Complete your phone, name, and ID first')),
+        const SnackBar(
+          content: Text('Complete your phone, name, and ID first'),
+        ),
       );
       return;
     }
@@ -695,9 +709,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_friendlyError(error))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_friendlyError(error))));
     } finally {
       if (mounted) setState(() => _isSendingOtp = false);
     }
