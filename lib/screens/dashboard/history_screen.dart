@@ -267,16 +267,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
           clipBehavior: Clip.antiAlias,
           decoration: _panelDecoration(),
           child: transactions.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.all(26),
-                  child: Text(
-                    'No transactions match this filter',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(
-                      color: context.colors.textSecondary,
-                      fontSize: 13,
-                    ),
-                  ),
+              ? _emptyHistory(
+                  filterOnly:
+                      _filterIndex != 0 || _searchController.text.isNotEmpty,
                 )
               : Column(
                   children: [
@@ -293,6 +286,53 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
         ),
       ],
+    );
+  }
+
+  Widget _emptyHistory({bool filterOnly = false}) {
+    if (filterOnly) {
+      return Padding(
+        padding: const EdgeInsets.all(26),
+        child: Text(
+          'No transactions match this filter',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.poppins(
+            color: context.colors.textSecondary,
+            fontSize: 13,
+          ),
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.history_outlined,
+            size: 64,
+            color: context.colors.textMuted,
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'No parking history',
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: context.colors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Your completed sessions will appear here',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color: context.colors.textMuted,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

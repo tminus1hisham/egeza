@@ -33,7 +33,8 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   void initState() {
     super.initState();
     _elapsed = DateTime.now().toUtc().difference(_startUtc);
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+    // Update display every 5s; elapsed is computed from real start time so accuracy is maintained
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) {
       setState(() => _elapsed = DateTime.now().toUtc().difference(_startUtc));
     });
   }

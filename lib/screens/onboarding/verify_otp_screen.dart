@@ -49,6 +49,9 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
   bool _navigatedAfterAuth = false;
   String? _pendingAction;
 
+  // Inline OTP error shown below OTP boxes
+  String? _otpError;
+
   @override
   void initState() {
     super.initState();
@@ -59,11 +62,11 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
   @override
   void dispose() {
     _resendTimer?.cancel();
-    for (final controller in _otpControllers) {
-      controller.dispose();
+    for (final c in _otpControllers) {
+      c.dispose();
     }
-    for (final node in _otpFocusNodes) {
-      node.dispose();
+    for (final n in _otpFocusNodes) {
+      n.dispose();
     }
     super.dispose();
   }
@@ -112,7 +115,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Enter the 6-digit code sent to ${_maskedPhoneNumber}',
+                    'Enter the 6-digit code sent to $_formattedPhone',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
                       fontSize: 15,
@@ -158,10 +161,9 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Verification Code',
+                  'Enter the 6-digit code sent to $_formattedPhone',
                   style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
                     color: context.colors.textSecondary,
                   ),
                 ),
@@ -179,11 +181,45 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: List.generate(
                   6,
-                  (index) => _otpBox(index, boxWidth),
+                  (index) => Semantics(
+                    label: 'OTP digit ${index + 1} of 6',
+                    child: _otpBox(index, boxWidth, isBusy: isBusy),
+                  ),
                 ),
               );
             },
           ),
+          // Inline error container below OTP boxes
+          if (_otpError != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.close_rounded,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _otpError!,
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (kDebugMode) ...[
             const SizedBox(height: 12),
             _debugOtpAction(),
@@ -215,7 +251,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
               label: Text(
                 _resendCountdown > 0
                     ? 'Resend in ${_resendCountdown}s'
-                    : 'Resend Code',
+                    : 'Resend OTP',
               ),
               style: TextButton.styleFrom(
                 foregroundColor: context.colors.primary,
@@ -231,8 +267,9 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
     );
   }
 
-  Widget _otpBox(int index, double width) {
+  Widget _otpBox(int index, double width, {required bool isBusy}) {
     final filled = _otpControllers[index].text.isNotEmpty;
+    final hasError = _otpError != null;
 
     return SizedBox(
       width: width,
@@ -242,6 +279,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
         focusNode: _otpFocusNodes[index],
         textAlign: TextAlign.center,
         keyboardType: TextInputType.number,
+        readOnly: isBusy,
         autofillHints: index == 0 ? const [AutofillHints.oneTimeCode] : null,
         inputFormatters: [
           LengthLimitingTextInputFormatter(1),
@@ -259,10 +297,17 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
           counterText: '',
           contentPadding: EdgeInsets.zero,
           enabledBorder: _otpBorder(
-            filled ? context.colors.primary : context.colors.inputBorder,
-            width: filled ? 2 : 1,
+            hasError
+                ? context.colors.error
+                : filled
+                    ? context.colors.primary
+                    : context.colors.inputBorder,
+            width: (filled || hasError) ? 2 : 1,
           ),
-          focusedBorder: _otpBorder(context.colors.primary, width: 2),
+          focusedBorder: _otpBorder(
+            hasError ? context.colors.error : context.colors.primary,
+            width: 2,
+          ),
         ),
       ),
     );
@@ -316,15 +361,14 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
 
     final error = state.errorMessage;
     if (error != null && error.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
-      );
+      // Show inline error, clear OTP fields, move focus back to box 1
+      setState(() => _otpError = error);
+      _clearOtp();
       return;
     }
 
     if (!_navigatedAfterAuth && state.isAuthenticated) {
       _navigatedAfterAuth = true;
-      context.read<AppBloc>().add(LoadDashboardData());
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const MainNavigation()),
@@ -334,6 +378,9 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
   }
 
   void _onOtpDigit(String value, int index) {
+    // Clear inline error as soon as user starts typing again
+    if (_otpError != null) setState(() => _otpError = null);
+
     if (value.length == 1 && index < 5) {
       _otpFocusNodes[index + 1].requestFocus();
     } else if (value.isEmpty && index > 0) {
@@ -354,7 +401,10 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
       return;
     }
 
-    setState(() => _pendingAction = _OtpAction.verify);
+    setState(() {
+      _pendingAction = _OtpAction.verify;
+      _otpError = null;
+    });
     context.read<AppBloc>().add(
           RegisterAccount(
             phoneNumber: widget.phoneNumber,
@@ -424,8 +474,8 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
   }
 
   void _clearOtp() {
-    for (final controller in _otpControllers) {
-      controller.clear();
+    for (final c in _otpControllers) {
+      c.clear();
     }
     _otpFocusNodes.first.requestFocus();
     setState(() {});
@@ -444,17 +494,27 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
   }
 
   String get _otp {
-    return _otpControllers.map((controller) => controller.text).join();
+    return _otpControllers.map((c) => c.text).join();
   }
 
   bool get _isOtpComplete {
-    return _otpControllers.every((controller) => controller.text.isNotEmpty);
+    return _otpControllers.every((c) => c.text.isNotEmpty);
   }
 
-  String get _maskedPhoneNumber {
-    final digits = widget.phoneNumber.replaceAll(RegExp(r'\D'), '');
-    if (digits.length <= 6) return widget.phoneNumber;
-    return '+${digits.substring(0, digits.length - 6)} *** ${digits.substring(digits.length - 3)}';
+  /// Formats the raw phone number as "+254 XXX XXX XXX" for the label.
+  String get _formattedPhone {
+    final raw = widget.phoneNumber;
+    // Strip any non-digit characters except leading +
+    final digits = raw.replaceAll(RegExp(r'[^\d+]'), '');
+    if (digits.length < 6) return raw;
+    // Keep the country code prefix (everything up to 3 chars after +) and group the rest
+    final prefix = digits.startsWith('+') ? digits.substring(0, 4) : digits.substring(0, 3);
+    final local = digits.startsWith('+') ? digits.substring(4) : digits.substring(3);
+    final grouped = [
+      for (var i = 0; i < local.length; i += 3)
+        local.substring(i, i + 3 > local.length ? local.length : i + 3),
+    ].join(' ');
+    return '$prefix $grouped';
   }
 }
 

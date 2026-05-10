@@ -9,6 +9,8 @@ import '../../core/theme/app_colors.dart';
 import '../../models/parking_session.dart';
 import '../../models/vehicle.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/primary_button.dart';
+import '../onboarding/plate_number_screen.dart';
 import 'vehicle_detail_screen.dart';
 
 class VehiclesScreen extends StatefulWidget {
@@ -66,7 +68,12 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                           const SizedBox(height: 18),
                           _filterBar(),
                           const SizedBox(height: 18),
-                          _vehicleList(context, vehicles, state.recentSessions),
+                          _vehicleList(
+                            context,
+                            vehicles,
+                            state.recentSessions,
+                            noVehiclesAtAll: state.vehicles.isEmpty,
+                          ),
                           const SizedBox(height: 18),
                           _addVehicleCard(context),
                         ],
@@ -200,8 +207,9 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   Widget _vehicleList(
     BuildContext context,
     List<Vehicle> vehicles,
-    List<ParkingSession> sessions,
-  ) {
+    List<ParkingSession> sessions, {
+    required bool noVehiclesAtAll,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -228,7 +236,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
         ),
         const SizedBox(height: 12),
         if (vehicles.isEmpty)
-          _emptyVehicles()
+          _emptyVehicles(noVehiclesAtAll: noVehiclesAtAll)
         else
           ...vehicles.map((vehicle) {
             final vehicleSessions = sessions
@@ -468,28 +476,66 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     ));
   }
 
-  Widget _emptyVehicles() {
+  Widget _emptyVehicles({required bool noVehiclesAtAll}) {
+    if (!noVehiclesAtAll) {
+      // Filter returned no results, but user does have vehicles
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(26),
+        decoration: BoxDecoration(
+          color: context.colors.cardSurface,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Text(
+          'No vehicles match this filter',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.poppins(
+            color: context.colors.textSecondary,
+            fontSize: 13,
+          ),
+        ),
+      );
+    }
+
+    // True empty state — no vehicles registered at all
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(26),
-      decoration: BoxDecoration(
-        color: context.colors.cardSurface,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+      padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.directions_car_outlined,
+            size: 64,
+            color: context.colors.textMuted,
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'No vehicles yet',
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: context.colors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Add your first vehicle to start parking',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color: context.colors.textMuted,
+            ),
+          ),
+          const SizedBox(height: 24),
+          PrimaryButton(
+            text: 'Add Vehicle',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PlateNumberScreen()),
+            ),
           ),
         ],
-      ),
-      child: Text(
-        'No vehicles match this filter',
-        textAlign: TextAlign.center,
-        style: GoogleFonts.poppins(
-          color: context.colors.textSecondary,
-          fontSize: 13,
-        ),
       ),
     );
   }

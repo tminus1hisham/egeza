@@ -441,14 +441,37 @@ class _WalletScreenState extends State<WalletScreen> {
           decoration: _panelDecoration(),
           child: sessions.isEmpty
               ? Padding(
-                  padding: const EdgeInsets.all(22),
-                  child: Text(
-                    'No wallet activity yet',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(
-                      color: context.colors.textSecondary,
-                      fontSize: 13,
-                    ),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 48,
+                    horizontal: 32,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.receipt_long_outlined,
+                        size: 64,
+                        color: context.colors.textMuted,
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'No transactions',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: context.colors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Top-up or park to see activity here',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: context.colors.textMuted,
+                        ),
+                      ),
+                    ],
                   ),
                 )
               : Column(

@@ -18,10 +18,15 @@ class PlateNumberScreen extends StatefulWidget {
 }
 
 class _PlateNumberScreenState extends State<PlateNumberScreen> {
-  final _makeController = TextEditingController(text: 'Toyota');
-  final _modelController = TextEditingController(text: 'Prado');
-  String _plateNumber = 'KBZ 123A';
+  final _makeController = TextEditingController();
+  final _modelController = TextEditingController();
+  String _plateNumber = '';
   String _selectedType = 'SUV / 4x4';
+
+  int get _plateCharCount {
+    // Strip spaces to count only meaningful characters
+    return _plateNumber.replaceAll(' ', '').length;
+  }
 
   @override
   void dispose() {
@@ -32,6 +37,10 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final counterColor = _plateCharCount == 7
+        ? context.colors.success
+        : context.colors.error;
+
     return Scaffold(
       backgroundColor: context.colors.surface,
       body: SafeArea(
@@ -71,43 +80,44 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
               _label('Number Plate'),
               const SizedBox(height: 8),
               PlateNumberInput(
-                onChanged: (value) => _plateNumber = value,
+                onChanged: (value) => setState(() => _plateNumber = value),
               ),
-              const SizedBox(height: 10),
-              Center(
-                child: Text(
-                  'Enter plate exactly as shown on your vehicle',
-                  style: GoogleFonts.poppins(fontSize: 13, color: context.colors.textMuted),
-                ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Enter plate exactly as shown on your vehicle',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: context.colors.textMuted,
+                    ),
+                  ),
+                  Text(
+                    '$_plateCharCount / 7',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: _plateNumber.isEmpty ? context.colors.textMuted : counterColor,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
               _label('Vehicle Type'),
               const SizedBox(height: 8),
               _vehicleTypeSelect(),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  _vehicleChip('Saloon'),
-                  _vehicleChip('SUV / 4x4'),
-                  _vehicleChip('Hatchback'),
-                  _vehicleChip('Pickup Truck'),
-                  _vehicleChip('Van / Minibus'),
-                  _vehicleChip('Motorcycle'),
-                ],
-              ),
               const SizedBox(height: 24),
               Row(
                 children: [
-                  Expanded(child: _smallField('Make', _makeController)),
+                  Expanded(child: _smallField('Make', _makeController, hint: 'e.g. Toyota')),
                   const SizedBox(width: 14),
-                  Expanded(child: _smallField('Model', _modelController)),
+                  Expanded(child: _smallField('Model', _modelController, hint: 'e.g. Prado')),
                 ],
               ),
               const SizedBox(height: 32),
               PrimaryButton(
-                text: 'Save Vehicle & Continue \u2192',
+                text: 'Save Vehicle & Continue →',
                 onPressed: _saveVehicle,
               ),
             ],
@@ -142,35 +152,11 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
     );
   }
 
-  Widget _vehicleChip(String label) {
-    final selected = _selectedType == label;
-
-    return GestureDetector(
-      onTap: () => setState(() => _selectedType = label),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? context.colors.accentLight : context.colors.pageGrey,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: selected ? context.colors.primary : context.colors.inputBorder,
-            width: selected ? 1.3 : 1,
-          ),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.poppins(
-            fontSize: 13,
-            fontWeight: FontWeight.w400,
-            color: selected ? context.colors.primary : context.colors.textSecondary,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _smallField(String label, TextEditingController controller) {
+  Widget _smallField(
+    String label,
+    TextEditingController controller, {
+    String? hint,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -180,6 +166,11 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
           controller: controller,
           style: GoogleFonts.poppins(fontSize: 15, color: context.colors.textPrimary),
           decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: GoogleFonts.poppins(
+              color: context.colors.textMuted,
+              fontSize: 14,
+            ),
             filled: true,
             fillColor: context.colors.inputFill,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),

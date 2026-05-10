@@ -25,12 +25,12 @@ class AppState extends Equatable {
   final ThemeMode themeMode;
 
   const AppState({
-    this.userName = 'James Mwangi',
+    this.userName = '',
     this.phoneNumber,
     this.email,
     this.authToken,
     this.requiresVehicleSetup = false,
-    this.walletBalance = 2450.0,
+    this.walletBalance = 0.0,
     this.vehicles = const [],
     this.recentSessions = const [],
     this.walletTransactions = const [],

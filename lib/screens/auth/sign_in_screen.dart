@@ -39,15 +39,18 @@ class _SignInScreenState extends State<SignInScreen> {
   int _resendCountdown = 0;
   Timer? _resendTimer;
 
+  // Inline OTP error shown below OTP boxes
+  String? _otpError;
+
   @override
   void dispose() {
     _resendTimer?.cancel();
     _phoneController.dispose();
-    for (final controller in _otpControllers) {
-      controller.dispose();
+    for (final c in _otpControllers) {
+      c.dispose();
     }
-    for (final node in _otpFocusNodes) {
-      node.dispose();
+    for (final n in _otpFocusNodes) {
+      n.dispose();
     }
     super.dispose();
   }
@@ -67,6 +70,14 @@ class _SignInScreenState extends State<SignInScreen> {
     });
   }
 
+  void _clearOtpAndRefocus() {
+    for (final c in _otpControllers) {
+      c.clear();
+    }
+    _otpFocusNodes.first.requestFocus();
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<AppBloc, AppState>(
@@ -83,7 +94,7 @@ class _SignInScreenState extends State<SignInScreen> {
           backgroundColor: context.colors.background,
           body: Stack(
             children: [
-              // Subtle gradient wash behind the top area
+              // Subtle gradient wash
               Container(
                 height: 280,
                 decoration: BoxDecoration(
@@ -128,8 +139,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       _phoneCard(
                         isBusy: isBusy,
                         isRequestingOtp:
-                            isBusy &&
-                            _pendingAction == _SignInAction.requestOtp,
+                            isBusy && _pendingAction == _SignInAction.requestOtp,
                       ),
                       const SizedBox(height: 18),
                       AnimatedSwitcher(
@@ -141,8 +151,11 @@ class _SignInScreenState extends State<SignInScreen> {
                                 isSigningIn:
                                     isBusy &&
                                     _pendingAction == _SignInAction.signIn,
+                                phoneNumber: _normalizedPhoneNumber,
                               )
-                            : const SizedBox.shrink(key: ValueKey('otp-empty')),
+                            : const SizedBox.shrink(
+                                key: ValueKey('otp-empty'),
+                              ),
                       ),
                       const SizedBox(height: 24),
                       _createAccountLink(),
@@ -151,6 +164,14 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                 ),
               ),
+              // Loading overlay
+              if (isBusy)
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black26,
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                ),
             ],
           ),
         );
@@ -171,7 +192,9 @@ class _SignInScreenState extends State<SignInScreen> {
             children: [
               CountryCodeSelector(
                 selected: _selectedCountry,
-                onChanged: (code) => setState(() => _selectedCountry = code),
+                onChanged: isBusy
+                    ? (_) {}
+                    : (code) => setState(() => _selectedCountry = code),
                 decoration: _inputBoxDecoration(null),
               ),
               const SizedBox(width: 10),
@@ -183,9 +206,8 @@ class _SignInScreenState extends State<SignInScreen> {
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.done,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9 ]')),
-                    ],
+                    readOnly: isBusy,
+                    inputFormatters: [_PhoneSpaceFormatter()],
                     style: GoogleFonts.poppins(
                       fontSize: 15,
                       color: context.colors.textPrimary,
@@ -229,6 +251,7 @@ class _SignInScreenState extends State<SignInScreen> {
     required Key key,
     required bool isBusy,
     required bool isSigningIn,
+    required String phoneNumber,
   }) {
     return Container(
       key: key,
@@ -261,6 +284,15 @@ class _SignInScreenState extends State<SignInScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          Text(
+            'Enter the 6-digit code sent to $phoneNumber',
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              color: context.colors.textSecondary,
+              height: 1.4,
+            ),
+          ),
           const SizedBox(height: 14),
           LayoutBuilder(
             builder: (context, constraints) {
@@ -271,11 +303,45 @@ class _SignInScreenState extends State<SignInScreen> {
               return Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: List.generate(6, (index) {
-                  return _otpBox(index, boxWidth);
+                  return Semantics(
+                    label: 'OTP digit ${index + 1} of 6',
+                    child: _otpBox(index, boxWidth, isBusy: isBusy),
+                  );
                 }),
               );
             },
           ),
+          // Inline OTP error
+          if (_otpError != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.close_rounded,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _otpError!,
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 18),
           PrimaryButton(
             text: 'Sign In',
@@ -288,8 +354,9 @@ class _SignInScreenState extends State<SignInScreen> {
     );
   }
 
-  Widget _otpBox(int index, double width) {
+  Widget _otpBox(int index, double width, {required bool isBusy}) {
     final filled = _otpControllers[index].text.isNotEmpty;
+    final hasError = _otpError != null;
 
     return SizedBox(
       width: width,
@@ -299,6 +366,7 @@ class _SignInScreenState extends State<SignInScreen> {
         focusNode: _otpFocusNodes[index],
         textAlign: TextAlign.center,
         keyboardType: TextInputType.number,
+        readOnly: isBusy,
         autofillHints: index == 0 ? const [AutofillHints.oneTimeCode] : null,
         inputFormatters: [
           LengthLimitingTextInputFormatter(1),
@@ -316,10 +384,17 @@ class _SignInScreenState extends State<SignInScreen> {
           counterText: '',
           contentPadding: EdgeInsets.zero,
           enabledBorder: _otpBorder(
-            filled ? context.colors.primary : context.colors.inputBorder,
-            width: filled ? 2 : 1,
+            hasError
+                ? context.colors.error
+                : filled
+                    ? context.colors.primary
+                    : context.colors.inputBorder,
+            width: (filled || hasError) ? 2 : 1,
           ),
-          focusedBorder: _otpBorder(context.colors.primary, width: 2),
+          focusedBorder: _otpBorder(
+            hasError ? context.colors.error : context.colors.primary,
+            width: 2,
+          ),
         ),
       ),
     );
@@ -365,15 +440,19 @@ class _SignInScreenState extends State<SignInScreen> {
 
     final error = state.errorMessage;
     if (error != null && error.isNotEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error)));
+      if (_otpRequested) {
+        // Show inline error and clear OTP boxes
+        setState(() => _otpError = error);
+        _clearOtpAndRefocus();
+      } else {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error)));
+      }
       return;
     }
 
     if (!_navigatedAfterAuth && state.isAuthenticated) {
       _navigatedAfterAuth = true;
-      context.read<AppBloc>().add(LoadDashboardData());
       final destination = state.requiresVehicleSetup
           ? const PlateNumberScreen()
           : const MainNavigation();
@@ -388,13 +467,15 @@ class _SignInScreenState extends State<SignInScreen> {
 
     final message = state.statusMessage;
     if (message != null && message.isNotEmpty && !state.isAuthenticated) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
   void _onOtpDigit(String value, int index) {
+    // Clear inline error as soon as user starts typing
+    if (_otpError != null) setState(() => _otpError = null);
+
     if (value.length == 1 && index < 5) {
       _otpFocusNodes[index + 1].requestFocus();
     } else if (value.isEmpty && index > 0) {
@@ -415,24 +496,28 @@ class _SignInScreenState extends State<SignInScreen> {
     setState(() {
       _otpRequested = true;
       _pendingAction = _SignInAction.requestOtp;
+      _otpError = null;
     });
     _startResendTimer();
     context.read<AppBloc>().add(RequestLoginOtp(_normalizedPhoneNumber));
   }
 
   void _signIn() {
-    final otp = _otpControllers.map((controller) => controller.text).join();
+    final otp = _otpControllers.map((c) => c.text).join();
     if (otp.length < 6) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Enter the 6-digit code')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter the 6-digit code')),
+      );
       return;
     }
 
-    setState(() => _pendingAction = _SignInAction.signIn);
+    setState(() {
+      _pendingAction = _SignInAction.signIn;
+      _otpError = null;
+    });
     context.read<AppBloc>().add(
-      SignInWithOtp(phoneNumber: _normalizedPhoneNumber, otp: otp),
-    );
+          SignInWithOtp(phoneNumber: _normalizedPhoneNumber, otp: otp),
+        );
   }
 
   bool get _hasValidPhoneNumber {
@@ -483,6 +568,28 @@ class _SignInScreenState extends State<SignInScreen> {
     return OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
       borderSide: BorderSide(color: color, width: width),
+    );
+  }
+}
+
+/// Formats phone digits as "712 345 678" (space after every 3rd digit, max 9 digits).
+class _PhoneSpaceFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    final capped = digits.length > 9 ? digits.substring(0, 9) : digits;
+    final buffer = StringBuffer();
+    for (var i = 0; i < capped.length; i++) {
+      if (i == 3 || i == 6) buffer.write(' ');
+      buffer.write(capped[i]);
+    }
+    final formatted = buffer.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }
