@@ -1,4 +1,4 @@
-package com.example.park_iq
+package com.example.egesha
 
 import io.flutter.embedding.android.FlutterActivity
 

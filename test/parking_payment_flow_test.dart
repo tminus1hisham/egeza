@@ -3,15 +3,15 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:park_iq/blocs/app_bloc.dart';
-import 'package:park_iq/blocs/app_event.dart';
-import 'package:park_iq/blocs/app_state.dart';
-import 'package:park_iq/core/api/parking_iq_api.dart';
-import 'package:park_iq/core/payment/parking_billing.dart';
-import 'package:park_iq/core/payment/payment_validation.dart';
-import 'package:park_iq/models/api_models.dart';
-import 'package:park_iq/models/parking_session.dart';
-import 'package:park_iq/models/vehicle.dart';
+import 'package:egesha/blocs/app_bloc.dart';
+import 'package:egesha/blocs/app_event.dart';
+import 'package:egesha/blocs/app_state.dart';
+import 'package:egesha/core/api/parking_iq_api.dart';
+import 'package:egesha/core/payment/parking_billing.dart';
+import 'package:egesha/core/payment/payment_validation.dart';
+import 'package:egesha/models/api_models.dart';
+import 'package:egesha/models/parking_session.dart';
+import 'package:egesha/models/vehicle.dart';
 
 void main() {
   // ---------------------------------------------------------------------------
@@ -150,46 +150,49 @@ void main() {
       );
     });
 
-    test('parses calculate response with grace period and hourly rate', () async {
-      final api = ParkingIqApi(
-        baseUrl: 'https://example.test/api/v1',
-        token: 'token',
-        debug: false,
-        client: MockClient((request) async {
-          expect(request.method, 'GET');
-          expect(
-            request.url.path,
-            '/api/v1/parking/session/session-1/calculate',
-          );
-          return http.Response(
-            jsonEncode({
-              'data': {
-                'sessionId': 'session-1',
-                'plateNumber': 'KBC 123A',
-                'location': 'CBD Parking Zone A',
-                'entryTime': '2026-05-01T08:00:00Z',
-                'currentTime': '2026-05-01T08:04:00Z',
-                'gracePeriodMinutes': 3,
-                'ratePerHour': 5,
-                'billableHours': 1,
-                'amount': 5,
-              },
-            }),
-            200,
-          );
-        }),
-      );
+    test(
+      'parses calculate response with grace period and hourly rate',
+      () async {
+        final api = ParkingIqApi(
+          baseUrl: 'https://example.test/api/v1',
+          token: 'token',
+          debug: false,
+          client: MockClient((request) async {
+            expect(request.method, 'GET');
+            expect(
+              request.url.path,
+              '/api/v1/parking/session/session-1/calculate',
+            );
+            return http.Response(
+              jsonEncode({
+                'data': {
+                  'sessionId': 'session-1',
+                  'plateNumber': 'KBC 123A',
+                  'location': 'CBD Parking Zone A',
+                  'entryTime': '2026-05-01T08:00:00Z',
+                  'currentTime': '2026-05-01T08:04:00Z',
+                  'gracePeriodMinutes': 3,
+                  'ratePerHour': 5,
+                  'billableHours': 1,
+                  'amount': 5,
+                },
+              }),
+              200,
+            );
+          }),
+        );
 
-      final session = await api.calculateParkingSession('session-1');
+        final session = await api.calculateParkingSession('session-1');
 
-      expect(session.id, 'session-1');
-      expect(session.vehicle.plateNumber, 'KBC 123A');
-      expect(session.locationName, 'CBD Parking Zone A');
-      expect(session.gracePeriodMinutes, 3);
-      expect(session.ratePerHour, 5);
-      expect(session.billableHours, 1);
-      expect(session.cost, 5);
-    });
+        expect(session.id, 'session-1');
+        expect(session.vehicle.plateNumber, 'KBC 123A');
+        expect(session.locationName, 'CBD Parking Zone A');
+        expect(session.gracePeriodMinutes, 3);
+        expect(session.ratePerHour, 5);
+        expect(session.billableHours, 1);
+        expect(session.cost, 5);
+      },
+    );
 
     test('sends SESSION STK push payload', () async {
       late Map<String, dynamic> requestBody;
@@ -245,10 +248,7 @@ void main() {
           expect(request.url.path, '/api/v1/payments/payment-1/status');
           return http.Response(
             jsonEncode({
-              'data': {
-                'paymentId': 'payment-1',
-                'status': 'SUCCESS',
-              },
+              'data': {'paymentId': 'payment-1', 'status': 'SUCCESS'},
             }),
             200,
           );
@@ -335,12 +335,10 @@ void main() {
         message: 'Requesting tenant parking.',
       );
 
-      expect(requestBody.keys, unorderedEquals({
-        'locationId',
-        'tenantName',
-        'plateNumber',
-        'message',
-      }));
+      expect(
+        requestBody.keys,
+        unorderedEquals({'locationId', 'tenantName', 'plateNumber', 'message'}),
+      );
       expect(request.subscriptionFee, 5000);
       expect(request.allocatedSlots, 4);
     });
@@ -432,28 +430,30 @@ void main() {
       expect(status.isSuccess, isTrue);
     });
 
-    test('ParkingSession.fromJson maps sessionId, entryTime, exitTime, status',
-        () {
-      final json = {
-        'sessionId': 'abc123',
-        'plateNumber': 'KBC 123A',
-        'location': 'CBD Parking Zone A',
-        'entryTime': '2026-05-01T08:00:00.000Z',
-        'exitTime': '2026-05-01T09:00:00.000Z',
-        'status': 'COMPLETED',
-        'amount': 5,
-      };
+    test(
+      'ParkingSession.fromJson maps sessionId, entryTime, exitTime, status',
+      () {
+        final json = {
+          'sessionId': 'abc123',
+          'plateNumber': 'KBC 123A',
+          'location': 'CBD Parking Zone A',
+          'entryTime': '2026-05-01T08:00:00.000Z',
+          'exitTime': '2026-05-01T09:00:00.000Z',
+          'status': 'COMPLETED',
+          'amount': 5,
+        };
 
-      final session = ParkingSession.fromJson(json);
+        final session = ParkingSession.fromJson(json);
 
-      expect(session.id, 'abc123');
-      expect(session.vehicle.plateNumber, 'KBC 123A');
-      expect(session.locationName, 'CBD Parking Zone A');
-      expect(session.startTime, DateTime.parse('2026-05-01T08:00:00.000Z'));
-      expect(session.endTime, isNotNull);
-      expect(session.status, 'COMPLETED');
-      expect(session.cost, 5);
-    });
+        expect(session.id, 'abc123');
+        expect(session.vehicle.plateNumber, 'KBC 123A');
+        expect(session.locationName, 'CBD Parking Zone A');
+        expect(session.startTime, DateTime.parse('2026-05-01T08:00:00.000Z'));
+        expect(session.endTime, isNotNull);
+        expect(session.status, 'COMPLETED');
+        expect(session.cost, 5);
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -642,10 +642,7 @@ void main() {
     });
 
     test('TIMEOUT is terminal failure', () {
-      expect(
-        const PaymentStatusSnapshot(status: 'TIMEOUT').isFailure,
-        isTrue,
-      );
+      expect(const PaymentStatusSnapshot(status: 'TIMEOUT').isFailure, isTrue);
     });
 
     test('TIMED_OUT is terminal failure', () {
@@ -710,13 +707,15 @@ void main() {
         initialPhoneNumber: '0712345678',
       );
 
-      bloc.add(const PayParkingSession(
-        sessionId: 'session-1',
-        phoneNumber: '0712345678',
-        amount: 5,
-        plateNumber: 'KBC 123A',
-        location: 'CBD Parking Zone A',
-      ));
+      bloc.add(
+        const PayParkingSession(
+          sessionId: 'session-1',
+          phoneNumber: '0712345678',
+          amount: 5,
+          plateNumber: 'KBC 123A',
+          location: 'CBD Parking Zone A',
+        ),
+      );
 
       await expectLater(
         bloc.stream,
@@ -736,13 +735,15 @@ void main() {
         initialPhoneNumber: '0712345678',
       );
 
-      bloc.add(const PayParkingSession(
-        sessionId: 'session-1',
-        phoneNumber: '0712345678',
-        amount: 5,
-        plateNumber: 'KBC 123A',
-        location: 'CBD Parking Zone A',
-      ));
+      bloc.add(
+        const PayParkingSession(
+          sessionId: 'session-1',
+          phoneNumber: '0712345678',
+          amount: 5,
+          plateNumber: 'KBC 123A',
+          location: 'CBD Parking Zone A',
+        ),
+      );
 
       await expectLater(
         bloc.stream,
@@ -803,13 +804,15 @@ void main() {
         initialPhoneNumber: '0712345678',
       );
 
-      bloc.add(const PayParkingSession(
-        sessionId: 'session-1',
-        phoneNumber: '0712345678',
-        amount: 5,
-        plateNumber: 'KBC 123A',
-        location: 'CBD Parking Zone A',
-      ));
+      bloc.add(
+        const PayParkingSession(
+          sessionId: 'session-1',
+          phoneNumber: '0712345678',
+          amount: 5,
+          plateNumber: 'KBC 123A',
+          location: 'CBD Parking Zone A',
+        ),
+      );
 
       await expectLater(
         bloc.stream,
@@ -824,35 +827,36 @@ void main() {
       await bloc.close();
     });
 
-    test('cancelled payment shows appropriate error and stops waiting', () async {
-      final bloc = AppBloc(
-        api: _FakeParkingIqApi(paymentStatus: 'CANCELLED'),
-        initialAuthToken: 'token',
-        initialPhoneNumber: '0712345678',
-      );
+    test(
+      'cancelled payment shows appropriate error and stops waiting',
+      () async {
+        final bloc = AppBloc(
+          api: _FakeParkingIqApi(paymentStatus: 'CANCELLED'),
+          initialAuthToken: 'token',
+          initialPhoneNumber: '0712345678',
+        );
 
-      bloc.add(const PayParkingSession(
-        sessionId: 'session-1',
-        phoneNumber: '0712345678',
-        amount: 5,
-        plateNumber: 'KBC 123A',
-        location: 'CBD Parking Zone A',
-      ));
+        bloc.add(
+          const PayParkingSession(
+            sessionId: 'session-1',
+            phoneNumber: '0712345678',
+            amount: 5,
+            plateNumber: 'KBC 123A',
+            location: 'CBD Parking Zone A',
+          ),
+        );
 
-      await expectLater(
-        bloc.stream,
-        emitsThrough(
-          isA<AppState>()
-              .having((s) => s.isWaitingForPayment, 'waiting', isFalse)
-              .having(
-                (s) => s.errorMessage,
-                'error',
-                contains('cancelled'),
-              ),
-        ),
-      );
-      await bloc.close();
-    });
+        await expectLater(
+          bloc.stream,
+          emitsThrough(
+            isA<AppState>()
+                .having((s) => s.isWaitingForPayment, 'waiting', isFalse)
+                .having((s) => s.errorMessage, 'error', contains('cancelled')),
+          ),
+        );
+        await bloc.close();
+      },
+    );
 
     test('cancelled payment keeps session active for retry', () async {
       final bloc = AppBloc(
@@ -861,13 +865,15 @@ void main() {
         initialPhoneNumber: '0712345678',
       );
 
-      bloc.add(const PayParkingSession(
-        sessionId: 'session-1',
-        phoneNumber: '0712345678',
-        amount: 5,
-        plateNumber: 'KBC 123A',
-        location: 'CBD Parking Zone A',
-      ));
+      bloc.add(
+        const PayParkingSession(
+          sessionId: 'session-1',
+          phoneNumber: '0712345678',
+          amount: 5,
+          plateNumber: 'KBC 123A',
+          location: 'CBD Parking Zone A',
+        ),
+      );
 
       await expectLater(
         bloc.stream,
@@ -889,24 +895,22 @@ void main() {
         initialPhoneNumber: '0712345678',
       );
 
-      bloc.add(const PayParkingSession(
-        sessionId: 'session-1',
-        phoneNumber: '0712345678',
-        amount: 5,
-        plateNumber: 'KBC 123A',
-        location: 'CBD Parking Zone A',
-      ));
+      bloc.add(
+        const PayParkingSession(
+          sessionId: 'session-1',
+          phoneNumber: '0712345678',
+          amount: 5,
+          plateNumber: 'KBC 123A',
+          location: 'CBD Parking Zone A',
+        ),
+      );
 
       await expectLater(
         bloc.stream,
         emitsThrough(
           isA<AppState>()
               .having((s) => s.isWaitingForPayment, 'waiting', isFalse)
-              .having(
-                (s) => s.errorMessage,
-                'error',
-                contains('timed out'),
-              ),
+              .having((s) => s.errorMessage, 'error', contains('timed out')),
         ),
       );
       await bloc.close();
@@ -920,13 +924,15 @@ void main() {
         initialPhoneNumber: '0712345678',
       );
 
-      bloc.add(const PayParkingSession(
-        sessionId: 'session-1',
-        phoneNumber: '0712345678',
-        amount: 5,
-        plateNumber: 'KBC 123A',
-        location: 'CBD Parking Zone A',
-      ));
+      bloc.add(
+        const PayParkingSession(
+          sessionId: 'session-1',
+          phoneNumber: '0712345678',
+          amount: 5,
+          plateNumber: 'KBC 123A',
+          location: 'CBD Parking Zone A',
+        ),
+      );
 
       // Wait for the waiting state to be emitted
       await expectLater(
@@ -941,13 +947,15 @@ void main() {
       );
 
       // Fire a duplicate while isWaitingForPayment is true
-      bloc.add(const PayParkingSession(
-        sessionId: 'session-1',
-        phoneNumber: '0712345678',
-        amount: 5,
-        plateNumber: 'KBC 123A',
-        location: 'CBD Parking Zone A',
-      ));
+      bloc.add(
+        const PayParkingSession(
+          sessionId: 'session-1',
+          phoneNumber: '0712345678',
+          amount: 5,
+          plateNumber: 'KBC 123A',
+          location: 'CBD Parking Zone A',
+        ),
+      );
 
       await Future.delayed(const Duration(milliseconds: 100));
 
@@ -965,21 +973,25 @@ void main() {
         initialPhoneNumber: '0712345678',
       );
 
-      bloc.add(const PayParkingSession(
-        sessionId: 'session-1',
-        phoneNumber: '254712345678',
-        amount: 5,
-        plateNumber: 'KBC 123A',
-        location: 'CBD Parking Zone A',
-      ));
+      bloc.add(
+        const PayParkingSession(
+          sessionId: 'session-1',
+          phoneNumber: '254712345678',
+          amount: 5,
+          plateNumber: 'KBC 123A',
+          location: 'CBD Parking Zone A',
+        ),
+      );
 
       await expectLater(
         bloc.stream,
-        emitsThrough(isA<AppState>().having(
-          (s) => s.selectedSession?.status,
-          'status',
-          'COMPLETED',
-        )),
+        emitsThrough(
+          isA<AppState>().having(
+            (s) => s.selectedSession?.status,
+            'status',
+            'COMPLETED',
+          ),
+        ),
       );
 
       expect(api.lastStkPayload?['location'], 'CBD Parking Zone A');
@@ -994,21 +1006,25 @@ void main() {
         initialPhoneNumber: '0712345678',
       );
 
-      bloc.add(const PayParkingSession(
-        sessionId: 'session-1',
-        phoneNumber: '0712345678',
-        amount: 5,
-        plateNumber: 'KBC 123A',
-        location: 'CBD Parking Zone A',
-      ));
+      bloc.add(
+        const PayParkingSession(
+          sessionId: 'session-1',
+          phoneNumber: '0712345678',
+          amount: 5,
+          plateNumber: 'KBC 123A',
+          location: 'CBD Parking Zone A',
+        ),
+      );
 
       await expectLater(
         bloc.stream,
-        emitsThrough(isA<AppState>().having(
-          (s) => s.selectedSession?.status,
-          'status',
-          'COMPLETED',
-        )),
+        emitsThrough(
+          isA<AppState>().having(
+            (s) => s.selectedSession?.status,
+            'status',
+            'COMPLETED',
+          ),
+        ),
       );
 
       expect(api.stkPushCount, 1);
@@ -1020,10 +1036,7 @@ void main() {
         const PaymentStatusSnapshot(status: 'CANCELLED').isTerminal,
         isTrue,
       );
-      expect(
-        const PaymentStatusSnapshot(status: 'TIMEOUT').isFailure,
-        isTrue,
-      );
+      expect(const PaymentStatusSnapshot(status: 'TIMEOUT').isFailure, isTrue);
     });
   });
 }
@@ -1032,10 +1045,7 @@ void main() {
 // Helpers
 // ---------------------------------------------------------------------------
 
-ParkingSession _session({
-  String status = 'ACTIVE',
-  bool isActive = true,
-}) {
+ParkingSession _session({String status = 'ACTIVE', bool isActive = true}) {
   return ParkingSession(
     id: 'session-1',
     locationName: 'CBD Parking Zone A',
@@ -1059,8 +1069,8 @@ class _FakeParkingIqApi extends ParkingIqApi {
   Map<String, dynamic>? lastStkPayload;
 
   _FakeParkingIqApi({required String paymentStatus})
-      : terminalStatus = paymentStatus,
-        super(debug: false);
+    : terminalStatus = paymentStatus,
+      super(debug: false);
 
   @override
   bool get hasToken => true;
@@ -1108,10 +1118,10 @@ class _FakeParkingIqApi extends ParkingIqApi {
 
   @override
   Future<ParkingSession> parkingSession(String sessionId) async {
-    return _session(status: 'COMPLETED', isActive: false).copyWith(
-      endTime: DateTime(2026, 5, 1, 9),
-      amountPaid: 5,
-    );
+    return _session(
+      status: 'COMPLETED',
+      isActive: false,
+    ).copyWith(endTime: DateTime(2026, 5, 1, 9), amountPaid: 5);
   }
 }
 

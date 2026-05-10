@@ -262,7 +262,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
         return null;
       });
       final locationsFuture = _api
-          .listLocations()
+          .fetchParkingLocations()
           .then<Object?>((v) => v)
           .catchError((Object e, StackTrace st) {
         trackUnauthorized(e, st, 'listLocations');

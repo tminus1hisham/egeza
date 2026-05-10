@@ -4,12 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:park_iq/blocs/app_bloc.dart';
-import 'package:park_iq/blocs/app_state.dart';
-import 'package:park_iq/models/parking_session.dart';
-import 'package:park_iq/models/vehicle.dart';
-import 'package:park_iq/screens/dashboard/pay_parking_screen.dart';
-import 'package:park_iq/widgets/primary_button.dart';
+import 'package:egesha/blocs/app_bloc.dart';
+import 'package:egesha/blocs/app_state.dart';
+import 'package:egesha/models/parking_session.dart';
+import 'package:egesha/models/vehicle.dart';
+import 'package:egesha/screens/dashboard/pay_parking_screen.dart';
+import 'package:egesha/widgets/primary_button.dart';
 
 // Controllable bloc for widget tests — exposes emit via testEmit.
 // Extends AppBloc so BlocProvider<AppBloc> resolves correctly.
@@ -61,8 +61,9 @@ void main() {
   // a. isWaitingForPayment == true
   // ---------------------------------------------------------------------------
   group('waiting for payment state', () {
-    testWidgets('CircularProgressIndicator is visible in waiting dialog',
-        (tester) async {
+    testWidgets('CircularProgressIndicator is visible in waiting dialog', (
+      tester,
+    ) async {
       final bloc = _TestAppBloc();
 
       await tester.pumpWidget(_buildScreen(bloc));
@@ -74,8 +75,9 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsWidgets);
     });
 
-    testWidgets('Find Parking Session button is not tappable when isLoading',
-        (tester) async {
+    testWidgets('Find Parking Session button is not tappable when isLoading', (
+      tester,
+    ) async {
       final bloc = _TestAppBloc();
 
       await tester.pumpWidget(_buildScreen(bloc));
@@ -122,10 +124,12 @@ void main() {
     await tester.pump();
 
     // Transition to completed — dialog hides and receipt is pushed.
-    bloc.testEmit(AppState(
-      isWaitingForPayment: false,
-      selectedSession: _completedSession(),
-    ));
+    bloc.testEmit(
+      AppState(
+        isWaitingForPayment: false,
+        selectedSession: _completedSession(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Payment Successful'), findsOneWidget);
