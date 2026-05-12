@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../blocs/app_bloc.dart';
 import '../../blocs/app_event.dart';
+import '../../core/error_handler.dart';
 import '../../core/theme/app_colors.dart';
 import '../../widgets/app_widgets.dart';
 import '../../widgets/plate_number_input.dart';
@@ -204,9 +205,7 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
   void _saveVehicle() {
     final plate = _plateNumber.trim().toUpperCase();
     if (plate.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter your plate number')),
-      );
+      ErrorHandler.showErrorMessage(context, 'Please enter your vehicle plate number.');
       return;
     }
 

@@ -101,15 +101,9 @@ class ParkingIqApi {
       return AuthResult(token: rawToken);
     }
 
-    // Check if OTP was rejected (no verified indicator in data)
-    final data = _dataMap(response);
-    final verified = data != null && data.values.any((value) => value == true);
-    if (!verified) {
-      throw const ApiException('Invalid verification code');
-    }
-
-    throw const ApiException(
-      'OTP verified but no session token was returned. Please try again.',
+    // API returned 200 but no token — surface the API's own message if present
+    throw ApiException(
+      _messageFrom(response) ?? 'Invalid or expired verification code',
     );
   }
 
@@ -261,7 +255,7 @@ class ParkingIqApi {
   }) async {
     final response = await _request(
       'POST',
-      '/payments/mpesa/stkpush',
+      '/payments/mpesa/stkpush/legacy',
       body: {
         'phoneNumber': phoneNumber,
         'amount': amount,
@@ -309,14 +303,17 @@ class ParkingIqApi {
     String? location,
     String? locationId,
   }) async {
+    final resolvedLocation = locationId ?? location;
+    if (resolvedLocation == null || resolvedLocation.trim().isEmpty) {
+      throw const ApiException('Parking location is required');
+    }
+
     final response = await _request(
       'POST',
       '/parking/initiate',
       body: {
         'plateNumber': plateNumber,
-        if (location != null && location.isNotEmpty) 'location': location,
-        if (locationId != null && locationId.isNotEmpty)
-          'locationId': locationId,
+        'locationId': resolvedLocation.trim(),
       },
     );
     return ParkingSession.fromJson(_requiredObjectPayload(response));
@@ -328,7 +325,7 @@ class ParkingIqApi {
     String? locationId,
     bool qrCodeScanned = false,
   }) async {
-    final resolvedLocation = location ?? locationId;
+    final resolvedLocation = locationId ?? location;
     if (resolvedLocation == null || resolvedLocation.trim().isEmpty) {
       throw const ApiException('Parking location is required');
     }
@@ -338,9 +335,7 @@ class ParkingIqApi {
       '/parking/entry',
       body: {
         'plateNumber': plateNumber,
-        'location': resolvedLocation,
-        if (locationId != null && locationId.isNotEmpty)
-          'locationId': locationId,
+        'locationId': resolvedLocation.trim(),
         'qrCodeScanned': qrCodeScanned,
       },
     );
@@ -382,13 +377,27 @@ class ParkingIqApi {
     return ParkingSession.fromJson({
       ...data,
       'sessionId': data['sessionId'] ?? sessionId,
-      'status': data['status'] ?? 'ACTIVE',
     });
   }
 
   Future<ParkingSession> parkingSession(String sessionId) async {
     final response = await _request('GET', '/parking/session/$sessionId');
     return ParkingSession.fromJson(_requiredObjectPayload(response));
+  }
+
+  Future<DiscountRedemption> applyDiscount({
+    required String sessionId,
+    required String code,
+  }) async {
+    final response = await _request(
+      'POST',
+      '/tenancy/discounts/apply',
+      body: {
+        'sessionId': sessionId,
+        'code': code.trim(),
+      },
+    );
+    return DiscountRedemption.fromJson(_requiredObjectPayload(response));
   }
 
   Future<MpesaResponse> startSessionStkPush({
@@ -408,7 +417,6 @@ class ParkingIqApi {
         'amount': amount.toInt(),
         'sessionId': sessionId,
         'plateNumber': plateNumber,
-        'location': location,
         'transactionDesc': transactionDesc,
       },
     );
@@ -438,11 +446,17 @@ class ParkingIqApi {
     return PaymentStatusSnapshot.fromJson(_requiredObjectPayload(response));
   }
 
-  Future<QrCodeResponse> generateQrCode(String locationId) async {
+  Future<QrCodeResponse> generateQrCode(
+    String locationId, {
+    String? gateId,
+  }) async {
     final response = await _request(
       'POST',
       '/qrcode/generate',
-      query: {'locationId': locationId},
+      query: {
+        'locationId': locationId,
+        if (gateId != null && gateId.isNotEmpty) 'gateId': gateId,
+      },
     );
     return QrCodeResponse.fromJson(_requiredDataMap(response));
   }
@@ -612,12 +626,12 @@ class ParkingIqApi {
   }
 
   Future<Map<String, dynamic>> barrierCommand({
-    required String locationId,
+    required String gateId,
     required String command,
   }) async {
     final response = await _request(
       'POST',
-      '/admin/locations/$locationId/barrier',
+      '/admin/gates/$gateId/barrier',
       query: {'command': command},
     );
     return _requiredDataMap(response);

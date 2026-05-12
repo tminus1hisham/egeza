@@ -9,6 +9,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../blocs/app_bloc.dart';
 import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
+import '../../core/error_handler.dart';
 import '../../core/theme/app_colors.dart';
 import '../../widgets/app_widgets.dart';
 import '../../widgets/country_code_selector.dart';
@@ -441,12 +442,13 @@ class _SignInScreenState extends State<SignInScreen> {
     final error = state.errorMessage;
     if (error != null && error.isNotEmpty) {
       if (_otpRequested) {
-        // Show inline error and clear OTP boxes
+        // OTP submission failed — show inline error and clear boxes
         setState(() => _otpError = error);
         _clearOtpAndRefocus();
       } else {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error)));
+        // OTP send failed — reset so the user stays on the phone step
+        setState(() => _otpRequested = false);
+        ErrorHandler.showErrorMessage(context, error);
       }
       return;
     }
@@ -467,8 +469,11 @@ class _SignInScreenState extends State<SignInScreen> {
 
     final message = state.statusMessage;
     if (message != null && message.isNotEmpty && !state.isAuthenticated) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      // OTP was sent successfully — now reveal the OTP card
+      if (_pendingAction == _SignInAction.requestOtp) {
+        setState(() => _otpRequested = true);
+      }
+      ErrorHandler.showSuccess(context, message);
     }
   }
 
@@ -487,14 +492,11 @@ class _SignInScreenState extends State<SignInScreen> {
 
   void _requestOtp() {
     if (!_hasValidPhoneNumber) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid phone number')),
-      );
+      ErrorHandler.showErrorMessage(context, 'Please enter a valid phone number.');
       return;
     }
 
     setState(() {
-      _otpRequested = true;
       _pendingAction = _SignInAction.requestOtp;
       _otpError = null;
     });
@@ -505,9 +507,7 @@ class _SignInScreenState extends State<SignInScreen> {
   void _signIn() {
     final otp = _otpControllers.map((c) => c.text).join();
     if (otp.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter the 6-digit code')),
-      );
+      ErrorHandler.showErrorMessage(context, 'Please enter the 6-digit verification code.');
       return;
     }
 

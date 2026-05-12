@@ -5,6 +5,7 @@ import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../core/api/parking_iq_api.dart';
+import '../core/error_handler.dart';
 import '../core/payment/payment_validation.dart';
 import '../core/user_prefs.dart';
 import '../models/api_models.dart';
@@ -24,7 +25,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     ThemeMode initialThemeMode = ThemeMode.system,
   })  : _api = api ?? ParkingIqApi(),
         super(AppState(
-          userName: initialUserName ?? 'James Mwangi',
+          userName: initialUserName ?? '',
           phoneNumber: initialPhoneNumber,
           authToken: initialAuthToken,
           themeMode: initialThemeMode,
@@ -281,6 +282,22 @@ class AppBloc extends Bloc<AppEvent, AppState> {
         trackUnauthorized(e, st, 'activeParkingSessions');
         return null;
       });
+      final tenantProfilesFuture = _api
+          .fetchMyTenantProfiles()
+          .then<Object?>((v) => v)
+          .catchError((Object e, StackTrace st) {
+        if (_isEmptyTenancyData(e)) return const <TenantProfile>[];
+        _logError('LoadDashboardData/fetchMyTenantProfiles', e, st);
+        return null;
+      });
+      final tenancyRequestsFuture = _api
+          .fetchTenancyRequests()
+          .then<Object?>((v) => v)
+          .catchError((Object e, StackTrace st) {
+        if (_isEmptyTenancyData(e)) return const <TenancyRequest>[];
+        _logError('LoadDashboardData/fetchTenancyRequests', e, st);
+        return null;
+      });
 
       final results = await Future.wait([
         profileFuture,
@@ -290,6 +307,8 @@ class AppBloc extends Bloc<AppEvent, AppState> {
         locationsFuture,
         recentSessionsFuture,
         activeSessionsFuture,
+        tenantProfilesFuture,
+        tenancyRequestsFuture,
       ]);
 
       if (unauthorized) {
@@ -316,6 +335,12 @@ class AppBloc extends Bloc<AppEvent, AppState> {
       final activeSessions = results[6] is List<ParkingSession>
           ? results[6] as List<ParkingSession>
           : null;
+      final tenantProfiles = results[7] is List<TenantProfile>
+          ? results[7] as List<TenantProfile>
+          : null;
+      final tenancyRequests = results[8] is List<TenancyRequest>
+          ? results[8] as List<TenancyRequest>
+          : null;
       final sessions = _mergeFetchedSessions(
         recentSessions: recentSessions,
         activeSessions: activeSessions,
@@ -327,13 +352,15 @@ class AppBloc extends Bloc<AppEvent, AppState> {
         'profile=${profile?.fullName} balance=$balance '
         'vehicles=${vehicles?.length} transactions=${transactions?.length} '
         'locations=${locations?.length} recent=${recentSessions?.length} '
-        'active=${activeSessions?.length}',
+        'active=${activeSessions?.length} tenants=${tenantProfiles?.length} '
+        'requests=${tenancyRequests?.length}',
       );
       emit(
         state.copyWith(
           userName: profile?.fullName ?? state.userName,
           phoneNumber: profile?.phoneNumber ?? state.phoneNumber,
           email: profile?.email ?? state.email,
+          userRole: profile?.role ?? state.userRole,
           requiresVehicleSetup:
               vehicles == null ? state.requiresVehicleSetup : vehicles.isEmpty,
           walletBalance: balance ?? state.walletBalance,
@@ -341,6 +368,8 @@ class AppBloc extends Bloc<AppEvent, AppState> {
           recentSessions: sessions,
           walletTransactions: transactions ?? state.walletTransactions,
           locations: locations ?? state.locations,
+          tenantProfiles: tenantProfiles ?? state.tenantProfiles,
+          tenancyRequests: tenancyRequests ?? state.tenancyRequests,
           isLoading: false,
         ),
       );
@@ -515,15 +544,28 @@ class AppBloc extends Bloc<AppEvent, AppState> {
       PaymentValidation.validatePlateNumber(event.plateNumber);
       PaymentValidation.validateLocation(event.location);
 
-      final session = await _api.createParkingEntry(
+      // Use /parking/initiate to find an EXISTING active session for payment.
+      // /parking/entry creates a new session (camera/QR entry) and must not be
+      // used here — it could ghost-create a duplicate session for the plate.
+      final session = await _api.findActiveParkingSession(
         plateNumber: event.plateNumber.trim().toUpperCase(),
         location: event.location.trim(),
         locationId: event.locationId,
       );
       _logSuccess(
-        'FindParkingSession/createParkingEntry',
-        'sessionId=${session.id} status=${session.status}',
+        'FindParkingSession/findActiveParkingSession',
+        'sessionId=${session.id} status=${session.status} isActive=${session.isActive}',
       );
+
+      if (!session.isActive) {
+        emit(
+          state.copyWith(
+            isLoading: false,
+            errorMessage: 'No active parking session found for this plate. If you just paid, your session is complete.',
+          ),
+        );
+        return;
+      }
 
       final calculated = session.id.isEmpty
           ? session
@@ -535,9 +577,18 @@ class AppBloc extends Bloc<AppEvent, AppState> {
         _logSuccess('FindParkingSession/calculateParkingSession', 'cost=${calculated.cost} duration=${calculated.durationMinutes}min');
       }
 
+      // Merge billing data from calculate with lifecycle data from initiate.
+      // The calculate endpoint (ParkingDetailsDto) doesn't carry reliable
+      // status/isActive — always preserve them from the initiate response.
+      final merged = calculated.copyWith(
+        status: session.status,
+        isActive: session.isActive,
+        endTime: session.endTime,
+      );
+
       emit(
         state.copyWith(
-          selectedSession: _hydrateSessionVehicle(calculated),
+          selectedSession: _hydrateSessionVehicle(merged),
           isLoading: false,
         ),
       );
@@ -587,10 +638,44 @@ class AppBloc extends Bloc<AppEvent, AppState> {
       }
 
       final calculated = await _api.calculateParkingSession(event.sessionId);
-      PaymentValidation.validateSessionCanBePaid(calculated);
 
-      final amountDue = calculated.cost;
-      if (event.amount != null) {
+      // validateSessionCanBePaid must check lifecycle status, not the billing
+      // result from calculate (ParkingDetailsDto has unreliable isActive/status).
+      // Prefer state session, then fall back to re-fetching the real session.
+      final sessionForValidation = existingSession ??
+          await _api.parkingSession(event.sessionId).catchError((e, st) {
+            _logError('PayParkingSession/sessionForValidation', e, st);
+            throw const ApiException(
+              'Could not verify this parking session before payment. Please try again.',
+            );
+          });
+      PaymentValidation.validateSessionCanBePaid(sessionForValidation);
+
+      final promoCode = event.promoCode?.trim();
+      DiscountRedemption? redemption;
+      var payableSession = calculated.copyWith(
+        status: sessionForValidation.status,
+        isActive: sessionForValidation.isActive,
+      );
+      var amountDue = calculated.cost;
+
+      if (promoCode != null && promoCode.isNotEmpty) {
+        redemption = await _api.applyDiscount(
+          sessionId: event.sessionId,
+          code: promoCode,
+        );
+        amountDue = redemption.finalAmount;
+        payableSession = payableSession.copyWith(
+          cost: redemption.finalAmount,
+          discountAmount: redemption.discountAmount,
+        );
+        _logSuccess(
+          'PayParkingSession/applyDiscount',
+          'discount=${redemption.discountAmount} final=${redemption.finalAmount}',
+        );
+      }
+
+      if (event.amount != null && (promoCode == null || promoCode.isEmpty)) {
         PaymentValidation.validateAmountMatches(
           providedAmount: event.amount!,
           calculatedAmount: amountDue,
@@ -598,9 +683,49 @@ class AppBloc extends Bloc<AppEvent, AppState> {
       }
 
       if (amountDue <= 0) {
+        if (redemption != null) {
+          final completed = await _api
+              .payParkingSession(sessionId: event.sessionId, useWallet: true)
+              .catchError((e, st) {
+            _logError('PayParkingSession/freePromoPay', e, st);
+            return payableSession.copyWith(
+              status: 'COMPLETED',
+              isActive: false,
+              endTime: DateTime.now(),
+              amountPaid: 0,
+            );
+          });
+          final updatedSession = _hydrateSessionVehicle(
+            completed.copyWith(
+              status: 'COMPLETED',
+              isActive: false,
+              endTime: completed.endTime ?? DateTime.now(),
+              cost: amountDue,
+              amountPaid: 0,
+              discountAmount: redemption.discountAmount,
+            ),
+          );
+          final sessions = [
+            updatedSession,
+            ...state.recentSessions
+                .where((session) => session.id != updatedSession.id),
+          ];
+
+          emit(
+            state.copyWith(
+              recentSessions: sessions,
+              selectedSession: updatedSession,
+              isLoading: false,
+              isWaitingForPayment: false,
+              statusMessage: 'Promo applied. No payment is due.',
+            ),
+          );
+          return;
+        }
+
         emit(
           state.copyWith(
-            selectedSession: _hydrateSessionVehicle(calculated),
+            selectedSession: _hydrateSessionVehicle(payableSession),
             isLoading: false,
             statusMessage: 'No parking fee is due during the grace period',
           ),
@@ -638,7 +763,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
 
       emit(
         state.copyWith(
-          selectedSession: _hydrateSessionVehicle(calculated),
+          selectedSession: _hydrateSessionVehicle(payableSession),
           isLoading: false,
           isWaitingForPayment: true,
           activePayment: PaymentStatusSnapshot(
@@ -668,6 +793,8 @@ class AppBloc extends Bloc<AppEvent, AppState> {
               isActive: false,
               endTime: DateTime.now(),
               amountPaid: amountDue,
+              cost: amountDue,
+              discountAmount: redemption?.discountAmount ?? 0,
             );
           },
         );
@@ -676,8 +803,12 @@ class AppBloc extends Bloc<AppEvent, AppState> {
             status: 'COMPLETED',
             isActive: false,
             endTime: completed.endTime ?? DateTime.now(),
-            amountPaid:
-                completed.amountPaid > 0 ? completed.amountPaid : amountDue,
+            cost: amountDue,
+            amountPaid: redemption != null
+                ? amountDue
+                : (completed.amountPaid > 0 ? completed.amountPaid : amountDue),
+            discountAmount:
+                redemption?.discountAmount ?? completed.discountAmount,
           ),
         );
         final sessions = [
@@ -701,7 +832,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
 
       emit(
         state.copyWith(
-          selectedSession: _hydrateSessionVehicle(calculated),
+          selectedSession: _hydrateSessionVehicle(payableSession),
           isLoading: false,
           isWaitingForPayment: false,
           activePayment: terminalStatus,
@@ -912,13 +1043,26 @@ class AppBloc extends Bloc<AppEvent, AppState> {
 
         try {
           final calculated = await _api.calculateParkingSession(session.id);
+
+          // calculateParkingSession returns ParkingDetailsDto (billing data only).
+          // Its status/isActive fields are unreliable — the DTO lacks exitTime so
+          // fromJson defaults to status='ACTIVE'. Use the active-sessions endpoint's
+          // own status as the source of truth and only take billing fields from calculate.
+          final effectiveAmountPaid = calculated.amountPaid > 0
+              ? calculated.amountPaid
+              : session.amountPaid;
+
+          // A session with any amount paid is completed, regardless of what the
+          // active-sessions endpoint (or calculate) says about its status.
+          final isPaid = effectiveAmountPaid > 0;
+          final effectiveStatus = isPaid ? 'COMPLETED' : session.status;
+          final effectiveIsActive = isPaid ? false : session.isActive;
+
           return session.copyWith(
             cost: calculated.cost > 0 || session.cost == 0
                 ? calculated.cost
                 : session.cost,
-            amountPaid: calculated.amountPaid > 0
-                ? calculated.amountPaid
-                : session.amountPaid,
+            amountPaid: effectiveAmountPaid,
             durationMinutes:
                 calculated.durationMinutes ?? session.durationMinutes,
             locationName: calculated.locationName == 'Parking Location'
@@ -932,7 +1076,9 @@ class AppBloc extends Bloc<AppEvent, AppState> {
             vehicle: calculated.vehicle.plateNumber.isEmpty
                 ? session.vehicle
                 : calculated.vehicle,
-            isActive: true,
+            status: effectiveStatus,
+            isActive: effectiveIsActive,
+            endTime: isPaid ? (session.endTime ?? DateTime.now()) : session.endTime,
           );
         } catch (error, st) {
           _logError('LoadDashboardData/calculateParkingSession', error, st);
@@ -956,7 +1102,9 @@ class AppBloc extends Bloc<AppEvent, AppState> {
         ...state.recentSessions.where((session) => !session.isActive),
       if (activeSessions != null)
         ...activeSessions
-      else if (recentSessions == null)
+      else
+        // Active-sessions API failed — preserve state's active sessions so a
+        // partial API failure doesn't silently clear them.
         ...state.recentSessions.where((session) => session.isActive),
     ];
 
@@ -971,7 +1119,17 @@ class AppBloc extends Bloc<AppEvent, AppState> {
 
     for (final session in sessions) {
       final hydrated = _hydrateSessionVehicle(session, vehicles: vehicles);
-      byKey[_sessionKey(hydrated)] = hydrated;
+      final key = _sessionKey(hydrated);
+      final existing = byKey[key];
+      // Prefer completed/paid over active so a paid session isn't reverted by
+      // stale active-endpoint data. A session with amountPaid > 0 is always
+      // treated as completed even if the server still lists it as active.
+      final hydratedIsDone = !hydrated.isActive || hydrated.amountPaid > 0;
+      final existingIsDone = existing != null &&
+          (!existing.isActive || existing.amountPaid > 0);
+      if (existing == null || (!existingIsDone && hydratedIsDone)) {
+        byKey[key] = hydrated;
+      }
     }
 
     return byKey.values.toList()
@@ -1012,10 +1170,22 @@ class AppBloc extends Bloc<AppEvent, AppState> {
   bool _isUnauthorized(Object error) =>
       error is ApiException && error.statusCode == 403;
 
-  String _friendlyError(Object error) {
-    if (error is ApiException) return error.message;
-    return error.toString().replaceFirst('Exception: ', '');
+  bool _isEmptyTenancyData(Object error) {
+    if (error is! ApiException) return false;
+    final message = error.message.trim().toLowerCase();
+    return error.statusCode == 403 ||
+        error.statusCode == 404 ||
+        message.isEmpty ||
+        message.contains('forbidden') ||
+        message.contains('not tenant') ||
+        message.contains('no tenant') ||
+        message.contains('no profile') ||
+        message.contains('no request') ||
+        message.contains('none found') ||
+        message.contains('no record');
   }
+
+  String _friendlyError(Object error) => ErrorHandler.toMessage(error);
 
   /// Normalizes a Kenyan phone number to M-Pesa format (254XXXXXXXXX).
   /// Accepts: 07xx, 01xx, +254xx, 254xx
@@ -1043,6 +1213,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
       userName: user?.fullName ?? fallbackName ?? state.userName,
       phoneNumber: user?.phoneNumber ?? fallbackPhoneNumber ?? state.phoneNumber,
       email: user?.email ?? fallbackEmail ?? state.email,
+      userRole: user?.role ?? state.userRole,
       requiresVehicleSetup: requiresVehicleSetup ?? auth.requiresVehicle,
       isLoading: false,
       sessionExpired: false,

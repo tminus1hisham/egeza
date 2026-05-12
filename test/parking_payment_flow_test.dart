@@ -12,6 +12,7 @@ import 'package:egesha/core/payment/payment_validation.dart';
 import 'package:egesha/models/api_models.dart';
 import 'package:egesha/models/parking_session.dart';
 import 'package:egesha/models/vehicle.dart';
+import 'package:egesha/screens/dashboard/promo_qr_scanner_screen.dart';
 
 void main() {
   // ---------------------------------------------------------------------------
@@ -131,9 +132,78 @@ void main() {
       );
 
       expect(requestBody['plateNumber'], 'KBC 123A');
-      expect(requestBody['location'], 'CBD Parking Zone A');
+      expect(requestBody['locationId'], 'CBD Parking Zone A');
       expect(session.id, 'session-1');
       expect(session.locationName, 'CBD Parking Zone A');
+    });
+
+    test('createParkingEntry prefers locationId over display location', () async {
+      late Map<String, dynamic> requestBody;
+      final api = ParkingIqApi(
+        baseUrl: 'https://example.test/api/v1',
+        token: 'token',
+        debug: false,
+        client: MockClient((request) async {
+          expect(request.method, 'POST');
+          expect(request.url.path, '/api/v1/parking/entry');
+          requestBody = jsonDecode(request.body) as Map<String, dynamic>;
+          return http.Response(
+            jsonEncode({
+              'data': {
+                'sessionId': 'session-1',
+                'plateNumber': 'KBC 123A',
+                'location': 'CBD Parking Zone A',
+                'entryTime': '2026-05-01T08:00:00Z',
+                'status': 'ACTIVE',
+              },
+            }),
+            200,
+          );
+        }),
+      );
+
+      await api.createParkingEntry(
+        plateNumber: 'KBC 123A',
+        location: 'CBD Parking Zone A',
+        locationId: 'loc-cbd',
+      );
+
+      expect(requestBody['locationId'], 'loc-cbd');
+    });
+
+    test('findActiveParkingSession uses initiate endpoint', () async {
+      late Map<String, dynamic> requestBody;
+      final api = ParkingIqApi(
+        baseUrl: 'https://example.test/api/v1',
+        token: 'token',
+        debug: false,
+        client: MockClient((request) async {
+          expect(request.method, 'POST');
+          expect(request.url.path, '/api/v1/parking/initiate');
+          requestBody = jsonDecode(request.body) as Map<String, dynamic>;
+          return http.Response(
+            jsonEncode({
+              'data': {
+                'sessionId': 'session-1',
+                'plateNumber': 'KBC 123A',
+                'location': 'CBD Parking Zone A',
+                'entryTime': '2026-05-01T08:00:00Z',
+                'status': 'ACTIVE',
+              },
+            }),
+            200,
+          );
+        }),
+      );
+
+      final session = await api.findActiveParkingSession(
+        plateNumber: 'KBC 123A',
+        location: 'CBD Parking Zone A',
+        locationId: 'loc-cbd',
+      );
+
+      expect(requestBody, {'plateNumber': 'KBC 123A', 'locationId': 'loc-cbd'});
+      expect(session.id, 'session-1');
     });
 
     test('createParkingEntry throws when location is empty', () async {
@@ -230,11 +300,48 @@ void main() {
         'amount': 10,
         'sessionId': 'session-1',
         'plateNumber': 'KBC 123A',
-        'location': 'CBD Parking Zone A',
         'transactionDesc': 'Parking session payment',
       });
       expect(response.paymentId, 'payment-1');
       expect(response.checkoutRequestId, 'ws_CO_123');
+    });
+
+    test('applies tenant discount code to parking session', () async {
+      late Map<String, dynamic> requestBody;
+      final api = ParkingIqApi(
+        baseUrl: 'https://example.test/api/v1',
+        token: 'token',
+        debug: false,
+        client: MockClient((request) async {
+          expect(request.method, 'POST');
+          expect(request.url.path, '/api/v1/tenancy/discounts/apply');
+          requestBody = jsonDecode(request.body) as Map<String, dynamic>;
+          return http.Response(
+            jsonEncode({
+              'data': {
+                'id': 'redemption-1',
+                'sessionId': 'session-1',
+                'discountAmount': 2,
+                'originalAmount': 10,
+                'finalAmount': 8,
+                'used': true,
+                'reimbursementStatus': 'RESERVED',
+              },
+            }),
+            200,
+          );
+        }),
+      );
+
+      final redemption = await api.applyDiscount(
+        sessionId: 'session-1',
+        code: 'TENANT2',
+      );
+
+      expect(requestBody, {'sessionId': 'session-1', 'code': 'TENANT2'});
+      expect(redemption.discountAmount, 2);
+      expect(redemption.finalAmount, 8);
+      expect(redemption.reimbursementStatus, 'RESERVED');
     });
 
     test('paymentStatus polls preferred endpoint by paymentId', () async {
@@ -457,7 +564,44 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // 3. Payment validation
+  // 3. Tenant-aware app state
+  // ---------------------------------------------------------------------------
+  group('tenant-aware app state', () {
+    test('identifies a user as tenant from tenant profiles', () {
+      final state = AppState(
+        userRole: 'USER',
+        tenantProfiles: [_tenantProfile(id: 'tenant-1')],
+      );
+
+      expect(state.isTenant, isTrue);
+      expect(state.shouldShowTenancy, isTrue);
+      expect(state.activeTenantProfileCount, 1);
+    });
+
+    test('shows tenancy when a non-tenant has submitted requests', () {
+      final state = AppState(
+        tenancyRequests: [
+          TenancyRequest(
+            id: 'request-1',
+            requesterId: 'user-1',
+            requesterName: 'Jane Driver',
+            locationId: 'loc-1',
+            locationName: 'Sarit Basement Parking',
+            tenantName: 'Jane Driver',
+            plateNumber: 'KBC 123A',
+            message: 'Requesting tenant parking',
+            status: 'PENDING',
+          ),
+        ],
+      );
+
+      expect(state.isTenant, isFalse);
+      expect(state.shouldShowTenancy, isTrue);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // 4. Payment validation
   // ---------------------------------------------------------------------------
   group('payment validation', () {
     test('prevents duplicate payment for completed session', () {
@@ -660,8 +804,53 @@ void main() {
     });
   });
 
+  group('promo QR parsing', () {
+    test('extracts code from URL query parameter', () {
+      expect(
+        promoCodeFromScanValue('https://parking.example/promo?code=TENANT2'),
+        'TENANT2',
+      );
+    });
+
+    test('extracts code from JSON payload', () {
+      expect(promoCodeFromScanValue('{"promoCode":"VISITOR50"}'), 'VISITOR50');
+    });
+
+    test('uses plain text QR payload as the code', () {
+      expect(promoCodeFromScanValue(' FREEPARK '), 'FREEPARK');
+    });
+  });
+
   // ---------------------------------------------------------------------------
-  // 5. AppBloc M-Pesa polling behavior
+  // 5. AppBloc dashboard tenant loading
+  // ---------------------------------------------------------------------------
+  group('AppBloc dashboard tenant loading', () {
+    test('stores tenant role, profiles, and requests', () async {
+      final bloc = AppBloc(
+        api: _TenantDashboardFakeApi(),
+        initialAuthToken: 'token',
+      );
+
+      bloc.add(LoadDashboardData());
+
+      await expectLater(
+        bloc.stream,
+        emitsThrough(
+          isA<AppState>()
+              .having((s) => s.userRole, 'role', 'TENANT')
+              .having((s) => s.isTenant, 'isTenant', isTrue)
+              .having((s) => s.shouldShowTenancy, 'show tenancy', isTrue)
+              .having((s) => s.tenantProfiles.length, 'profiles', 1)
+              .having((s) => s.tenancyRequests.length, 'requests', 1),
+        ),
+      );
+
+      await bloc.close();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // 6. AppBloc M-Pesa polling behavior
   // ---------------------------------------------------------------------------
   group('AppBloc M-Pesa polling behavior', () {
     test('successful callback completes the session', () async {
@@ -998,6 +1187,41 @@ void main() {
       await bloc.close();
     });
 
+    test('promo code applies discount before STK push', () async {
+      final api = _FakeParkingIqApi(paymentStatus: 'SUCCESS')
+        ..discountAmount = 2
+        ..discountFinalAmount = 3;
+      final bloc = AppBloc(
+        api: api,
+        initialAuthToken: 'token',
+        initialPhoneNumber: '0712345678',
+      );
+
+      bloc.add(
+        const PayParkingSession(
+          sessionId: 'session-1',
+          phoneNumber: '0712345678',
+          plateNumber: 'KBC 123A',
+          location: 'CBD Parking Zone A',
+          promoCode: 'TENANT2',
+        ),
+      );
+
+      await expectLater(
+        bloc.stream,
+        emitsThrough(
+          isA<AppState>()
+              .having((s) => s.selectedSession?.status, 'status', 'COMPLETED')
+              .having((s) => s.selectedSession?.amountPaid, 'paid', 3)
+              .having((s) => s.selectedSession?.discountAmount, 'discount', 2),
+        ),
+      );
+
+      expect(api.lastPromoCode, 'TENANT2');
+      expect(api.lastStkPayload?['amount'], 3);
+      await bloc.close();
+    });
+
     test('STK push is only sent once per successful payment', () async {
       final api = _FakeParkingIqApi(paymentStatus: 'SUCCESS');
       final bloc = AppBloc(
@@ -1038,12 +1262,98 @@ void main() {
       );
       expect(const PaymentStatusSnapshot(status: 'TIMEOUT').isFailure, isTrue);
     });
+
+    test('payment stops when real session status cannot be verified', () async {
+      final api = _UnverifiableSessionApi();
+      final bloc = AppBloc(
+        api: api,
+        initialAuthToken: 'token',
+        initialPhoneNumber: '0712345678',
+      );
+
+      bloc.add(
+        const PayParkingSession(
+          sessionId: 'session-1',
+          phoneNumber: '0712345678',
+          amount: 5,
+          plateNumber: 'KBC 123A',
+          location: 'CBD Parking Zone A',
+        ),
+      );
+
+      await expectLater(
+        bloc.stream,
+        emitsThrough(
+          isA<AppState>().having(
+            (s) => s.errorMessage,
+            'error',
+            contains('Could not verify this parking session'),
+          ),
+        ),
+      );
+
+      expect(api.stkPushCount, 0);
+      await bloc.close();
+    });
+
+    test('promo branch preserves lifecycle from session endpoint', () async {
+      final bloc = AppBloc(
+        api: _PromoLifecycleFakeApi(),
+        initialAuthToken: 'token',
+        initialPhoneNumber: '0712345678',
+      );
+
+      bloc.add(
+        const PayParkingSession(
+          sessionId: 'session-1',
+          phoneNumber: '0712345678',
+          plateNumber: 'KBC 123A',
+          location: 'CBD Parking Zone A',
+          promoCode: 'TENANT2',
+        ),
+      );
+
+      await expectLater(
+        bloc.stream,
+        emitsThrough(
+          isA<AppState>()
+              .having((s) => s.errorMessage, 'error', 'M-Pesa payment failed')
+              .having((s) => s.selectedSession?.isActive, 'active', isTrue),
+        ),
+      );
+
+      await bloc.close();
+    });
   });
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+TenantProfile _tenantProfile({
+  required String id,
+  String status = 'ACTIVE',
+  String paymentStatus = 'PAID',
+}) {
+  return TenantProfile(
+    id: id,
+    name: 'Sarit Tenant',
+    clientId: 'client-1',
+    clientName: 'Sarit Centre',
+    locationId: 'loc-1',
+    locationName: 'Sarit Basement Parking',
+    allocatedSlots: 2,
+    status: status,
+    paymentStatus: paymentStatus,
+    slotEnforcement: 'ALLOCATED_SLOTS',
+    subscriptionFee: 5000,
+    pricingPlanName: 'Monthly Tenant Parking',
+    ownerId: 'user-1',
+    ownerName: 'Jane Driver',
+    ownerPhoneNumber: '254711111111',
+  );
+}
 
 ParkingSession _session({String status = 'ACTIVE', bool isActive = true}) {
   return ParkingSession(
@@ -1062,11 +1372,77 @@ ParkingSession _session({String status = 'ACTIVE', bool isActive = true}) {
   );
 }
 
+class _TenantDashboardFakeApi extends ParkingIqApi {
+  _TenantDashboardFakeApi() : super(debug: false);
+
+  @override
+  bool get hasToken => true;
+
+  @override
+  Future<UserProfile> me() async {
+    return const UserProfile(
+      id: 'user-1',
+      phoneNumber: '254711111111',
+      fullName: 'Jane Driver',
+      role: 'TENANT',
+    );
+  }
+
+  @override
+  Future<double> walletBalance() async => 1200;
+
+  @override
+  Future<List<Vehicle>> listVehicles() async => const [
+        Vehicle(
+          id: 'vehicle-1',
+          plateNumber: 'KBC 123A',
+          type: 'Car',
+          make: 'Toyota',
+          model: 'Vitz',
+        ),
+      ];
+
+  @override
+  Future<List<WalletTransaction>> walletTransactions() async => const [];
+
+  @override
+  Future<List<ParkingLocation>> fetchParkingLocations() async => const [];
+
+  @override
+  Future<List<ParkingSession>> recentParkingSessions() async => const [];
+
+  @override
+  Future<List<ParkingSession>> activeParkingSessions() async => const [];
+
+  @override
+  Future<List<TenantProfile>> fetchMyTenantProfiles() async => [
+        _tenantProfile(id: 'tenant-1'),
+      ];
+
+  @override
+  Future<List<TenancyRequest>> fetchTenancyRequests() async => const [
+        TenancyRequest(
+          id: 'request-1',
+          requesterId: 'user-1',
+          requesterName: 'Jane Driver',
+          locationId: 'loc-1',
+          locationName: 'Sarit Basement Parking',
+          tenantName: 'Jane Driver',
+          plateNumber: 'KBC 123A',
+          message: 'Requesting tenant parking',
+          status: 'APPROVED',
+        ),
+      ];
+}
+
 /// Fake API where every status poll returns a fixed terminal status immediately.
 class _FakeParkingIqApi extends ParkingIqApi {
   final String terminalStatus;
   int stkPushCount = 0;
   Map<String, dynamic>? lastStkPayload;
+  String? lastPromoCode;
+  double discountAmount = 0;
+  double discountFinalAmount = 5;
 
   _FakeParkingIqApi({required String paymentStatus})
     : terminalStatus = paymentStatus,
@@ -1107,6 +1483,26 @@ class _FakeParkingIqApi extends ParkingIqApi {
   }
 
   @override
+  Future<DiscountRedemption> applyDiscount({
+    required String sessionId,
+    required String code,
+  }) async {
+    lastPromoCode = code;
+    return DiscountRedemption(
+      id: 'redemption-1',
+      discountRuleId: 'rule-1',
+      tenantId: 'tenant-1',
+      tenantName: 'Tenant',
+      sessionId: sessionId,
+      discountAmount: discountAmount,
+      used: true,
+      originalAmount: 5,
+      finalAmount: discountFinalAmount,
+      reimbursementStatus: 'RESERVED',
+    );
+  }
+
+  @override
   Future<PaymentStatusSnapshot> paymentStatus(String paymentId) async {
     return PaymentStatusSnapshot(
       paymentId: paymentId,
@@ -1118,6 +1514,10 @@ class _FakeParkingIqApi extends ParkingIqApi {
 
   @override
   Future<ParkingSession> parkingSession(String sessionId) async {
+    if (stkPushCount == 0) {
+      return _session();
+    }
+
     return _session(
       status: 'COMPLETED',
       isActive: false,
@@ -1164,5 +1564,99 @@ class _SlowFakeParkingIqApi extends ParkingIqApi {
     // Delay long enough that the bloc stays in waiting state during the test
     await Future.delayed(const Duration(seconds: 10));
     return const PaymentStatusSnapshot(status: 'PENDING');
+  }
+
+  @override
+  Future<ParkingSession> parkingSession(String sessionId) async {
+    return _session();
+  }
+}
+
+class _UnverifiableSessionApi extends ParkingIqApi {
+  int stkPushCount = 0;
+
+  _UnverifiableSessionApi() : super(debug: false);
+
+  @override
+  bool get hasToken => true;
+
+  @override
+  Future<ParkingSession> calculateParkingSession(String sessionId) async {
+    return _session();
+  }
+
+  @override
+  Future<ParkingSession> parkingSession(String sessionId) async {
+    throw const ApiException('Session lookup failed');
+  }
+
+  @override
+  Future<MpesaResponse> startSessionStkPush({
+    required String phoneNumber,
+    required double amount,
+    required String sessionId,
+    required String plateNumber,
+    required String location,
+    String transactionDesc = 'Parking session payment',
+  }) async {
+    stkPushCount++;
+    return const MpesaResponse(status: 'PENDING');
+  }
+}
+
+class _PromoLifecycleFakeApi extends ParkingIqApi {
+  _PromoLifecycleFakeApi() : super(debug: false);
+
+  @override
+  bool get hasToken => true;
+
+  @override
+  Future<ParkingSession> calculateParkingSession(String sessionId) async {
+    return _session(status: 'FAILED', isActive: false);
+  }
+
+  @override
+  Future<ParkingSession> parkingSession(String sessionId) async {
+    return _session();
+  }
+
+  @override
+  Future<DiscountRedemption> applyDiscount({
+    required String sessionId,
+    required String code,
+  }) async {
+    return DiscountRedemption(
+      id: 'redemption-1',
+      discountRuleId: 'rule-1',
+      tenantId: 'tenant-1',
+      tenantName: 'Tenant',
+      sessionId: sessionId,
+      discountAmount: 2,
+      used: true,
+      originalAmount: 5,
+      finalAmount: 3,
+      reimbursementStatus: 'RESERVED',
+    );
+  }
+
+  @override
+  Future<MpesaResponse> startSessionStkPush({
+    required String phoneNumber,
+    required double amount,
+    required String sessionId,
+    required String plateNumber,
+    required String location,
+    String transactionDesc = 'Parking session payment',
+  }) async {
+    return const MpesaResponse(
+      paymentId: 'payment-1',
+      checkoutRequestId: 'ws_CO_123',
+      status: 'PENDING',
+    );
+  }
+
+  @override
+  Future<PaymentStatusSnapshot> paymentStatus(String paymentId) async {
+    return const PaymentStatusSnapshot(status: 'FAILED');
   }
 }

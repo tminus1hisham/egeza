@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../core/api/parking_iq_api.dart';
+import '../../core/error_handler.dart';
 import '../../core/theme/app_colors.dart';
 import '../../widgets/country_code_selector.dart';
 import '../../widgets/primary_button.dart';
@@ -727,17 +728,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(_friendlyError(error))));
+      ErrorHandler.showError(context, error);
     } finally {
       if (mounted) setState(() => _isSendingOtp = false);
     }
-  }
-
-  String _friendlyError(Object error) {
-    if (error is ApiException) return error.message;
-    return error.toString().replaceFirst('Exception: ', '');
   }
 
   String get _normalizedPhoneNumber {

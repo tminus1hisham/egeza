@@ -6,12 +6,14 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../blocs/app_bloc.dart';
 import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
+import '../../core/error_handler.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/payment/payment_validation.dart';
 import '../../models/parking_session.dart';
 import '../../models/vehicle.dart';
 import '../../widgets/app_widgets.dart';
 import '../../widgets/primary_button.dart';
+import 'promo_qr_scanner_screen.dart';
 
 class PayParkingScreen extends StatefulWidget {
   const PayParkingScreen({super.key});
@@ -85,30 +87,12 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
 
         final error = state.errorMessage;
         if (error != null && error.isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              backgroundColor: Colors.red.shade700,
-              behavior: SnackBarBehavior.floating,
-              content: Text(
-                error,
-                style: GoogleFonts.poppins(color: Colors.white),
-              ),
-            ),
-          );
+          ErrorHandler.showErrorMessage(context, error);
         }
 
         final status = state.statusMessage;
         if (status != null && status.isNotEmpty && !state.isWaitingForPayment) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              backgroundColor: context.colors.primaryDark,
-              behavior: SnackBarBehavior.floating,
-              content: Text(
-                status,
-                style: GoogleFonts.poppins(color: Colors.white),
-              ),
-            ),
-          );
+          ErrorHandler.showSuccess(context, status);
         }
 
         final session = state.selectedSession;
@@ -577,16 +561,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
   void _lookupPlate(String plateNumber) {
     final location = _locationController.text.trim();
     if (location.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.red.shade700,
-          behavior: SnackBarBehavior.floating,
-          content: Text(
-            'Select or enter the parking location',
-            style: GoogleFonts.poppins(color: Colors.white),
-          ),
-        ),
-      );
+      ErrorHandler.showErrorMessage(context, 'Please select or enter the parking location.');
       return;
     }
 
@@ -690,28 +665,43 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
               ),
             ),
             const SizedBox(height: 28),
-            PrimaryButton(
-              text: session.cost <= 0
-                  ? 'No Payment Due'
-                  : 'Pay KES ${session.cost.toStringAsFixed(0)}',
-              onPressed: () {
-                Navigator.pop(context);
-                if (session.cost <= 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      backgroundColor: context.colors.primaryDark,
-                      behavior: SnackBarBehavior.floating,
-                      content: Text(
-                        'No parking fee is due during the grace period',
-                        style: GoogleFonts.poppins(color: Colors.white),
+            if (session.cost == 0)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: context.colors.accentLight,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: context.colors.mintBorder),
+                ),
+                child: Column(
+                  children: [
+                    Icon(Icons.check_circle_outline_rounded, color: context.colors.primary, size: 26),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Free Parking',
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: context.colors.primary,
                       ),
                     ),
-                  );
-                } else {
+                    const SizedBox(height: 2),
+                    Text(
+                      'No payment required for this session',
+                      style: GoogleFonts.poppins(fontSize: 12, color: context.colors.textSecondary),
+                    ),
+                  ],
+                ),
+              )
+            else
+              PrimaryButton(
+                text: 'Pay KES ${session.cost.toStringAsFixed(0)}',
+                onPressed: () {
+                  Navigator.pop(context);
                   _showStkConfirmation(session);
-                }
-              },
-            ),
+                },
+              ),
             const SizedBox(height: 10),
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -730,7 +720,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
   void _showStkConfirmation(ParkingSession session) {
     final appState = context.read<AppBloc>().state;
     final initialPhone = appState.phoneNumber ?? '';
-    final initialAmount = session.cost > 0 ? session.cost : (session.amountPaid > 0 ? session.amountPaid : 0.0);
+    final initialAmount = session.cost;
     final displayPlate = _formatPlate(
       session.vehicle.plateNumber.isEmpty ? _plate : session.vehicle.plateNumber,
     );
@@ -744,6 +734,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
     final amountCtrl = TextEditingController(
       text: initialAmount > 0 ? initialAmount.toStringAsFixed(0) : '',
     );
+    final promoCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
     showModalBottomSheet(
@@ -755,18 +746,31 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
       ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) {
+          Future<void> scanPromoCode() async {
+            final result = await Navigator.of(context).push<String>(
+              MaterialPageRoute(
+                builder: (_) => const PromoQrScannerScreen(),
+              ),
+            );
+            if (result == null || result.trim().isEmpty) return;
+            promoCtrl.text = result.trim();
+            setSheetState(() {});
+          }
+
           void submit() {
             if (!formKey.currentState!.validate()) return;
             final phone = phoneCtrl.text.trim();
             final amount = double.tryParse(amountCtrl.text.trim()) ?? 0;
+            final promoCode = promoCtrl.text.trim();
             context.read<AppBloc>().add(
                   PayParkingSession(
                     sessionId: session.id,
                     useWallet: true,
                     phoneNumber: phone,
-                    amount: amount,
+                    amount: promoCode.isEmpty ? amount : null,
                     plateNumber: plateNumber,
                     location: location,
+                    promoCode: promoCode.isEmpty ? null : promoCode,
                   ),
                 );
             Navigator.of(ctx).pop();
@@ -1049,6 +1053,115 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
+                    'Promo code',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: context.colors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: promoCtrl,
+                          textCapitalization: TextCapitalization.characters,
+                          style: GoogleFonts.poppins(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: context.colors.textPrimary,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'Optional promo code',
+                            hintStyle: GoogleFonts.poppins(
+                              color: context.colors.textMuted,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            prefixIcon: Icon(
+                              Icons.confirmation_number_outlined,
+                              color: context.colors.primary,
+                              size: 20,
+                            ),
+                            suffixIcon: promoCtrl.text.trim().isEmpty
+                                ? null
+                                : IconButton(
+                                    tooltip: 'Clear promo code',
+                                    icon: Icon(
+                                      Icons.close_rounded,
+                                      color: context.colors.textMuted,
+                                      size: 18,
+                                    ),
+                                    onPressed: () {
+                                      promoCtrl.clear();
+                                      setSheetState(() {});
+                                    },
+                                  ),
+                            filled: true,
+                            fillColor: context.colors.inputFill,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide:
+                                  BorderSide(color: context.colors.inputBorder),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide:
+                                  BorderSide(color: context.colors.inputBorder),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(
+                                color: context.colors.primary,
+                                width: 1.8,
+                              ),
+                            ),
+                          ),
+                          onChanged: (_) => setSheetState(() {}),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      SizedBox(
+                        height: 52,
+                        width: 52,
+                        child: OutlinedButton(
+                          onPressed: scanPromoCode,
+                          style: OutlinedButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            foregroundColor: context.colors.primary,
+                            side: BorderSide(color: context.colors.inputBorder),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.qr_code_scanner_rounded,
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    promoCtrl.text.trim().isEmpty
+                        ? 'Optional. Scan a promo QR code or enter the code from your tenant.'
+                        : 'Promo will be validated before checkout.',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: promoCtrl.text.trim().isEmpty
+                          ? context.colors.textSecondary
+                          : context.colors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
                     'A payment prompt will be sent to the number above.',
                     style: GoogleFonts.poppins(
                       fontSize: 12,
@@ -1067,7 +1180,10 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                       label: Builder(
                         builder: (_) {
                           final enteredAmt = double.tryParse(amountCtrl.text.trim());
-                          final label = enteredAmt != null && enteredAmt > 0
+                          final hasPromo = promoCtrl.text.trim().isNotEmpty;
+                          final label = hasPromo
+                              ? 'Apply promo & send M-Pesa prompt'
+                              : enteredAmt != null && enteredAmt > 0
                               ? 'Send KES ${enteredAmt.toStringAsFixed(0)} via M-Pesa'
                               : 'Send prompt';
                           return Text(
@@ -1115,6 +1231,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
       // Safe disposal after the sheet is fully closed.
       phoneCtrl.dispose();
       amountCtrl.dispose();
+      promoCtrl.dispose();
     });
   }
 
@@ -1223,8 +1340,18 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
   }
 
   String _durationLabel(ParkingSession session) {
-    final minutes = session.durationMinutes ??
-        (session.endTime ?? DateTime.now()).difference(session.startTime).inMinutes;
+    int minutes;
+    if (session.durationMinutes != null) {
+      minutes = session.durationMinutes!;
+    } else {
+      // Normalise to UTC so local-time drift (Kenya = UTC+3) doesn't skew the display.
+      DateTime toUtc(DateTime dt) => dt.isUtc
+          ? dt
+          : DateTime.utc(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second);
+      final start = toUtc(session.startTime);
+      final end = toUtc(session.endTime ?? DateTime.now().toUtc());
+      minutes = end.difference(start).inMinutes;
+    }
     final hours = minutes ~/ 60;
     final remainder = minutes % 60;
 
@@ -1292,6 +1419,14 @@ class _PaymentReceiptPage extends StatelessWidget {
                     const SizedBox(height: 12),
                     _row(context, 'Location', session.locationName),
                     const SizedBox(height: 12),
+                    if (session.discountAmount > 0) ...[
+                      _row(
+                        context,
+                        'Promo discount',
+                        '- KES ${session.discountAmount.toStringAsFixed(0)}',
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     _row(context, 'Amount paid', 'KES ${amount.toStringAsFixed(0)}'),
                     const SizedBox(height: 12),
                     _row(context, 'Exit time', exitTime),

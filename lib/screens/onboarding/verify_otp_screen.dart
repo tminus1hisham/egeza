@@ -11,6 +11,7 @@ import '../../blocs/app_bloc.dart';
 import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
 import '../../core/api/parking_iq_api.dart';
+import '../../core/error_handler.dart';
 import '../../core/theme/app_colors.dart';
 import '../../widgets/app_widgets.dart';
 import '../../widgets/primary_button.dart';
@@ -395,9 +396,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
   void _verifyOtp() {
     final otp = _otp;
     if (otp.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter the 6-digit code')),
-      );
+      ErrorHandler.showErrorMessage(context, 'Please enter the 6-digit verification code.');
       return;
     }
 
@@ -425,16 +424,12 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
 
       _clearOtp();
       _startResendTimer();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Verification code sent')),
-      );
+      ErrorHandler.showSuccess(context, 'Verification code sent to your phone.');
 
       if (kDebugMode) await _fetchLatestOtp();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_friendlyError(error))),
-      );
+      ErrorHandler.showError(context, error);
     } finally {
       if (mounted) setState(() => _resendingOtp = false);
     }
@@ -486,11 +481,6 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
       borderRadius: BorderRadius.circular(12),
       borderSide: BorderSide(color: color, width: width),
     );
-  }
-
-  String _friendlyError(Object error) {
-    if (error is ApiException) return error.message;
-    return error.toString().replaceFirst('Exception: ', '');
   }
 
   String get _otp {

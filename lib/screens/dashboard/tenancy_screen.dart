@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../blocs/app_bloc.dart';
+import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
 import '../../core/api/parking_iq_api.dart';
 import '../../core/payment/payment_validation.dart';
@@ -35,8 +36,16 @@ class _TenancyScreenState extends State<TenancyScreen> {
   @override
   void initState() {
     super.initState();
-    final token = context.read<AppBloc>().state.authToken;
+    final appState = context.read<AppBloc>().state;
+    final token = appState.authToken;
     _api = ParkingIqApi(token: token);
+    _profiles = appState.tenantProfiles.isEmpty
+        ? null
+        : appState.tenantProfiles;
+    _requests = appState.tenancyRequests.isEmpty
+        ? null
+        : appState.tenancyRequests;
+    _loading = _profiles == null && _requests == null;
     _loadData();
   }
 
@@ -89,7 +98,10 @@ class _TenancyScreenState extends State<TenancyScreen> {
         vehicles: state.vehicles,
       ),
     );
-    if (submitted == true) _loadData();
+    if (submitted == true) {
+      await _loadData();
+      if (mounted) context.read<AppBloc>().add(LoadDashboardData());
+    }
   }
 
   Future<void> _openProfile(TenantProfile profile) async {
@@ -138,6 +150,7 @@ class _TenancyScreenState extends State<TenancyScreen> {
 
       if (status.isSuccess) {
         await _loadData();
+        if (mounted) context.read<AppBloc>().add(LoadDashboardData());
         _showSnack(
           status.customerMessage ??
               'Tenant subscription payment successful. Tenant parking benefits are active.',

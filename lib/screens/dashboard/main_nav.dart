@@ -4,9 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../blocs/app_bloc.dart';
 import '../../blocs/app_state.dart';
-import '../../core/api/parking_iq_api.dart';
 import '../../core/theme/app_colors.dart';
-import '../../models/api_models.dart';
 import '../onboarding/walkthrough_screen.dart';
 import 'dashboard_screen.dart';
 import 'history_screen.dart';
@@ -24,24 +22,21 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   String _selectedTabId = 'home';
-  bool _showTenancyTab = false;
 
-  late final ParkingIqApi _api;
   late final Widget _dashboardScreen;
 
   @override
   void initState() {
     super.initState();
-    _api = ParkingIqApi(token: context.read<AppBloc>().state.authToken);
     _dashboardScreen = DashboardScreen(
       onVehiclesTap: () => _selectTab('vehicles'),
       onWalletTap: () => _selectTab('wallet'),
       onHistoryTap: () => _selectTab('history'),
+      onTenancyTap: () => _selectTab('tenancy'),
     );
-    _loadTenantAccess();
   }
 
-  List<_NavTab> get _tabs => [
+  List<_NavTab> _tabsFor(AppState state) => [
         _NavTab(
           id: 'home',
           activeIcon: Icons.home_rounded,
@@ -63,7 +58,7 @@ class _MainNavigationState extends State<MainNavigation> {
           label: 'Wallet',
           screen: WalletScreen(),
         ),
-        if (_showTenancyTab)
+        if (state.shouldShowTenancy)
           const _NavTab(
             id: 'tenancy',
             activeIcon: Icons.domain_rounded,
@@ -87,77 +82,57 @@ class _MainNavigationState extends State<MainNavigation> {
         ),
       ];
 
-  Future<void> _loadTenantAccess() async {
-    try {
-      final profiles = await _api.fetchMyTenantProfiles();
-      final hasApprovedTenancy = profiles.any(_isApprovedTenantProfile);
-      if (!mounted) return;
-      setState(() {
-        _showTenancyTab = hasApprovedTenancy;
-        if (!hasApprovedTenancy && _selectedTabId == 'tenancy') {
-          _selectedTabId = 'home';
-        }
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _showTenancyTab = false;
-        if (_selectedTabId == 'tenancy') _selectedTabId = 'home';
-      });
-    }
-  }
-
-  bool _isApprovedTenantProfile(TenantProfile profile) {
-    const blockedStatuses = {
-      'REJECTED',
-      'DECLINED',
-      'CANCELLED',
-      'CANCELED',
-    };
-    // Approved tenancy requests become tenant profiles. A PENDING profile means
-    // the subscription/payment is pending, not that the original request is.
-    return profile.id.isNotEmpty && !blockedStatuses.contains(profile.status);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final tabs = _tabs;
-    final selectedIndex = tabs.indexWhere((tab) => tab.id == _selectedTabId);
-    final effectiveIndex = selectedIndex < 0 ? 0 : selectedIndex;
+    return BlocConsumer<AppBloc, AppState>(
+      listenWhen: (prev, curr) =>
+          (!prev.sessionExpired && curr.sessionExpired) ||
+          (prev.shouldShowTenancy && !curr.shouldShowTenancy),
+      listener: (context, state) {
+        if (state.sessionExpired) {
+          _showSessionExpiredDialog(context);
+        }
+        if (!state.shouldShowTenancy && _selectedTabId == 'tenancy') {
+          setState(() => _selectedTabId = 'home');
+        }
+      },
+      builder: (context, state) {
+        final tabs = _tabsFor(state);
+        final selectedIndex =
+            tabs.indexWhere((tab) => tab.id == _selectedTabId);
+        final effectiveIndex = selectedIndex < 0 ? 0 : selectedIndex;
 
-    return BlocListener<AppBloc, AppState>(
-      listenWhen: (prev, curr) => !prev.sessionExpired && curr.sessionExpired,
-      listener: (context, state) => _showSessionExpiredDialog(context),
-      child: Scaffold(
-      body: IndexedStack(
-        index: effectiveIndex,
-        children: [for (final tab in tabs) tab.screen],
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        minimum: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-        child: Container(
-          height: 72,
-          decoration: BoxDecoration(
-            color: context.colors.surface,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: context.colors.border),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.09),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
+        return Scaffold(
+          body: IndexedStack(
+            index: effectiveIndex,
+            children: [for (final tab in tabs) tab.screen],
+          ),
+          bottomNavigationBar: SafeArea(
+            top: false,
+            minimum: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+            child: Container(
+              height: 72,
+              decoration: BoxDecoration(
+                color: context.colors.surface,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: context.colors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.09),
+                    blurRadius: 24,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
-            ],
+              child: Row(
+                children: [
+                  for (final tab in tabs) _navItem(tab),
+                ],
+              ),
+            ),
           ),
-          child: Row(
-            children: [
-              for (final tab in tabs) _navItem(tab),
-            ],
-          ),
-        ),
-      ),
-    ),
+        );
+      },
     );
   }
 
@@ -171,7 +146,9 @@ class _MainNavigationState extends State<MainNavigation> {
   }
 
   void _selectTab(String tabId) {
-    if (!_tabs.any((tab) => tab.id == tabId)) return;
+    if (!_tabsFor(context.read<AppBloc>().state).any((tab) => tab.id == tabId)) {
+      return;
+    }
     setState(() => _selectedTabId = tabId);
   }
 

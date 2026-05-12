@@ -86,7 +86,7 @@ class UserProfile {
     return UserProfile(
       id: jsonString(json['id']) ?? '',
       phoneNumber: jsonString(json['phoneNumber']) ?? '',
-      fullName: jsonString(json['fullName']) ?? 'egesha User',
+      fullName: jsonString(json['fullName']) ?? '',
       email: jsonString(json['email']),
       idNumber: jsonString(json['idNumber']),
       county: jsonString(json['county']),
@@ -268,31 +268,92 @@ class PaymentStatusSnapshot {
   bool get isFailure => isTerminal && !isSuccess;
 }
 
+class DiscountRedemption {
+  final String id;
+  final String discountRuleId;
+  final String tenantId;
+  final String tenantName;
+  final String sessionId;
+  final double discountAmount;
+  final bool used;
+  final DateTime? appliedAt;
+  final double originalAmount;
+  final double finalAmount;
+  final String reimbursementStatus;
+
+  const DiscountRedemption({
+    required this.id,
+    required this.discountRuleId,
+    required this.tenantId,
+    required this.tenantName,
+    required this.sessionId,
+    required this.discountAmount,
+    required this.used,
+    this.appliedAt,
+    required this.originalAmount,
+    required this.finalAmount,
+    required this.reimbursementStatus,
+  });
+
+  factory DiscountRedemption.fromJson(Map<String, dynamic> json) {
+    return DiscountRedemption(
+      id: jsonString(json['id']) ?? '',
+      discountRuleId: jsonString(json['discountRuleId']) ?? '',
+      tenantId: jsonString(json['tenantId']) ?? '',
+      tenantName: jsonString(json['tenantName']) ?? '',
+      sessionId: jsonString(json['sessionId']) ?? '',
+      discountAmount: jsonDouble(json['discountAmount']),
+      used: jsonBool(json['used']),
+      appliedAt: jsonDateTime(json['appliedAt']),
+      originalAmount: jsonDouble(json['originalAmount']),
+      finalAmount: jsonDouble(json['finalAmount']),
+      reimbursementStatus:
+          (jsonString(json['reimbursementStatus']) ?? 'NOT_REQUIRED')
+              .toUpperCase(),
+    );
+  }
+}
+
 class QrCodeResponse {
+  final String? id;
   final String? locationId;
-  final String? rateId;
+  final String? locationName;
+  final String? gateId;
+  final String? gateName;
   final String? content;
   final String? imageBase64;
   final String? mimeType;
   final DateTime? expiresAt;
+  final bool active;
+  final DateTime? createdAt;
 
   const QrCodeResponse({
+    this.id,
     this.locationId,
-    this.rateId,
+    this.locationName,
+    this.gateId,
+    this.gateName,
     this.content,
     this.imageBase64,
     this.mimeType,
     this.expiresAt,
+    this.active = true,
+    this.createdAt,
   });
 
   factory QrCodeResponse.fromJson(Map<String, dynamic> json) {
     return QrCodeResponse(
+      id: jsonString(json['id']),
       locationId: jsonString(json['locationId']),
-      rateId: jsonString(json['rateId']),
+      locationName: jsonString(json['locationName']),
+      gateId: jsonString(json['gateId']),
+      gateName: jsonString(json['gateName']),
       content: jsonString(json['content']),
       imageBase64: jsonString(json['imageBase64']),
       mimeType: jsonString(json['mimeType']),
       expiresAt: jsonDateTime(json['expiresAt']),
+      active: jsonBool(json['active'], true),
+      createdAt: jsonDateTime(json['createdAt']),
     );
   }
 }

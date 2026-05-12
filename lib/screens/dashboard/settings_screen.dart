@@ -9,6 +9,7 @@ import '../../core/theme/app_colors.dart';
 import '../../widgets/app_widgets.dart';
 import '../auth/sign_in_screen.dart';
 import 'settings_detail_screen.dart';
+import 'tenancy_screen.dart';
 import 'vehicles_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -153,6 +154,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ),
                               ),
                               _settingsRow(
+                                icon: Icons.domain_outlined,
+                                title: state.isTenant
+                                    ? 'Tenant parking'
+                                    : 'Request tenancy',
+                                subtitle: _tenancySettingsSubtitle(state),
+                                onTap: () => _openPage(
+                                  const TenancyScreen(showBackButton: true),
+                                ),
+                              ),
+                              _settingsRow(
                                 icon: Icons.notifications_none_rounded,
                                 title: 'Parking alerts',
                                 subtitle: 'Entry, exit, and receipt updates',
@@ -288,7 +299,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _header() {
     return AppPageHeader(
       title: 'Settings',
-      subtitle: 'Account, parking, and payment controls',
+      subtitle: 'Manage your preferences',
       icon: Icons.settings_outlined,
       trailing: AppHeaderButton(
         icon: Icons.more_horiz_rounded,
@@ -360,7 +371,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'egesha member',
+                        state.isTenant ? 'egesha tenant' : 'egesha member',
                         style: GoogleFonts.poppins(
                           color: Colors.white.withValues(alpha: 0.66),
                           fontSize: 12,
@@ -388,6 +399,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ],
                       ),
+                      if (state.shouldShowTenancy) ...[
+                        const SizedBox(height: 7),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.domain_outlined,
+                              color: context.colors.accent,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                _tenancyProfileSummary(state),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white.withValues(alpha: 0.82),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -685,5 +720,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return amount
         .toStringAsFixed(0)
         .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ',');
+  }
+
+  String _tenancySettingsSubtitle(AppState state) {
+    if (state.isTenant) {
+      if (state.hasActiveTenancy) {
+        return '${state.activeTenantProfileCount} active tenant ${state.activeTenantProfileCount == 1 ? 'profile' : 'profiles'}';
+      }
+      if (state.hasPayableTenancy) {
+        return '${state.payableTenantProfileCount} subscription ${state.payableTenantProfileCount == 1 ? 'needs' : 'need'} payment';
+      }
+      if (state.visibleTenantProfiles.isEmpty) return 'Tenant access enabled';
+      return '${state.visibleTenantProfiles.length} tenant ${state.visibleTenantProfiles.length == 1 ? 'profile' : 'profiles'}';
+    }
+
+    if (state.hasTenancyRequests) {
+      return '${state.tenancyRequests.length} submitted ${state.tenancyRequests.length == 1 ? 'request' : 'requests'}';
+    }
+
+    return 'Apply for dedicated parking';
+  }
+
+  String _tenancyProfileSummary(AppState state) {
+    if (state.isTenant) {
+      if (state.hasActiveTenancy) {
+        return '${state.activeTenantProfileCount} active tenant profile';
+      }
+      if (state.hasPayableTenancy) {
+        return '${state.payableTenantProfileCount} subscription payment pending';
+      }
+      if (state.visibleTenantProfiles.isEmpty) return 'Tenant access enabled';
+      return '${state.visibleTenantProfiles.length} tenant profile';
+    }
+
+    return '${state.tenancyRequests.length} tenancy request';
   }
 }

@@ -6,11 +6,13 @@ import '../../core/theme/app_colors.dart';
 import '../../blocs/app_bloc.dart';
 import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
+import '../../models/api_models.dart';
 import '../../models/vehicle.dart';
 import '../../models/parking_session.dart';
 import 'wallet_screen.dart';
 import 'active_session_screen.dart';
 import 'pay_parking_screen.dart';
+import 'tenancy_screen.dart';
 import 'vehicle_detail_screen.dart';
 import 'vehicles_screen.dart';
 
@@ -18,12 +20,14 @@ class DashboardScreen extends StatefulWidget {
   final VoidCallback? onVehiclesTap;
   final VoidCallback? onWalletTap;
   final VoidCallback? onHistoryTap;
+  final VoidCallback? onTenancyTap;
 
   const DashboardScreen({
     super.key,
     this.onVehiclesTap,
     this.onWalletTap,
     this.onHistoryTap,
+    this.onTenancyTap,
   });
 
   @override
@@ -80,7 +84,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: Column(
                         children: [
                           const SizedBox(height: 22),
-                          _buildQuickActions(context),
+                          _buildQuickActions(context, state),
+                          if (state.shouldShowTenancy) ...[
+                            const SizedBox(height: 24),
+                            _buildTenancySnapshot(context, state),
+                          ],
                           const SizedBox(height: 24),
                           _buildVehicles(context, state),
                           const SizedBox(height: 24),
@@ -106,6 +114,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final autoPayLabel = state.vehicles.isEmpty
         ? 'No vehicles yet'
         : '$autoPayCount/${state.vehicles.length} AutoPay';
+    final tenantProfileCount = state.visibleTenantProfiles.length;
+    final tenantMetricLabel = state.isTenant
+        ? tenantProfileCount == 0
+            ? 'Tenant access'
+            : '$tenantProfileCount tenant ${tenantProfileCount == 1 ? 'profile' : 'profiles'}'
+        : 'M-Pesa linked';
+    final tenantMetricIcon =
+        state.isTenant ? Icons.domain_rounded : Icons.phone_android_rounded;
 
     return Container(
       decoration: BoxDecoration(
@@ -345,8 +361,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         _headerDivider(),
                         Expanded(
                           child: _headerMetric(
-                            Icons.phone_android_rounded,
-                            'M-Pesa linked',
+                            tenantMetricIcon,
+                            tenantMetricLabel,
                           ),
                         ),
                       ],
@@ -418,7 +434,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildQuickActions(BuildContext context) {
+  Widget _buildQuickActions(BuildContext context, AppState state) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -554,14 +570,247 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: _quickTile(
-                  Icons.history_rounded,
-                  'History',
-                  onTap: _openHistory,
+                  state.shouldShowTenancy
+                      ? Icons.domain_outlined
+                      : Icons.history_rounded,
+                  state.shouldShowTenancy
+                      ? (state.isTenant ? 'Tenant' : 'Requests')
+                      : 'History',
+                  onTap: state.shouldShowTenancy
+                      ? () => _openTenancy(context)
+                      : _openHistory,
                 ),
               ),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTenancySnapshot(BuildContext context, AppState state) {
+    final profiles = state.visibleTenantProfiles;
+    final primaryProfile = _primaryTenantProfile(profiles);
+    final latestRequest = _latestTenancyRequest(state.tenancyRequests);
+    final title = state.isTenant ? 'Tenant Parking' : 'Tenancy Requests';
+    final subtitle = primaryProfile != null
+        ? _tenantProfileSubtitle(primaryProfile)
+        : latestRequest != null
+            ? _tenancyRequestSubtitle(latestRequest)
+            : 'Tenant access is enabled';
+    final actionLabel = state.hasPayableTenancy
+        ? 'Pay Subscription'
+        : state.isTenant
+            ? 'View Tenancy'
+            : 'View Requests';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Material(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          onTap: () => _openTenancy(context),
+          borderRadius: BorderRadius.circular(22),
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: context.colors.border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.025),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: context.colors.accentLight,
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(color: context.colors.mintBorder),
+                      ),
+                      child: Icon(
+                        Icons.domain_rounded,
+                        color: context.colors.primary,
+                        size: 23,
+                      ),
+                    ),
+                    const SizedBox(width: 13),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.poppins(
+                                    color: context.colors.textPrimary,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              _tenancyBadge(context, state, primaryProfile),
+                            ],
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            subtitle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.poppins(
+                              color: context.colors.textSecondary,
+                              fontSize: 12,
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _tenancyMetric(
+                        context,
+                        'Active',
+                        '${state.activeTenantProfileCount}',
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _tenancyMetric(
+                        context,
+                        'To pay',
+                        '${state.payableTenantProfileCount}',
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _tenancyMetric(
+                        context,
+                        'Requests',
+                        '${state.tenancyRequests.length}',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _openTenancy(context),
+                    icon: Icon(
+                      state.hasPayableTenancy
+                          ? Icons.phone_android_rounded
+                          : Icons.arrow_forward_rounded,
+                      size: 17,
+                    ),
+                    label: Text(actionLabel),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      minimumSize: const Size(0, 0),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      textStyle: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _tenancyMetric(BuildContext context, String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: context.colors.pageGrey,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: context.colors.border),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.poppins(
+              color: context.colors.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.poppins(
+              color: context.colors.textSecondary,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tenancyBadge(
+    BuildContext context,
+    AppState state,
+    TenantProfile? profile,
+  ) {
+    final label = profile != null
+        ? _tenantProfileStatusLabel(profile)
+        : state.hasTenancyRequests
+            ? 'Requested'
+            : 'Tenant';
+    final color = profile?.isActivePaid == true
+        ? context.colors.success
+        : state.hasPayableTenancy
+            ? context.colors.warning
+            : context.colors.primary;
+
+    return Container(
+      margin: const EdgeInsets.only(left: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: GoogleFonts.poppins(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -1130,6 +1379,113 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  TenantProfile? _primaryTenantProfile(List<TenantProfile> profiles) {
+    for (final profile in profiles) {
+      if (profile.isActivePaid) return profile;
+    }
+    for (final profile in profiles) {
+      if (profile.canPay) return profile;
+    }
+    return profiles.isEmpty ? null : profiles.first;
+  }
+
+  TenancyRequest? _latestTenancyRequest(List<TenancyRequest> requests) {
+    if (requests.isEmpty) return null;
+    final sorted = [...requests]
+      ..sort((a, b) {
+        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bDate.compareTo(aDate);
+      });
+    return sorted.first;
+  }
+
+  String _tenantProfileSubtitle(TenantProfile profile) {
+    final location = profile.locationName.isNotEmpty
+        ? profile.locationName
+        : 'Tenant parking';
+
+    if (profile.isActivePaid) {
+      final expiry = profile.subscriptionEndDate == null
+          ? null
+          : ' until ${_formatDateShort(profile.subscriptionEndDate!)}';
+      return '$location is active$expiry.';
+    }
+
+    if (profile.canPay) {
+      return '$location needs KES ${_formatAmount(profile.subscriptionFee)} to activate tenant benefits.';
+    }
+
+    return '$location is ${_tenantProfileStatusLabel(profile).toLowerCase()}.';
+  }
+
+  String _tenancyRequestSubtitle(TenancyRequest request) {
+    final location = request.locationName.isNotEmpty
+        ? request.locationName
+        : 'selected parking';
+    return '${_tenancyRequestStatusLabel(request.status)} request for $location.';
+  }
+
+  String _tenantProfileStatusLabel(TenantProfile profile) {
+    final status = profile.status;
+    final payment = profile.paymentStatus;
+    if (status == 'ACTIVE' && payment == 'PAID') return 'Active';
+    if (status == 'SUSPENDED') return 'Suspended';
+    if (status == 'OVERDUE' || payment == 'OVERDUE') return 'Overdue';
+    if (status == 'EXPIRED') return 'Expired';
+    if (status == 'PENDING' || payment == 'PENDING') {
+      return 'Pending';
+    }
+    return _humanizeCode(status);
+  }
+
+  String _tenancyRequestStatusLabel(String status) {
+    final normalized = status.trim().toUpperCase();
+    if (normalized == 'APPROVED') return 'Approved';
+    if (normalized == 'REJECTED' || normalized == 'DECLINED') {
+      return 'Rejected';
+    }
+    if (normalized == 'CANCELLED' || normalized == 'CANCELED') {
+      return 'Cancelled';
+    }
+    return 'Pending';
+  }
+
+  String _formatAmount(num amount) {
+    return amount
+        .toStringAsFixed(0)
+        .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ',');
+  }
+
+  String _formatDateShort(DateTime value) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${value.day} ${months[value.month - 1]}';
+  }
+
+  String _humanizeCode(String value) {
+    if (value.isEmpty) return 'Unknown';
+    return value
+        .split('_')
+        .where((part) => part.isNotEmpty)
+        .map(
+          (part) => '${part.substring(0, 1)}${part.substring(1).toLowerCase()}',
+        )
+        .join(' ');
+  }
+
   String _greeting() {
     final hour = DateTime.now().hour;
     if (hour < 12) return 'Good morning';
@@ -1178,5 +1534,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _openHistory() {
     widget.onHistoryTap?.call();
+  }
+
+  void _openTenancy(BuildContext context) {
+    if (widget.onTenancyTap != null) {
+      widget.onTenancyTap!();
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const TenancyScreen(showBackButton: true),
+      ),
+    );
   }
 }

@@ -17,6 +17,7 @@ class ParkingSession {
   final bool autoPayEnabled;
   final double? walletBalance;
   final bool willAutoDeduct;
+  final double discountAmount;
   final Vehicle vehicle;
   final bool isActive;
 
@@ -36,6 +37,7 @@ class ParkingSession {
     this.autoPayEnabled = false,
     this.walletBalance,
     this.willAutoDeduct = false,
+    this.discountAmount = 0,
     required this.vehicle,
     required this.isActive,
   });
@@ -85,6 +87,13 @@ class ParkingSession {
         ])) ??
         (currentTime?.difference(startTime).inMinutes);
 
+    // A session with amountPaid > 0 has been settled — treat it as completed
+    // regardless of what status the API returns (handles stale PAYMENT_PENDING).
+    final effectiveStatus = amountPaid > 0 && status != 'COMPLETED'
+        ? 'COMPLETED'
+        : status;
+    final isActive = amountPaid > 0 ? false : _isActiveSession(json, effectiveStatus);
+
     return ParkingSession(
       id: jsonString(_firstJsonValue(json, const [
             'sessionId',
@@ -102,7 +111,7 @@ class ParkingSession {
       gracePeriodMinutes: jsonInt(json['gracePeriodMinutes'], 3),
       ratePerHour: jsonInt(json['ratePerHour'], 5),
       billableHours: jsonInt(json['billableHours']),
-      status: status,
+      status: effectiveStatus,
       autoPayEnabled: jsonBool(
         _firstJsonValue(json, const ['autoPayEnabled', 'autoPay']),
         vehicle.autoPayEnabled,
@@ -111,8 +120,9 @@ class ParkingSession {
           ? null
           : jsonDouble(json['walletBalance']),
       willAutoDeduct: jsonBool(json['willAutoDeduct']),
+      discountAmount: jsonDouble(json['discountAmount']),
       vehicle: vehicle,
-      isActive: _isActiveSession(json, status),
+      isActive: isActive,
     );
   }
 
@@ -132,6 +142,7 @@ class ParkingSession {
     bool? autoPayEnabled,
     double? walletBalance,
     bool? willAutoDeduct,
+    double? discountAmount,
     Vehicle? vehicle,
     bool? isActive,
   }) {
@@ -151,6 +162,7 @@ class ParkingSession {
       autoPayEnabled: autoPayEnabled ?? this.autoPayEnabled,
       walletBalance: walletBalance ?? this.walletBalance,
       willAutoDeduct: willAutoDeduct ?? this.willAutoDeduct,
+      discountAmount: discountAmount ?? this.discountAmount,
       vehicle: vehicle ?? this.vehicle,
       isActive: isActive ?? this.isActive,
     );

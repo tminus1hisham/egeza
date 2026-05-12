@@ -70,6 +70,11 @@ class PersonalDetailsSettingsPage extends StatelessWidget {
               title: 'Member status',
               value: state.isAuthenticated ? 'Verified' : 'Demo profile',
             ),
+            _InfoRow(
+              icon: Icons.domain_outlined,
+              title: 'Tenancy',
+              value: _tenancyStatus(state),
+            ),
           ],
         ),
       ],
@@ -2478,4 +2483,15 @@ String _formatAmount(num amount) {
   return amount
       .toStringAsFixed(0)
       .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ',');
+}
+
+String _tenancyStatus(AppState state) {
+  if (state.isTenant) {
+    if (state.hasActiveTenancy) return 'Active tenant';
+    if (state.hasPayableTenancy) return 'Payment pending';
+    return 'Tenant profile';
+  }
+
+  if (state.hasTenancyRequests) return 'Request submitted';
+  return 'Not a tenant';
 }

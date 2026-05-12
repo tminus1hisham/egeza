@@ -7,6 +7,7 @@ import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/api_models.dart';
+import '../../models/parking_session.dart';
 import '../../widgets/app_widgets.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -33,6 +34,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
     await Future.delayed(const Duration(milliseconds: 800));
   }
 
+  // Treat API datetimes as UTC and convert to EAT (UTC+3) for display.
+  DateTime _toEat(DateTime dt) {
+    final utc = dt.isUtc
+        ? dt
+        : DateTime.utc(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second);
+    return utc.add(const Duration(hours: 3));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -42,6 +51,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
         child: BlocBuilder<AppBloc, AppState>(
           builder: (context, state) {
             final transactions = _filteredTransactions(state.walletTransactions);
+            final completedSessions = _filteredSessions(
+              state.recentSessions
+                  .where((s) => !s.isActive)
+                  .toList()
+                ..sort((a, b) => b.startTime.compareTo(a.startTime)),
+            );
 
             return Column(
               children: [
@@ -51,11 +66,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     color: context.colors.primary,
                     onRefresh: _onRefresh,
                     child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _overviewCard(state.walletTransactions),
+                          const SizedBox(height: 18),
+                          _sessionsList(completedSessions),
                           const SizedBox(height: 18),
                           _filterBar(),
                           const SizedBox(height: 18),
@@ -127,13 +145,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _overviewCard(List<WalletTransaction> transactions) {
-    final payments = transactions.where((t) => t.type.toUpperCase() != 'DEPOSIT');
+    // Compute metrics only over the current calendar month (EAT).
+    final now = DateTime.now();
+    final monthTx = transactions.where((t) {
+      if (t.createdAt == null) return false;
+      final eat = _toEat(t.createdAt!);
+      return eat.year == now.year && eat.month == now.month;
+    }).toList();
+
+    final payments = monthTx.where((t) => t.type.toUpperCase() != 'DEPOSIT');
     final totalSpend = payments.fold<double>(0, (sum, t) => sum + t.amount);
-    final completed = transactions.where((t) {
+    final completed = monthTx.where((t) {
       final s = t.status.toUpperCase();
       return s == 'COMPLETED' || s == 'SUCCESS';
     }).length;
-    final autoPayCount = transactions.where(_isAutoPay).length;
+    final autoPayCount = monthTx.where(_isAutoPay).length;
 
     return Container(
       width: double.infinity,
@@ -289,6 +315,142 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  Widget _sessionsList(List<ParkingSession> sessions) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Parking Sessions',
+                style: GoogleFonts.poppins(
+                  color: context.colors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Text(
+              '${sessions.length} sessions',
+              style: GoogleFonts.poppins(
+                color: context.colors.textMuted,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          clipBehavior: Clip.antiAlias,
+          decoration: _panelDecoration(),
+          child: sessions.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
+                  child: Text(
+                    'No completed sessions yet',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(
+                      color: context.colors.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
+                )
+              : Column(
+                  children: [
+                    for (var i = 0; i < sessions.length; i++) ...[
+                      _sessionRow(sessions[i]),
+                      if (i != sessions.length - 1)
+                        Divider(
+                          color: context.colors.divider,
+                          height: 1,
+                          indent: 74,
+                        ),
+                    ],
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _sessionRow(ParkingSession session) {
+    final amount = session.amountPaid > 0 ? session.amountPaid : session.cost;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: context.colors.accentLight,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              Icons.local_parking_rounded,
+              color: context.colors.primary,
+              size: 21,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  session.locationName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    color: context.colors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${session.vehicle.plateNumber} · ${session.vehicle.make}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    color: context.colors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _sessionStatusChip(session.status),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                amount > 0 ? '- KES ${_formatAmount(amount)}' : 'Free',
+                style: GoogleFonts.poppins(
+                  color: context.colors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                _dateTimeLabel(session.startTime),
+                style: GoogleFonts.poppins(
+                  color: context.colors.textMuted,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _emptyHistory({bool filterOnly = false}) {
     if (filterOnly) {
       return Padding(
@@ -424,7 +586,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
               const SizedBox(height: 5),
               Text(
-                _dateTimeLabel(tx.createdAt ?? DateTime.now()),
+                tx.createdAt != null ? _dateTimeLabel(tx.createdAt!) : '—',
                 style: GoogleFonts.poppins(
                   color: context.colors.textMuted,
                   fontSize: 11,
@@ -463,22 +625,49 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _statusChip(String label, bool isPending) {
+  Widget _sessionStatusChip(String status) {
+    switch (status.toUpperCase()) {
+      case 'COMPLETED':
+        return _statusChip('Paid', false);
+      case 'CANCELLED':
+      case 'CANCELED':
+        return _statusChip('Cancelled', false, isError: true);
+      case 'PAYMENT_PENDING':
+      case 'UNPAID':
+        return _statusChip('Pending', true);
+      default:
+        return _statusChip(status, false);
+    }
+  }
+
+  Widget _statusChip(String label, bool isPending, {bool isError = false}) {
+    final bg = isPending
+        ? context.colors.pageGrey
+        : isError
+            ? context.colors.error.withValues(alpha: 0.1)
+            : context.colors.successLight;
+    final borderColor = isPending
+        ? context.colors.border
+        : isError
+            ? context.colors.error.withValues(alpha: 0.3)
+            : context.colors.success.withValues(alpha: 0.3);
+    final textColor = isPending
+        ? context.colors.textSecondary
+        : isError
+            ? context.colors.error
+            : context.colors.success;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: isPending ? context.colors.pageGrey : context.colors.successLight,
+        color: bg,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: isPending
-              ? context.colors.border
-              : context.colors.success.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: borderColor),
       ),
       child: Text(
         label,
         style: GoogleFonts.poppins(
-          color: isPending ? context.colors.textSecondary : context.colors.success,
+          color: textColor,
           fontSize: 10,
           fontWeight: FontWeight.w600,
         ),
@@ -588,6 +777,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return result;
   }
 
+  List<ParkingSession> _filteredSessions(List<ParkingSession> sessions) {
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) return sessions;
+    return sessions
+        .where((s) =>
+            s.locationName.toLowerCase().contains(query) ||
+            s.vehicle.plateNumber.toLowerCase().contains(query) ||
+            s.vehicle.make.toLowerCase().contains(query))
+        .toList();
+  }
+
   String _txTypeLabel(String type) {
     switch (type.toUpperCase()) {
       case 'DEPOSIT':
@@ -619,27 +819,29 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   String _dateTimeLabel(DateTime dateTime) {
+    // Convert UTC API datetime to EAT (UTC+3) before any calendar comparison.
+    final eat = _toEat(dateTime);
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final sessionDay = DateTime(dateTime.year, dateTime.month, dateTime.day);
+    final sessionDay = DateTime(eat.year, eat.month, eat.day);
     final diff = today.difference(sessionDay).inDays;
     final day = diff == 0
         ? 'Today'
         : diff == 1
             ? 'Yesterday'
-            : _monthDay(dateTime);
+            : _monthDay(eat);
 
-    return '$day, ${_timeLabel(dateTime)}';
+    return '$day, ${_timeLabel(eat)}';
   }
 
-  String _timeLabel(DateTime dateTime) {
-    final hour = dateTime.hour == 0
+  String _timeLabel(DateTime eat) {
+    final hour = eat.hour == 0
         ? 12
-        : dateTime.hour > 12
-            ? dateTime.hour - 12
-            : dateTime.hour;
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    final period = dateTime.hour >= 12 ? 'PM' : 'AM';
+        : eat.hour > 12
+            ? eat.hour - 12
+            : eat.hour;
+    final minute = eat.minute.toString().padLeft(2, '0');
+    final period = eat.hour >= 12 ? 'PM' : 'AM';
 
     return '$hour:$minute $period';
   }

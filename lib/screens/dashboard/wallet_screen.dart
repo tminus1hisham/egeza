@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../blocs/app_bloc.dart';
 import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
+import '../../core/error_handler.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/parking_session.dart';
 import '../../widgets/app_widgets.dart';
@@ -48,28 +49,9 @@ class _WalletScreenState extends State<WalletScreen> {
               curr.statusMessage != prev.statusMessage,
           listener: (context, state) {
             if (state.errorMessage != null && state.errorMessage!.isNotEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: Colors.red.shade700,
-                  content: Text(
-                    state.errorMessage!,
-                    style: GoogleFonts.poppins(color: Colors.white),
-                  ),
-                ),
-              );
-            } else if (state.statusMessage != null &&
-                state.statusMessage!.isNotEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: context.colors.primaryDark,
-                  content: Text(
-                    state.statusMessage!,
-                    style: GoogleFonts.poppins(color: Colors.white),
-                  ),
-                ),
-              );
+              ErrorHandler.showErrorMessage(context, state.errorMessage!);
+            } else if (state.statusMessage != null && state.statusMessage!.isNotEmpty) {
+              ErrorHandler.showSuccess(context, state.statusMessage!);
             }
           },
           builder: (context, state) {

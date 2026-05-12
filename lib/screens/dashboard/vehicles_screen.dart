@@ -425,8 +425,11 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFFF7E6), Color(0xFFFFF0D4)],
+                  gradient: LinearGradient(
+                    colors: [
+                      context.colors.warning.withValues(alpha: 0.18),
+                      context.colors.warning.withValues(alpha: 0.10),
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -541,6 +544,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   }
 
   Widget _plateTag(String plate) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
@@ -553,7 +557,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: GoogleFonts.poppins(
-          color: const Color(0xFF573A05),
+          color: isDark ? context.colors.plateYellow : const Color(0xFF573A05),
           fontSize: 14,
           fontWeight: FontWeight.w700,
           letterSpacing: 1.2,
@@ -575,8 +579,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
         color: active
             ? context.colors.successLight
             : soft
-                ? const Color(0xFFF1F5F4)
-                : const Color(0xFFFFF7E6),
+                ? context.colors.surfaceRaised
+                : context.colors.warning.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -595,9 +599,9 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       height: 76,
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 11),
       decoration: BoxDecoration(
-        color: const Color(0xFFF6F7F9),
+        color: context.colors.surfaceRaised,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.02)),
+        border: Border.all(color: context.colors.border.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

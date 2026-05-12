@@ -132,6 +132,7 @@ class PayParkingSession extends AppEvent {
   final double? amount;
   final String? plateNumber;
   final String? location;
+  final String? promoCode;
 
   const PayParkingSession({
     required this.sessionId,
@@ -140,6 +141,7 @@ class PayParkingSession extends AppEvent {
     this.amount,
     this.plateNumber,
     this.location,
+    this.promoCode,
   });
 
   @override
@@ -150,6 +152,7 @@ class PayParkingSession extends AppEvent {
         amount,
         plateNumber,
         location,
+        promoCode,
       ];
 }
 
