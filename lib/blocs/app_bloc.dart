@@ -211,7 +211,10 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     LoadDashboardData event,
     Emitter<AppState> emit,
   ) async {
-    emit(state.copyWith(isLoading: true, clearMessages: true));
+    final showInitialLoader = state.vehicles.isEmpty &&
+        state.recentSessions.isEmpty &&
+        state.locations.isEmpty;
+    emit(state.copyWith(isLoading: showInitialLoader, clearMessages: true));
     _log('LoadDashboardData: hasToken=${_api.hasToken}');
 
     if (!_api.hasToken) {
@@ -255,13 +258,6 @@ class AppBloc extends Bloc<AppEvent, AppState> {
         trackUnauthorized(e, st, 'listVehicles');
         return null;
       });
-      final transactionsFuture = _api
-          .walletTransactions()
-          .then<Object?>((v) => v)
-          .catchError((Object e, StackTrace st) {
-        trackUnauthorized(e, st, 'walletTransactions');
-        return null;
-      });
       final locationsFuture = _api
           .fetchParkingLocations()
           .then<Object?>((v) => v)
@@ -282,6 +278,74 @@ class AppBloc extends Bloc<AppEvent, AppState> {
         trackUnauthorized(e, st, 'activeParkingSessions');
         return null;
       });
+
+      final coreResults = await Future.wait([
+        profileFuture,
+        balanceFuture,
+        vehiclesFuture,
+        locationsFuture,
+        recentSessionsFuture,
+        activeSessionsFuture,
+      ]);
+
+      if (unauthorized) {
+        _log('LoadDashboardData: token rejected (403), session expired');
+        _api.setToken(null);
+        await UserPrefs.clearToken();
+        emit(state.copyWith(isLoading: false, sessionExpired: true, clearAuthToken: true));
+        return;
+      }
+
+      final profile = coreResults[0] is UserProfile ? coreResults[0] as UserProfile : null;
+      final balance = coreResults[1] is double ? coreResults[1] as double : null;
+      final vehicles =
+          coreResults[2] is List<Vehicle> ? coreResults[2] as List<Vehicle> : null;
+      final locations = coreResults[3] is List<ParkingLocation>
+          ? coreResults[3] as List<ParkingLocation>
+          : null;
+      final recentSessions = coreResults[4] is List<ParkingSession>
+          ? coreResults[4] as List<ParkingSession>
+          : null;
+      final activeSessions = coreResults[5] is List<ParkingSession>
+          ? coreResults[5] as List<ParkingSession>
+          : null;
+      final sessions = _mergeFetchedSessions(
+        recentSessions: recentSessions,
+        activeSessions: activeSessions,
+        vehicles: vehicles ?? state.vehicles,
+      );
+
+      _logSuccess(
+        'LoadDashboardData',
+        'profile=${profile?.fullName} balance=$balance '
+        'vehicles=${vehicles?.length} '
+        'locations=${locations?.length} recent=${recentSessions?.length} '
+        'active=${activeSessions?.length}',
+      );
+      emit(
+        state.copyWith(
+          userName: profile?.fullName ?? state.userName,
+          phoneNumber: profile?.phoneNumber ?? state.phoneNumber,
+          email: profile?.email ?? state.email,
+          userRole: profile?.role ?? state.userRole,
+          requiresVehicleSetup:
+              vehicles == null ? state.requiresVehicleSetup : vehicles.isEmpty,
+          walletBalance: balance ?? state.walletBalance,
+          vehicles: vehicles ?? state.vehicles,
+          recentSessions: sessions,
+          locations: locations ?? state.locations,
+          isLoading: false,
+        ),
+      );
+
+      unauthorized = false;
+      final transactionsFuture = _api
+          .walletTransactions()
+          .then<Object?>((v) => v)
+          .catchError((Object e, StackTrace st) {
+        trackUnauthorized(e, st, 'walletTransactions');
+        return null;
+      });
       final tenantProfilesFuture = _api
           .fetchMyTenantProfiles()
           .then<Object?>((v) => v)
@@ -299,75 +363,38 @@ class AppBloc extends Bloc<AppEvent, AppState> {
         return null;
       });
 
-      final results = await Future.wait([
-        profileFuture,
-        balanceFuture,
-        vehiclesFuture,
+      final secondaryResults = await Future.wait([
         transactionsFuture,
-        locationsFuture,
-        recentSessionsFuture,
-        activeSessionsFuture,
         tenantProfilesFuture,
         tenancyRequestsFuture,
       ]);
 
       if (unauthorized) {
-        _log('LoadDashboardData: token rejected (403), session expired');
+        _log('LoadDashboardData: token rejected by secondary data request');
         _api.setToken(null);
         await UserPrefs.clearToken();
         emit(state.copyWith(isLoading: false, sessionExpired: true, clearAuthToken: true));
         return;
       }
 
-      final profile = results[0] is UserProfile ? results[0] as UserProfile : null;
-      final balance = results[1] is double ? results[1] as double : null;
-      final vehicles =
-          results[2] is List<Vehicle> ? results[2] as List<Vehicle> : null;
-      final transactions = results[3] is List<WalletTransaction>
-          ? results[3] as List<WalletTransaction>
+      final transactions = secondaryResults[0] is List<WalletTransaction>
+          ? secondaryResults[0] as List<WalletTransaction>
           : null;
-      final locations = results[4] is List<ParkingLocation>
-          ? results[4] as List<ParkingLocation>
+      final tenantProfiles = secondaryResults[1] is List<TenantProfile>
+          ? secondaryResults[1] as List<TenantProfile>
           : null;
-      final recentSessions = results[5] is List<ParkingSession>
-          ? results[5] as List<ParkingSession>
+      final tenancyRequests = secondaryResults[2] is List<TenancyRequest>
+          ? secondaryResults[2] as List<TenancyRequest>
           : null;
-      final activeSessions = results[6] is List<ParkingSession>
-          ? results[6] as List<ParkingSession>
-          : null;
-      final tenantProfiles = results[7] is List<TenantProfile>
-          ? results[7] as List<TenantProfile>
-          : null;
-      final tenancyRequests = results[8] is List<TenancyRequest>
-          ? results[8] as List<TenancyRequest>
-          : null;
-      final sessions = _mergeFetchedSessions(
-        recentSessions: recentSessions,
-        activeSessions: activeSessions,
-        vehicles: vehicles ?? state.vehicles,
-      );
 
       _logSuccess(
-        'LoadDashboardData',
-        'profile=${profile?.fullName} balance=$balance '
-        'vehicles=${vehicles?.length} transactions=${transactions?.length} '
-        'locations=${locations?.length} recent=${recentSessions?.length} '
-        'active=${activeSessions?.length} tenants=${tenantProfiles?.length} '
+        'LoadDashboardData/secondary',
+        'transactions=${transactions?.length} tenants=${tenantProfiles?.length} '
         'requests=${tenancyRequests?.length}',
       );
       emit(
         state.copyWith(
-          userName: profile?.fullName ?? state.userName,
-          phoneNumber: profile?.phoneNumber ?? state.phoneNumber,
-          email: profile?.email ?? state.email,
-          userRole: profile?.role ?? state.userRole,
-          requiresVehicleSetup:
-              vehicles == null ? state.requiresVehicleSetup : vehicles.isEmpty,
-          walletBalance: balance ?? state.walletBalance,
-          vehicles: vehicles ?? state.vehicles,
-          recentSessions: sessions,
           walletTransactions: transactions ?? state.walletTransactions,
-          locations: locations ?? state.locations,
           tenantProfiles: tenantProfiles ?? state.tenantProfiles,
           tenancyRequests: tenancyRequests ?? state.tenancyRequests,
           isLoading: false,

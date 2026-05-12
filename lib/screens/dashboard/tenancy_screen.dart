@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -424,6 +426,7 @@ class _TenantProfileDetailScreenState
   }
 
   Future<void> _loadSubscriptions() async {
+    final isRefresh = _subscriptions != null;
     setState(() {
       _loading = true;
       _error = null;
@@ -435,12 +438,41 @@ class _TenantProfileDetailScreenState
       if (!mounted) return;
       setState(() => _subscriptions = subscriptions);
     } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (!mounted) return;
+      if (isRefresh) {
+        _showRefreshError(e.message);
+      } else {
+        setState(() => _error = e.message);
+      }
+    } on SocketException {
+      if (!mounted) return;
+      const msg = 'No internet connection. Check your network and try again.';
+      if (isRefresh) {
+        _showRefreshError(msg);
+      } else {
+        setState(() => _error = msg);
+      }
     } catch (_) {
-      if (mounted) setState(() => _error = 'Failed to load subscriptions.');
+      if (!mounted) return;
+      const msg = 'Something went wrong loading subscription history.';
+      if (isRefresh) {
+        _showRefreshError(msg);
+      } else {
+        setState(() => _error = msg);
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _showRefreshError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        action: SnackBarAction(label: 'Retry', onPressed: _loadSubscriptions),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _pay() async {
@@ -546,7 +578,7 @@ class _TenantProfileDetailScreenState
                     const SizedBox(height: 10),
                     if (_loading && _subscriptions == null)
                       const _TenancyLoadingCard()
-                    else if (_error != null)
+                    else if (_error != null && _subscriptions == null)
                       _TenancyErrorCard(
                         message: _error!,
                         onRetry: _loadSubscriptions,
@@ -2444,15 +2476,25 @@ class _SubscriptionEmptyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
       decoration: _surfaceDecoration(context),
-      child: Text(
-        'No subscription history yet.',
-        textAlign: TextAlign.center,
-        style: GoogleFonts.poppins(
-          color: context.colors.textSecondary,
-          fontSize: 13,
-        ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.receipt_long_outlined,
+            color: context.colors.textMuted,
+            size: 30,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'No subscription history yet.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              color: context.colors.textSecondary,
+              fontSize: 13,
+            ),
+          ),
+        ],
       ),
     );
   }

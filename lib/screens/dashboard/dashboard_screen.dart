@@ -12,6 +12,7 @@ import '../../models/parking_session.dart';
 import 'wallet_screen.dart';
 import 'active_session_screen.dart';
 import 'pay_parking_screen.dart';
+import 'settings_screen.dart';
 import 'tenancy_screen.dart';
 import 'vehicle_detail_screen.dart';
 import 'vehicles_screen.dart';
@@ -21,6 +22,7 @@ class DashboardScreen extends StatefulWidget {
   final VoidCallback? onWalletTap;
   final VoidCallback? onHistoryTap;
   final VoidCallback? onTenancyTap;
+  final VoidCallback? onSettingsTap;
 
   const DashboardScreen({
     super.key,
@@ -28,6 +30,7 @@ class DashboardScreen extends StatefulWidget {
     this.onWalletTap,
     this.onHistoryTap,
     this.onTenancyTap,
+    this.onSettingsTap,
   });
 
   @override
@@ -41,9 +44,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     context.read<AppBloc>().add(LoadDashboardData());
   }
 
-  Future<void> _onRefresh() async {
+  Future<void> _onRefresh() {
     context.read<AppBloc>().add(LoadDashboardData());
-    await Future.delayed(const Duration(milliseconds: 800));
+    return Future<void>.value();
   }
 
   @override
@@ -197,46 +200,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                   ),
-                  Material(
-                    color: Colors.white.withValues(alpha: 0.13),
-                    borderRadius: BorderRadius.circular(15),
-                    child: InkWell(
-                      onTap: () {},
-                      borderRadius: BorderRadius.circular(15),
-                      child: Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _headerRoundButton(
+                        Icons.settings_outlined,
+                        () => _openSettings(context),
+                      ),
+                      const SizedBox(width: 8),
+                      Material(
+                        color: Colors.white.withValues(alpha: 0.13),
+                        borderRadius: BorderRadius.circular(15),
+                        child: InkWell(
+                          onTap: () {},
                           borderRadius: BorderRadius.circular(15),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.12),
+                          child: Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(15),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.12),
+                              ),
+                            ),
+                            child: Stack(
+                              children: [
+                                const Center(
+                                  child: Icon(
+                                    Icons.notifications_outlined,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ),
+                                Positioned(
+                                  right: 11,
+                                  top: 11,
+                                  child: Container(
+                                    width: 7,
+                                    height: 7,
+                                    decoration: BoxDecoration(
+                                      color: context.colors.accent,
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        child: Stack(
-                          children: [
-                            const Center(
-                              child: Icon(
-                                Icons.notifications_outlined,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                            ),
-                            Positioned(
-                              right: 11,
-                              top: 11,
-                              child: Container(
-                                width: 7,
-                                height: 7,
-                                decoration: BoxDecoration(
-                                  color: context.colors.accent,
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ),
@@ -1217,9 +1230,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _sessionTile(BuildContext context, ParkingSession session) {
-    final duration = session.endTime != null
-        ? session.endTime!.difference(session.startTime)
-        : DateTime.now().difference(session.startTime);
+    final amount = session.amountPaid > 0 ? session.amountPaid : session.cost;
+    final amountLabel =
+        amount > 0 ? 'KES ${amount.toStringAsFixed(0)}' : 'Free';
+    final startUtc = _apiUtc(session.startTime);
+    final endUtc = session.endTime == null
+        ? DateTime.now().toUtc()
+        : _apiUtc(session.endTime!);
+    final rawDuration = endUtc.difference(startUtc);
+    final duration = rawDuration.isNegative ? Duration.zero : rawDuration;
     final h = duration.inHours;
     final m = duration.inMinutes % 60;
     final durationStr = h > 0 ? '${h}h ${m}m' : '${m}m';
@@ -1301,7 +1320,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  'KES ${session.cost.toStringAsFixed(0)}',
+                  amountLabel,
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -1494,15 +1513,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   String _dayLabel(DateTime dt) {
-    final now = DateTime.now();
+    final now = DateTime.now().toUtc().add(const Duration(hours: 3));
+    final value = _eat(dt);
     final today = DateTime(now.year, now.month, now.day);
-    final sessionDay = DateTime(dt.year, dt.month, dt.day);
+    final sessionDay = DateTime(value.year, value.month, value.day);
     final diff = today.difference(sessionDay).inDays;
     if (diff == 0) return 'Today';
     if (diff == 1) return 'Yesterday';
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return days[dt.weekday - 1];
+    return days[value.weekday - 1];
   }
+
+  DateTime _apiUtc(DateTime dt) {
+    if (dt.isUtc) return dt;
+    return DateTime.utc(
+      dt.year,
+      dt.month,
+      dt.day,
+      dt.hour,
+      dt.minute,
+      dt.second,
+      dt.millisecond,
+      dt.microsecond,
+    );
+  }
+
+  DateTime _eat(DateTime dt) => _apiUtc(dt).add(const Duration(hours: 3));
 
   void _openWallet(BuildContext context) {
     if (widget.onWalletTap != null) {
@@ -1534,6 +1570,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _openHistory() {
     widget.onHistoryTap?.call();
+  }
+
+  void _openSettings(BuildContext context) {
+    if (widget.onSettingsTap != null) {
+      widget.onSettingsTap!();
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const SettingsScreen(showBackButton: true),
+      ),
+    );
+  }
+
+  Widget _headerRoundButton(IconData icon, VoidCallback onTap) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.13),
+      borderRadius: BorderRadius.circular(15),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+          ),
+          child: Icon(icon, color: Colors.white, size: 20),
+        ),
+      ),
+    );
   }
 
   void _openTenancy(BuildContext context) {

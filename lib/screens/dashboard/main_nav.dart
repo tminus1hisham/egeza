@@ -33,54 +33,63 @@ class _MainNavigationState extends State<MainNavigation> {
       onWalletTap: () => _selectTab('wallet'),
       onHistoryTap: () => _selectTab('history'),
       onTenancyTap: () => _selectTab('tenancy'),
+      onSettingsTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const SettingsScreen(showBackButton: true),
+        ),
+      ),
     );
   }
 
-  List<_NavTab> _tabsFor(AppState state) => [
+  List<_NavTab> _tabsFor(AppState state) {
+    final homeTab = _NavTab(
+      id: 'home',
+      activeIcon: Icons.home_rounded,
+      inactiveIcon: Icons.home_outlined,
+      label: 'Home',
+      screen: _dashboardScreen,
+    );
+    const vehiclesTab = _NavTab(
+      id: 'vehicles',
+      activeIcon: Icons.directions_car_rounded,
+      inactiveIcon: Icons.directions_car_outlined,
+      label: 'Vehicles',
+      screen: VehiclesScreen(),
+    );
+    const walletTab = _NavTab(
+      id: 'wallet',
+      activeIcon: Icons.account_balance_wallet_rounded,
+      inactiveIcon: Icons.account_balance_wallet_outlined,
+      label: 'Wallet',
+      screen: WalletScreen(),
+    );
+    const historyTab = _NavTab(
+      id: 'history',
+      activeIcon: Icons.history_rounded,
+      inactiveIcon: Icons.history_outlined,
+      label: 'History',
+      screen: HistoryScreen(),
+    );
+
+    if (state.shouldShowTenancy) {
+      return [
+        homeTab,
         _NavTab(
-          id: 'home',
-          activeIcon: Icons.home_rounded,
-          inactiveIcon: Icons.home_outlined,
-          label: 'Home',
-          screen: _dashboardScreen,
+          id: 'tenancy',
+          activeIcon: Icons.domain_rounded,
+          inactiveIcon: Icons.domain_outlined,
+          label: 'Tenancy',
+          screen: const TenancyScreen(),
+          showBadge: state.payableTenantProfileCount > 0,
         ),
-        const _NavTab(
-          id: 'vehicles',
-          activeIcon: Icons.directions_car_rounded,
-          inactiveIcon: Icons.directions_car_outlined,
-          label: 'Vehicle',
-          screen: VehiclesScreen(),
-        ),
-        const _NavTab(
-          id: 'wallet',
-          activeIcon: Icons.account_balance_wallet_rounded,
-          inactiveIcon: Icons.account_balance_wallet_outlined,
-          label: 'Wallet',
-          screen: WalletScreen(),
-        ),
-        if (state.shouldShowTenancy)
-          const _NavTab(
-            id: 'tenancy',
-            activeIcon: Icons.domain_rounded,
-            inactiveIcon: Icons.domain_outlined,
-            label: 'Tenancy',
-            screen: TenancyScreen(),
-          ),
-        const _NavTab(
-          id: 'history',
-          activeIcon: Icons.history_rounded,
-          inactiveIcon: Icons.history_outlined,
-          label: 'History',
-          screen: HistoryScreen(),
-        ),
-        const _NavTab(
-          id: 'settings',
-          activeIcon: Icons.settings_rounded,
-          inactiveIcon: Icons.settings_outlined,
-          label: 'Settings',
-          screen: SettingsScreen(),
-        ),
+        walletTab,
+        vehiclesTab,
+        historyTab,
       ];
+    }
+    return [homeTab, vehiclesTab, walletTab, historyTab];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -163,21 +172,43 @@ class _MainNavigationState extends State<MainNavigation> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeInOut,
-                width: isActive ? 42 : 34,
-                height: 30,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: isActive ? context.colors.accentLight : Colors.transparent,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  isActive ? tab.activeIcon : tab.inactiveIcon,
-                  color: isActive ? context.colors.primary : context.colors.textMuted,
-                  size: 21,
-                ),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    width: isActive ? 42 : 34,
+                    height: 30,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: isActive ? context.colors.accentLight : Colors.transparent,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(
+                      isActive ? tab.activeIcon : tab.inactiveIcon,
+                      color: isActive ? context.colors.primary : context.colors.textMuted,
+                      size: 21,
+                    ),
+                  ),
+                  if (tab.showBadge)
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: context.colors.error,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: context.colors.surface,
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 4),
               Text(
@@ -205,6 +236,7 @@ class _NavTab {
   final IconData inactiveIcon;
   final String label;
   final Widget screen;
+  final bool showBadge;
 
   const _NavTab({
     required this.id,
@@ -212,6 +244,7 @@ class _NavTab {
     required this.inactiveIcon,
     required this.label,
     required this.screen,
+    this.showBadge = false,
   });
 }
 

@@ -32,9 +32,9 @@ class _WalletScreenState extends State<WalletScreen> {
     super.dispose();
   }
 
-  Future<void> _onRefresh() async {
+  Future<void> _onRefresh() {
     context.read<AppBloc>().add(LoadDashboardData());
-    await Future.delayed(const Duration(milliseconds: 800));
+    return Future<void>.value();
   }
 
   @override
@@ -475,6 +475,10 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Widget _activityRow(ParkingSession session) {
+    final amount = session.amountPaid > 0 ? session.amountPaid : session.cost;
+    final amountLabel =
+        amount > 0 ? '- KES ${_formatAmount(amount)}' : 'Free';
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
       child: Row(
@@ -525,7 +529,7 @@ class _WalletScreenState extends State<WalletScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '- KES ${_formatAmount(session.cost)}',
+                amountLabel,
                 style: GoogleFonts.poppins(
                   color: context.colors.textPrimary,
                   fontSize: 14,
@@ -730,8 +734,12 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   String _durationLabel(ParkingSession session) {
-    final endTime = session.endTime ?? DateTime.now();
-    final duration = endTime.difference(session.startTime);
+    final startUtc = _apiUtc(session.startTime);
+    final endUtc = session.endTime == null
+        ? DateTime.now().toUtc()
+        : _apiUtc(session.endTime!);
+    final rawDuration = endUtc.difference(startUtc);
+    final duration = rawDuration.isNegative ? Duration.zero : rawDuration;
     final hours = duration.inHours;
     final minutes = duration.inMinutes % 60;
 
@@ -741,12 +749,13 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   String _dateLabel(DateTime dateTime) {
-    final now = DateTime.now();
+    final now = DateTime.now().toUtc().add(const Duration(hours: 3));
+    final value = _eat(dateTime);
     final today = DateTime(now.year, now.month, now.day);
-    final sessionDay = DateTime(dateTime.year, dateTime.month, dateTime.day);
+    final sessionDay = DateTime(value.year, value.month, value.day);
     final diff = today.difference(sessionDay).inDays;
 
-    if (diff == 0) return 'Today';
+    if (diff <= 0) return 'Today';
     if (diff == 1) return 'Yesterday';
     if (diff < 7) return '${diff}d ago';
 
@@ -764,8 +773,24 @@ class _WalletScreenState extends State<WalletScreen> {
       'Nov',
       'Dec',
     ];
-    return '${dateTime.day} ${months[dateTime.month - 1]}';
+    return '${value.day} ${months[value.month - 1]}';
   }
+
+  DateTime _apiUtc(DateTime dt) {
+    if (dt.isUtc) return dt;
+    return DateTime.utc(
+      dt.year,
+      dt.month,
+      dt.day,
+      dt.hour,
+      dt.minute,
+      dt.second,
+      dt.millisecond,
+      dt.microsecond,
+    );
+  }
+
+  DateTime _eat(DateTime dt) => _apiUtc(dt).add(const Duration(hours: 3));
 
   String _formatCompact(double amount) {
     if (amount >= 1000) {

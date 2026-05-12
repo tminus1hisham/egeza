@@ -13,7 +13,9 @@ import 'tenancy_screen.dart';
 import 'vehicles_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  final bool showBackButton;
+
+  const SettingsScreen({super.key, this.showBackButton = false});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -301,6 +303,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       title: 'Settings',
       subtitle: 'Manage your preferences',
       icon: Icons.settings_outlined,
+      showBackButton: widget.showBackButton,
+      showIconWithBack: widget.showBackButton,
       trailing: AppHeaderButton(
         icon: Icons.more_horiz_rounded,
         tooltip: 'More settings',
