@@ -21,6 +21,8 @@ class ActiveSessionScreen extends StatefulWidget {
 }
 
 class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
+  static const Duration _routeSettleDelay = Duration(milliseconds: 300);
+
   late Timer _timer;
   late Duration _elapsed;
   bool _waitingDialogVisible = false;
@@ -40,6 +42,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
     _elapsed = DateTime.now().toUtc().difference(_startUtc);
     // Update display every 5s; elapsed is computed from real start time so accuracy is maintained
     _timer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted) return;
       setState(() => _elapsed = DateTime.now().toUtc().difference(_startUtc));
     });
   }
@@ -62,20 +65,21 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   void _showWaitingDialog() {
     if (_waitingDialogVisible || !mounted) return;
     _waitingDialogVisible = true;
+    final colors = context.colors;
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => PopScope(
+      builder: (ctx) => PopScope(
         canPop: false,
         child: Dialog(
-          backgroundColor: context.colors.surface,
+          backgroundColor: colors.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(24, 26, 24, 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircularProgressIndicator(color: context.colors.primary),
+                CircularProgressIndicator(color: colors.primary),
                 const SizedBox(height: 20),
                 Text(
                   'Waiting for M-Pesa confirmation...',
@@ -83,14 +87,14 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                   style: GoogleFonts.poppins(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: context.colors.textPrimary,
+                    color: colors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Complete the prompt on your phone.',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(fontSize: 12, color: context.colors.textSecondary),
+                  style: GoogleFonts.poppins(fontSize: 12, color: colors.textSecondary),
                 ),
               ],
             ),
@@ -100,10 +104,43 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
     ).then((_) => _waitingDialogVisible = false);
   }
 
-  void _hideWaitingDialog() {
+  Future<void> _hideWaitingDialog() async {
     if (!_waitingDialogVisible || !mounted) return;
     Navigator.of(context, rootNavigator: true).pop();
     _waitingDialogVisible = false;
+    await _waitForRouteToSettle();
+  }
+
+  Future<void> _waitForRouteToSettle() async {
+    await WidgetsBinding.instance.endOfFrame;
+    await Future<void>.delayed(_routeSettleDelay);
+  }
+
+  Future<void> _handlePaymentState(AppState state) async {
+    if (state.isWaitingForPayment) {
+      _wasWaitingForPayment = true;
+      _showWaitingDialog();
+      return;
+    }
+
+    await _hideWaitingDialog();
+    if (!mounted) return;
+
+    final completedCheckout =
+        state.selectedSession?.id == widget.session.id &&
+        state.selectedSession?.status == 'COMPLETED';
+    if (!_wasWaitingForPayment && !completedCheckout) return;
+    _wasWaitingForPayment = false;
+
+    final error = state.errorMessage;
+    if (error != null && error.isNotEmpty) {
+      ErrorHandler.showErrorMessage(context, error);
+      return;
+    }
+
+    await _waitForRouteToSettle();
+    if (!mounted) return;
+    Navigator.of(context).pop();
   }
 
   @override
@@ -114,26 +151,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
           prev.errorMessage != curr.errorMessage ||
           prev.selectedSession != curr.selectedSession,
       listener: (context, state) {
-        if (state.isWaitingForPayment) {
-          _wasWaitingForPayment = true;
-          _showWaitingDialog();
-          return;
-        }
-        _hideWaitingDialog();
-        final completedCheckout =
-            state.selectedSession?.id == widget.session.id &&
-            state.selectedSession?.status == 'COMPLETED';
-        if (!_wasWaitingForPayment && !completedCheckout) return;
-        _wasWaitingForPayment = false;
-
-        final error = state.errorMessage;
-        if (error != null && error.isNotEmpty) {
-          ErrorHandler.showErrorMessage(context, error);
-          return;
-        }
-
-        // Payment succeeded — pop back to the dashboard.
-        if (mounted) Navigator.of(context).pop();
+        unawaited(_handlePaymentState(state));
       },
       child: Scaffold(
       backgroundColor: context.colors.background,
@@ -361,169 +379,181 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   }
 
   void _showEndDialog(BuildContext context) {
+    final bloc = context.read<AppBloc>();
+    final colors = context.colors;
     final promoCtrl = TextEditingController();
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: context.colors.surface,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (sheetContext, setSheetState) {
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (sheetCtx, setSheetState) {
           Future<void> scanPromoCode() async {
-            final result = await Navigator.of(context).push<String>(
+            final result = await Navigator.of(sheetCtx).push<String>(
               MaterialPageRoute(
                 builder: (_) => const PromoQrScannerScreen(),
               ),
             );
             if (result == null || result.trim().isEmpty) return;
+            if (!sheetCtx.mounted) return;
             promoCtrl.text = result.trim();
             setSheetState(() {});
           }
 
-          return SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              24,
-              24,
-              24,
-              24 + MediaQuery.of(sheetContext).viewInsets.bottom,
+          return Container(
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(width: 40, height: 4, decoration: BoxDecoration(color: context.colors.border, borderRadius: BorderRadius.circular(2))),
-                const SizedBox(height: 20),
-                Text('End Session?', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700, color: context.colors.textPrimary)),
-                const SizedBox(height: 8),
-                Text(
-                  'An M-Pesa prompt for KES ${widget.session.cost.toStringAsFixed(2)} will be sent to your phone.',
-                  style: GoogleFonts.poppins(fontSize: 13, color: context.colors.textSecondary),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 22),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Promo code',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: context.colors.textPrimary,
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                24,
+                24,
+                24,
+                24 + MediaQuery.of(sheetCtx).viewInsets.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(width: 40, height: 4, decoration: BoxDecoration(color: colors.border, borderRadius: BorderRadius.circular(2))),
+                  const SizedBox(height: 20),
+                  Text('End Session?', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                  const SizedBox(height: 8),
+                  Text(
+                    'An M-Pesa prompt for KES ${widget.session.cost.toStringAsFixed(2)} will be sent to your phone.',
+                    style: GoogleFonts.poppins(fontSize: 13, color: colors.textSecondary),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 22),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Promo code',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: colors.textPrimary,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: promoCtrl,
-                        textCapitalization: TextCapitalization.characters,
-                        style: GoogleFonts.poppins(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: context.colors.textPrimary,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: 'Optional promo code',
-                          hintStyle: GoogleFonts.poppins(
-                            color: context.colors.textMuted,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w400,
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: promoCtrl,
+                          textCapitalization: TextCapitalization.characters,
+                          style: GoogleFonts.poppins(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: colors.textPrimary,
                           ),
-                          prefixIcon: Icon(
-                            Icons.confirmation_number_outlined,
-                            color: context.colors.primary,
-                            size: 20,
-                          ),
-                          suffixIcon: promoCtrl.text.trim().isEmpty
-                              ? null
-                              : IconButton(
-                                  tooltip: 'Clear promo code',
-                                  icon: Icon(
-                                    Icons.close_rounded,
-                                    color: context.colors.textMuted,
-                                    size: 18,
+                          decoration: InputDecoration(
+                            hintText: 'Optional promo code',
+                            hintStyle: GoogleFonts.poppins(
+                              color: colors.textMuted,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            prefixIcon: Icon(
+                              Icons.confirmation_number_outlined,
+                              color: colors.primary,
+                              size: 20,
+                            ),
+                            suffixIcon: promoCtrl.text.trim().isEmpty
+                                ? null
+                                : IconButton(
+                                    tooltip: 'Clear promo code',
+                                    icon: Icon(
+                                      Icons.close_rounded,
+                                      color: colors.textMuted,
+                                      size: 18,
+                                    ),
+                                    onPressed: () {
+                                      promoCtrl.clear();
+                                      setSheetState(() {});
+                                    },
                                   ),
-                                  onPressed: () {
-                                    promoCtrl.clear();
-                                    setSheetState(() {});
-                                  },
-                                ),
-                          filled: true,
-                          fillColor: context.colors.inputFill,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide(color: context.colors.inputBorder),
+                            filled: true,
+                            fillColor: colors.inputFill,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(color: colors.inputBorder),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(color: colors.inputBorder),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(color: colors.primary, width: 1.8),
+                            ),
                           ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide(color: context.colors.inputBorder),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide(color: context.colors.primary, width: 1.8),
-                          ),
+                          onChanged: (_) => setSheetState(() {}),
                         ),
-                        onChanged: (_) => setSheetState(() {}),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    SizedBox(
-                      height: 52,
-                      width: 52,
-                      child: OutlinedButton(
-                        onPressed: scanPromoCode,
-                        style: OutlinedButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          foregroundColor: context.colors.primary,
-                          side: BorderSide(color: context.colors.inputBorder),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                      const SizedBox(width: 10),
+                      SizedBox(
+                        height: 52,
+                        width: 52,
+                        child: OutlinedButton(
+                          onPressed: scanPromoCode,
+                          style: OutlinedButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            foregroundColor: colors.primary,
+                            side: BorderSide(color: colors.inputBorder),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
                           ),
+                          child: const Icon(Icons.qr_code_scanner_rounded, size: 22),
                         ),
-                        child: const Icon(Icons.qr_code_scanner_rounded, size: 22),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  promoCtrl.text.trim().isEmpty
-                      ? 'Scan a promo QR code or enter the tenant promo code before checkout.'
-                      : 'Promo will be validated before checkout.',
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: promoCtrl.text.trim().isEmpty
-                        ? context.colors.textSecondary
-                        : context.colors.primary,
+                    ],
                   ),
-                ),
-                const SizedBox(height: 24),
-                PrimaryButton(
-                  text: promoCtrl.text.trim().isEmpty
-                      ? 'Confirm & Pay'
-                      : 'Apply Promo & Pay',
-                  onPressed: () {
-                    final promoCode = promoCtrl.text.trim();
-                    context.read<AppBloc>().add(
+                  const SizedBox(height: 8),
+                  Text(
+                    promoCtrl.text.trim().isEmpty
+                        ? 'Scan a promo QR code or enter the tenant promo code before checkout.'
+                        : 'Promo will be validated before checkout.',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: promoCtrl.text.trim().isEmpty
+                          ? colors.textSecondary
+                          : colors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  PrimaryButton(
+                    text: promoCtrl.text.trim().isEmpty
+                        ? 'Confirm & Pay'
+                        : 'Apply Promo & Pay',
+                    onPressed: () {
+                      final promoCode = promoCtrl.text.trim();
+                      Navigator.of(sheetCtx).pop();
+                      unawaited(Future<void>(() async {
+                        await _waitForRouteToSettle();
+                        if (!mounted) return;
+                        bloc.add(
                           PayParkingSession(
                             sessionId: widget.session.id,
                             promoCode: promoCode.isEmpty ? null : promoCode,
                           ),
                         );
-                    Navigator.pop(sheetContext);
-                  },
-                ),
-                const SizedBox(height: 10),
-                TextButton(
-                  onPressed: () => Navigator.pop(sheetContext),
-                  child: Text('Cancel', style: GoogleFonts.poppins(color: context.colors.textSecondary)),
-                ),
-                const SizedBox(height: 8),
-              ],
+                      }));
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () => Navigator.of(sheetCtx).pop(),
+                    child: Text('Cancel', style: GoogleFonts.poppins(color: colors.textSecondary)),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
             ),
           );
         },

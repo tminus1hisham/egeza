@@ -727,10 +727,6 @@ class _WalletScreenState extends State<WalletScreen> {
       name: 'WalletScreen',
     );
     context.read<AppBloc>().add(TopUpWallet(amount, phoneNumber: result));
-
-    if (widget.showBackButton && Navigator.canPop(context)) {
-      Navigator.pop(context);
-    }
   }
 
   String _durationLabel(ParkingSession session) {

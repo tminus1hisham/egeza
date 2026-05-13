@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -24,6 +26,7 @@ class PayParkingScreen extends StatefulWidget {
 
 class _PayParkingScreenState extends State<PayParkingScreen> {
   static const int _plateLength = 7;
+  static const Duration _routeSettleDelay = Duration(milliseconds: 300);
 
   final _locationController = TextEditingController();
   late final List<TextEditingController> _controllers;
@@ -59,6 +62,56 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
 
   bool _isLetter(int index) => index < 3 || index == 6;
 
+  Future<void> _waitForRouteToSettle() async {
+    await WidgetsBinding.instance.endOfFrame;
+    await Future<void>.delayed(_routeSettleDelay);
+  }
+
+  Future<void> _handleAppState(AppState state) async {
+    if (state.isWaitingForPayment) {
+      _wasWaitingForPayment = true;
+      _showWaitingDialog();
+      return;
+    }
+
+    await _hideWaitingDialog();
+    if (!mounted) return;
+
+    if (_wasWaitingForPayment &&
+        state.selectedSession?.status == 'COMPLETED') {
+      _wasWaitingForPayment = false;
+      final session = state.selectedSession!;
+      await _waitForRouteToSettle();
+      if (mounted) _navigateToReceipt(session);
+    } else {
+      _wasWaitingForPayment = false;
+    }
+
+    final error = state.errorMessage;
+    if (error != null && error.isNotEmpty) {
+      ErrorHandler.showErrorMessage(context, error);
+    }
+
+    final status = state.statusMessage;
+    if (error == null &&
+        status != null &&
+        status.isNotEmpty &&
+        !state.isWaitingForPayment) {
+      ErrorHandler.showSuccess(context, status);
+    }
+
+    final session = state.selectedSession;
+    if (session != null &&
+        session.id.isNotEmpty &&
+        session.isActive &&
+        !state.isWaitingForPayment &&
+        _lastShownSessionId != session.id) {
+      _lastShownSessionId = session.id;
+      await _waitForRouteToSettle();
+      if (mounted) _showSessionSheet(session);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocListener<AppBloc, AppState>(
@@ -68,42 +121,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
           previous.errorMessage != current.errorMessage ||
           previous.statusMessage != current.statusMessage,
       listener: (context, state) {
-        if (state.isWaitingForPayment) {
-          _wasWaitingForPayment = true;
-          _showWaitingDialog();
-        } else {
-          _hideWaitingDialog();
-          if (_wasWaitingForPayment &&
-              state.selectedSession?.status == 'COMPLETED') {
-            _wasWaitingForPayment = false;
-            final session = state.selectedSession!;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) _navigateToReceipt(session);
-            });
-          } else {
-            _wasWaitingForPayment = false;
-          }
-        }
-
-        final error = state.errorMessage;
-        if (error != null && error.isNotEmpty) {
-          ErrorHandler.showErrorMessage(context, error);
-        }
-
-        final status = state.statusMessage;
-        if (status != null && status.isNotEmpty && !state.isWaitingForPayment) {
-          ErrorHandler.showSuccess(context, status);
-        }
-
-        final session = state.selectedSession;
-        if (session != null &&
-            session.id.isNotEmpty &&
-            session.isActive &&
-            !state.isWaitingForPayment &&
-            _lastShownSessionId != session.id) {
-          _lastShownSessionId = session.id;
-          _showSessionSheet(session);
-        }
+        unawaited(_handleAppState(state));
       },
 
       child: Scaffold(
@@ -581,145 +599,156 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
         ? _plate
         : session.vehicle.plateNumber;
     final displayPlate = _formatPlate(plate);
+    final colors = context.colors;
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: context.colors.border,
-                borderRadius: BorderRadius.circular(2),
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: context.colors.accentLight,
-                shape: BoxShape.circle,
+              const SizedBox(height: 20),
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: colors.accentLight,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.local_parking_rounded,
+                  color: colors.primary,
+                  size: 28,
+                ),
               ),
-              child: Icon(
-                Icons.local_parking_rounded,
-                color: context.colors.primary,
-                size: 28,
+              const SizedBox(height: 14),
+              Text(
+                'Session Found',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: colors.textPrimary,
+                ),
               ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              'Session Found',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: context.colors.textPrimary,
+              const SizedBox(height: 6),
+              Text(
+                displayPlate,
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: colors.primary,
+                  letterSpacing: 1.5,
+                ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              displayPlate,
-              style: GoogleFonts.poppins(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: context.colors.primary,
-                letterSpacing: 1.5,
+              const SizedBox(height: 4),
+              Text(
+                '${session.locationName} - ${_durationLabel(session)} - KES ${session.cost.toStringAsFixed(0)}',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  color: colors.textSecondary,
+                ),
+                textAlign: TextAlign.center,
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${session.locationName} - ${_durationLabel(session)} - KES ${session.cost.toStringAsFixed(0)}',
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                color: context.colors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: context.colors.background,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: context.colors.border),
-              ),
-              child: Column(
-                children: [
-                  _billingRow('Entry time', _formatDateTime(session.startTime)),
-                  const SizedBox(height: 8),
-                  _billingRow('Grace period', '${session.gracePeriodMinutes} min free'),
-                  const SizedBox(height: 8),
-                  _billingRow('Rate', 'KES ${session.ratePerHour}/hr'),
-                  const SizedBox(height: 8),
-                  _billingRow('Billable hours', '${session.billableHours} billable hour(s)'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 28),
-            if (session.cost == 0)
+              const SizedBox(height: 16),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: context.colors.accentLight,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: context.colors.mintBorder),
+                  color: colors.background,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: colors.border),
                 ),
                 child: Column(
                   children: [
-                    Icon(Icons.check_circle_outline_rounded, color: context.colors.primary, size: 26),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Free Parking',
-                      style: GoogleFonts.poppins(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: context.colors.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'No payment required for this session',
-                      style: GoogleFonts.poppins(fontSize: 12, color: context.colors.textSecondary),
-                    ),
+                    _billingRow(colors, 'Entry time', _formatDateTime(session.startTime)),
+                    const SizedBox(height: 8),
+                    _billingRow(colors, 'Grace period', '${session.gracePeriodMinutes} min free'),
+                    const SizedBox(height: 8),
+                    _billingRow(colors, 'Rate', 'KES ${session.ratePerHour}/hr'),
+                    const SizedBox(height: 8),
+                    _billingRow(colors, 'Billable hours', '${session.billableHours} billable hour(s)'),
                   ],
                 ),
-              )
-            else
-              PrimaryButton(
-                text: 'Pay KES ${session.cost.toStringAsFixed(0)}',
-                onPressed: () {
-                  Navigator.pop(context);
-                  _showStkConfirmation(session);
-                },
               ),
-            const SizedBox(height: 10),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.poppins(color: context.colors.textSecondary),
+              const SizedBox(height: 28),
+              if (session.cost == 0)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: colors.accentLight,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: colors.mintBorder),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.check_circle_outline_rounded, color: colors.primary, size: 26),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Free Parking',
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: colors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'No payment required for this session',
+                        style: GoogleFonts.poppins(fontSize: 12, color: colors.textSecondary),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                PrimaryButton(
+                  text: 'Pay KES ${session.cost.toStringAsFixed(0)}',
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    unawaited(Future<void>(() async {
+                      await _waitForRouteToSettle();
+                      if (!mounted) return;
+                      _showStkConfirmation(session);
+                    }));
+                  },
+                ),
+              const SizedBox(height: 10),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: Text(
+                  'Cancel',
+                  style: GoogleFonts.poppins(color: colors.textSecondary),
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-          ],
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
   }
 
   void _showStkConfirmation(ParkingSession session) {
-    final appState = context.read<AppBloc>().state;
-    final initialPhone = appState.phoneNumber ?? '';
+    final bloc = context.read<AppBloc>();
+    final colors = context.colors;
+    final initialPhone = bloc.state.phoneNumber ?? '';
     final initialAmount = session.cost;
     final displayPlate = _formatPlate(
       session.vehicle.plateNumber.isEmpty ? _plate : session.vehicle.plateNumber,
@@ -739,7 +768,6 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: context.colors.surface,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -747,12 +775,13 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) {
           Future<void> scanPromoCode() async {
-            final result = await Navigator.of(context).push<String>(
+            final result = await Navigator.of(ctx).push<String>(
               MaterialPageRoute(
                 builder: (_) => const PromoQrScannerScreen(),
               ),
             );
             if (result == null || result.trim().isEmpty) return;
+            if (!ctx.mounted) return;
             promoCtrl.text = result.trim();
             setSheetState(() {});
           }
@@ -762,473 +791,479 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
             final phone = phoneCtrl.text.trim();
             final amount = double.tryParse(amountCtrl.text.trim()) ?? 0;
             final promoCode = promoCtrl.text.trim();
-            context.read<AppBloc>().add(
-                  PayParkingSession(
-                    sessionId: session.id,
-                    useWallet: true,
-                    phoneNumber: phone,
-                    amount: promoCode.isEmpty ? amount : null,
-                    plateNumber: plateNumber,
-                    location: location,
-                    promoCode: promoCode.isEmpty ? null : promoCode,
-                  ),
-                );
+            final event = PayParkingSession(
+              sessionId: session.id,
+              useWallet: true,
+              phoneNumber: phone,
+              amount: promoCode.isEmpty ? amount : null,
+              plateNumber: plateNumber,
+              location: location,
+              promoCode: promoCode.isEmpty ? null : promoCode,
+            );
             Navigator.of(ctx).pop();
-            Navigator.pop(context);
+            unawaited(Future<void>(() async {
+              await _waitForRouteToSettle();
+              if (!mounted) return;
+              bloc.add(event);
+            }));
           }
 
-          return SingleChildScrollView(
-            // Scrolls up when keyboard appears to prevent overflow.
-            padding: EdgeInsets.fromLTRB(
-              24,
-              24,
-              24,
-              24 + MediaQuery.of(ctx).viewInsets.bottom,
+          return Container(
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             ),
-            child: Form(
-              key: formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Handle
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: context.colors.border,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Title row
-                  Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                24,
+                24,
+                24,
+                24 + MediaQuery.of(ctx).viewInsets.bottom,
+              ),
+              child: Form(
+                key: formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Handle
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEFFBF4),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Icon(
-                          Icons.phone_android_rounded,
-                          color: context.colors.success,
-                          size: 22,
+                          color: colors.border,
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                      const SizedBox(width: 14),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'M-Pesa prompt',
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: context.colors.textPrimary,
-                            ),
-                          ),
-                          Text(
-                            'Edit details then confirm',
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              color: context.colors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 22),
+                    ),
+                    const SizedBox(height: 20),
 
-                  // Plate info (read-only pill)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Plate number',
-                        style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          color: context.colors.textSecondary,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: context.colors.accentLight,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: context.colors.accent.withValues(alpha: 0.3),
+                    // Title row
+                    Row(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFFBF4),
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                        ),
-                        child: Text(
-                          displayPlate,
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: context.colors.primary,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Location',
-                        style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          color: context.colors.textSecondary,
-                        ),
-                      ),
-                      Flexible(
-                        child: Text(
-                          location,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: context.colors.textPrimary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-
-                  // M-Pesa number field
-                  Text(
-                    'M-Pesa number',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: context.colors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  TextFormField(
-                    controller: phoneCtrl,
-                    keyboardType: TextInputType.phone,
-                    style: GoogleFonts.poppins(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: context.colors.textPrimary,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: '07XX XXX XXX',
-                      hintStyle: GoogleFonts.poppins(
-                        color: context.colors.textMuted,
-                        fontSize: 15,
-                      ),
-                      prefixIcon: Icon(
-                        Icons.phone_outlined,
-                        color: context.colors.primary,
-                        size: 20,
-                      ),
-                      filled: true,
-                      fillColor: context.colors.inputFill,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: context.colors.inputBorder),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: context.colors.inputBorder),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(
-                          color: context.colors.primary,
-                          width: 1.8,
-                        ),
-                      ),
-                      errorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: context.colors.error),
-                      ),
-                      focusedErrorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(
-                          color: context.colors.error,
-                          width: 1.8,
-                        ),
-                      ),
-                    ),
-                    onChanged: (_) => setSheetState(() {}),
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'Enter a phone number';
-                      final normalized = PaymentValidation.normalizeMpesaPhone(v.trim());
-                      if (normalized == null ||
-                          !RegExp(r'^254(7|1)\d{8}$').hasMatch(normalized)) {
-                        return 'Enter a valid Kenyan M-Pesa number (07XX or 01XX)';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Amount field
-                  Text(
-                    'Amount (KES)',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: context.colors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  TextFormField(
-                    controller: amountCtrl,
-                    readOnly: true,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: false),
-                    style: GoogleFonts.poppins(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: context.colors.textPrimary,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: '0',
-                      hintStyle: GoogleFonts.poppins(
-                        color: context.colors.textMuted,
-                        fontSize: 15,
-                      ),
-                      prefixText: 'KES  ',
-                      prefixStyle: GoogleFonts.poppins(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: context.colors.primary,
-                      ),
-                      filled: true,
-                      fillColor: context.colors.inputFill,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: context.colors.inputBorder),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: context.colors.inputBorder),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(
-                          color: context.colors.primary,
-                          width: 1.8,
-                        ),
-                      ),
-                      errorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: context.colors.error),
-                      ),
-                      focusedErrorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(
-                          color: context.colors.error,
-                          width: 1.8,
-                        ),
-                      ),
-                    ),
-                    onChanged: (_) => setSheetState(() {}),
-                    validator: (v) {
-                      final val = double.tryParse(v?.trim() ?? '');
-                      if (val == null || val <= 0) return 'Enter a valid amount';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Promo code',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: context.colors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: promoCtrl,
-                          textCapitalization: TextCapitalization.characters,
-                          style: GoogleFonts.poppins(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: context.colors.textPrimary,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: 'Optional promo code',
-                            hintStyle: GoogleFonts.poppins(
-                              color: context.colors.textMuted,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
-                            ),
-                            prefixIcon: Icon(
-                              Icons.confirmation_number_outlined,
-                              color: context.colors.primary,
-                              size: 20,
-                            ),
-                            suffixIcon: promoCtrl.text.trim().isEmpty
-                                ? null
-                                : IconButton(
-                                    tooltip: 'Clear promo code',
-                                    icon: Icon(
-                                      Icons.close_rounded,
-                                      color: context.colors.textMuted,
-                                      size: 18,
-                                    ),
-                                    onPressed: () {
-                                      promoCtrl.clear();
-                                      setSheetState(() {});
-                                    },
-                                  ),
-                            filled: true,
-                            fillColor: context.colors.inputFill,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide:
-                                  BorderSide(color: context.colors.inputBorder),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide:
-                                  BorderSide(color: context.colors.inputBorder),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(
-                                color: context.colors.primary,
-                                width: 1.8,
-                              ),
-                            ),
-                          ),
-                          onChanged: (_) => setSheetState(() {}),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      SizedBox(
-                        height: 52,
-                        width: 52,
-                        child: OutlinedButton(
-                          onPressed: scanPromoCode,
-                          style: OutlinedButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            foregroundColor: context.colors.primary,
-                            side: BorderSide(color: context.colors.inputBorder),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.qr_code_scanner_rounded,
+                          child: Icon(
+                            Icons.phone_android_rounded,
+                            color: colors.success,
                             size: 22,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    promoCtrl.text.trim().isEmpty
-                        ? 'Optional. Scan a promo QR code or enter the code from your tenant.'
-                        : 'Promo will be validated before checkout.',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: promoCtrl.text.trim().isEmpty
-                          ? context.colors.textSecondary
-                          : context.colors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'A payment prompt will be sent to the number above.',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: context.colors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Send button label updates live with entered amount.
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton.icon(
-                      onPressed: submit,
-                      icon: const Icon(Icons.bolt_outlined, size: 19),
-                      label: Builder(
-                        builder: (_) {
-                          final enteredAmt = double.tryParse(amountCtrl.text.trim());
-                          final hasPromo = promoCtrl.text.trim().isNotEmpty;
-                          final label = hasPromo
-                              ? 'Apply promo & send M-Pesa prompt'
-                              : enteredAmt != null && enteredAmt > 0
-                              ? 'Send KES ${enteredAmt.toStringAsFixed(0)} via M-Pesa'
-                              : 'Send prompt';
-                          return Text(
-                            label,
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                        const SizedBox(width: 14),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'M-Pesa prompt',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: colors.textPrimary,
+                              ),
                             ),
-                          );
-                        },
+                            Text(
+                              'Edit details then confirm',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: colors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 22),
+
+                    // Plate info (read-only pill)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Plate number',
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colors.accentLight,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: colors.accent.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Text(
+                            displayPlate,
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: colors.primary,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Location',
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                        Flexible(
+                          child: Text(
+                            location,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: colors.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+
+                    // M-Pesa number field
+                    Text(
+                      'M-Pesa number',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: colors.textPrimary,
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: context.colors.primary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                    ),
+                    const SizedBox(height: 6),
+                    TextFormField(
+                      controller: phoneCtrl,
+                      keyboardType: TextInputType.phone,
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: colors.textPrimary,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: '07XX XXX XXX',
+                        hintStyle: GoogleFonts.poppins(
+                          color: colors.textMuted,
+                          fontSize: 15,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.phone_outlined,
+                          color: colors.primary,
+                          size: 20,
+                        ),
+                        filled: true,
+                        fillColor: colors.inputFill,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: colors.inputBorder),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: colors.inputBorder),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                            color: colors.primary,
+                            width: 1.8,
+                          ),
+                        ),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: colors.error),
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                            color: colors.error,
+                            width: 1.8,
+                          ),
+                        ),
+                      ),
+                      onChanged: (_) => setSheetState(() {}),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Enter a phone number';
+                        final normalized = PaymentValidation.normalizeMpesaPhone(v.trim());
+                        if (normalized == null ||
+                            !RegExp(r'^254(7|1)\d{8}$').hasMatch(normalized)) {
+                          return 'Enter a valid Kenyan M-Pesa number (07XX or 01XX)';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Amount field
+                    Text(
+                      'Amount (KES)',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TextFormField(
+                      controller: amountCtrl,
+                      readOnly: true,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: false),
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: colors.textPrimary,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: '0',
+                        hintStyle: GoogleFonts.poppins(
+                          color: colors.textMuted,
+                          fontSize: 15,
+                        ),
+                        prefixText: 'KES  ',
+                        prefixStyle: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: colors.primary,
+                        ),
+                        filled: true,
+                        fillColor: colors.inputFill,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: colors.inputBorder),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: colors.inputBorder),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                            color: colors.primary,
+                            width: 1.8,
+                          ),
+                        ),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: colors.error),
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                            color: colors.error,
+                            width: 1.8,
+                          ),
+                        ),
+                      ),
+                      onChanged: (_) => setSheetState(() {}),
+                      validator: (v) {
+                        final hasPromo = promoCtrl.text.trim().isNotEmpty;
+                        if (hasPromo) return null;
+                        final val = double.tryParse(v?.trim() ?? '');
+                        if (val == null || val <= 0) return 'Enter a valid amount';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Promo code',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: promoCtrl,
+                            textCapitalization: TextCapitalization.characters,
+                            style: GoogleFonts.poppins(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: colors.textPrimary,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Optional promo code',
+                              hintStyle: GoogleFonts.poppins(
+                                color: colors.textMuted,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                              ),
+                              prefixIcon: Icon(
+                                Icons.confirmation_number_outlined,
+                                color: colors.primary,
+                                size: 20,
+                              ),
+                              suffixIcon: promoCtrl.text.trim().isEmpty
+                                  ? null
+                                  : IconButton(
+                                      tooltip: 'Clear promo code',
+                                      icon: Icon(
+                                        Icons.close_rounded,
+                                        color: colors.textMuted,
+                                        size: 18,
+                                      ),
+                                      onPressed: () {
+                                        promoCtrl.clear();
+                                        setSheetState(() {});
+                                      },
+                                    ),
+                              filled: true,
+                              fillColor: colors.inputFill,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 14,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(color: colors.inputBorder),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(color: colors.inputBorder),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(
+                                  color: colors.primary,
+                                  width: 1.8,
+                                ),
+                              ),
+                            ),
+                            onChanged: (_) => setSheetState(() {}),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          height: 52,
+                          width: 52,
+                          child: OutlinedButton(
+                            onPressed: scanPromoCode,
+                            style: OutlinedButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              foregroundColor: colors.primary,
+                              side: BorderSide(color: colors.inputBorder),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.qr_code_scanner_rounded,
+                              size: 22,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      promoCtrl.text.trim().isEmpty
+                          ? 'Optional. Scan a promo QR code or enter the code from your tenant.'
+                          : 'Promo will be validated before checkout.',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: promoCtrl.text.trim().isEmpty
+                            ? colors.textSecondary
+                            : colors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'A payment prompt will be sent to the number above.',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Send button label updates live with entered amount.
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton.icon(
+                        onPressed: submit,
+                        icon: const Icon(Icons.bolt_outlined, size: 19),
+                        label: Builder(
+                          builder: (_) {
+                            final enteredAmt = double.tryParse(amountCtrl.text.trim());
+                            final hasPromo = promoCtrl.text.trim().isNotEmpty;
+                            final label = hasPromo
+                                ? 'Apply promo & send M-Pesa prompt'
+                                : enteredAmt != null && enteredAmt > 0
+                                ? 'Send KES ${enteredAmt.toStringAsFixed(0)} via M-Pesa'
+                                : 'Send prompt';
+                            return Text(
+                              label,
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            );
+                          },
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: colors.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 46,
-                    child: TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      child: Text(
-                        'Cancel',
-                        style: GoogleFonts.poppins(
-                          color: context.colors.textSecondary,
-                          fontSize: 14,
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 46,
+                      child: TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.poppins(
+                            color: colors.textSecondary,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
+                    const SizedBox(height: 8),
+                  ],
+                ),
               ),
             ),
           );
         },
       ),
     ).then((_) {
-      // Safe disposal after the sheet is fully closed.
       phoneCtrl.dispose();
       amountCtrl.dispose();
       promoCtrl.dispose();
@@ -1238,14 +1273,15 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
   void _showWaitingDialog() {
     if (_waitingDialogVisible || !mounted) return;
     _waitingDialogVisible = true;
+    final colors = context.colors;
 
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => PopScope(
+      builder: (ctx) => PopScope(
         canPop: false,
         child: Dialog(
-          backgroundColor: context.colors.surface,
+          backgroundColor: colors.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
@@ -1254,7 +1290,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircularProgressIndicator(color: context.colors.primary),
+                CircularProgressIndicator(color: colors.primary),
                 const SizedBox(height: 20),
                 Text(
                   'Waiting for M-Pesa confirmation...',
@@ -1262,7 +1298,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                   style: GoogleFonts.poppins(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: context.colors.textPrimary,
+                    color: colors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1271,7 +1307,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 12,
-                    color: context.colors.textSecondary,
+                    color: colors.textSecondary,
                   ),
                 ),
               ],
@@ -1284,10 +1320,11 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
     });
   }
 
-  void _hideWaitingDialog() {
+  Future<void> _hideWaitingDialog() async {
     if (!_waitingDialogVisible || !mounted) return;
     Navigator.of(context, rootNavigator: true).pop();
     _waitingDialogVisible = false;
+    await _waitForRouteToSettle();
   }
 
 
@@ -1302,20 +1339,20 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
     );
   }
 
-  Widget _billingRow(String label, String value) {
+  Widget _billingRow(AppColorsData colors, String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
-          style: GoogleFonts.poppins(fontSize: 12, color: context.colors.textSecondary),
+          style: GoogleFonts.poppins(fontSize: 12, color: colors.textSecondary),
         ),
         Text(
           value,
           style: GoogleFonts.poppins(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: context.colors.textPrimary,
+            color: colors.textPrimary,
           ),
         ),
       ],
