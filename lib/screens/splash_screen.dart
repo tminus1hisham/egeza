@@ -8,8 +8,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../blocs/app_bloc.dart';
 import '../core/theme/app_colors.dart';
+import 'instant_parking_page.dart';
 import 'dashboard/main_nav.dart';
-import 'onboarding/walkthrough_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -32,7 +32,7 @@ class _SplashScreenState extends State<SplashScreen> {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (_, animation, _) =>
-            isAuthenticated ? const MainNavigation() : const WalkthroughScreen(),
+            isAuthenticated ? const MainNavigation() : const InstantParkingPage(),
         transitionsBuilder: (_, animation, _, child) => FadeTransition(
           opacity: animation,
           child: child,

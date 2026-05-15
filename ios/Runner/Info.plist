@@ -39,6 +39,8 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Camera access is used to scan promo QR codes during checkout.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Your location is used to find the nearest parking locations.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

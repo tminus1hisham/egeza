@@ -16,7 +16,6 @@ import '../../widgets/country_code_selector.dart';
 import '../../widgets/primary_button.dart';
 import '../dashboard/main_nav.dart';
 import '../onboarding/create_account_screen.dart';
-import '../onboarding/plate_number_screen.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -362,39 +361,52 @@ class _SignInScreenState extends State<SignInScreen> {
     return SizedBox(
       width: width,
       height: 52,
-      child: TextField(
-        controller: _otpControllers[index],
-        focusNode: _otpFocusNodes[index],
-        textAlign: TextAlign.center,
-        keyboardType: TextInputType.number,
-        readOnly: isBusy,
-        autofillHints: index == 0 ? const [AutofillHints.oneTimeCode] : null,
-        inputFormatters: [
-          LengthLimitingTextInputFormatter(1),
-          FilteringTextInputFormatter.digitsOnly,
-        ],
-        style: GoogleFonts.poppins(
-          fontSize: 20,
-          fontWeight: FontWeight.w500,
-          color: context.colors.textPrimary,
-        ),
-        onChanged: (value) => _onOtpDigit(value, index),
-        decoration: InputDecoration(
-          filled: true,
-          fillColor: context.colors.surface,
-          counterText: '',
-          contentPadding: EdgeInsets.zero,
-          enabledBorder: _otpBorder(
-            hasError
-                ? context.colors.error
-                : filled
-                    ? context.colors.primary
-                    : context.colors.inputBorder,
-            width: (filled || hasError) ? 2 : 1,
+      child: Focus(
+        // Backspace on an empty box steps back and clears the previous digit.
+        onKeyEvent: (node, event) {
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.backspace &&
+              _otpControllers[index].text.isEmpty &&
+              index > 0) {
+            _otpControllers[index - 1].clear();
+            _otpFocusNodes[index - 1].requestFocus();
+            setState(() {});
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: TextField(
+          controller: _otpControllers[index],
+          focusNode: _otpFocusNodes[index],
+          textAlign: TextAlign.center,
+          keyboardType: TextInputType.number,
+          readOnly: isBusy,
+          autofillHints: index == 0 ? const [AutofillHints.oneTimeCode] : null,
+          // No length limit so a pasted / autofilled full code reaches onChanged.
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          style: GoogleFonts.poppins(
+            fontSize: 20,
+            fontWeight: FontWeight.w500,
+            color: context.colors.textPrimary,
           ),
-          focusedBorder: _otpBorder(
-            hasError ? context.colors.error : context.colors.primary,
-            width: 2,
+          onChanged: (value) => _onOtpDigit(value, index),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: context.colors.surface,
+            counterText: '',
+            contentPadding: EdgeInsets.zero,
+            enabledBorder: _otpBorder(
+              hasError
+                  ? context.colors.error
+                  : filled
+                      ? context.colors.primary
+                      : context.colors.inputBorder,
+              width: (filled || hasError) ? 2 : 1,
+            ),
+            focusedBorder: _otpBorder(
+              hasError ? context.colors.error : context.colors.primary,
+              width: 2,
+            ),
           ),
         ),
       ),
@@ -435,6 +447,9 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   void _onAuthStateChanged(BuildContext context, AppState state) {
+    // Capture the action before clearing it — the statusMessage handling
+    // below depends on knowing which request just completed.
+    final completedAction = _pendingAction;
     if (!state.isLoading && _pendingAction != null && mounted) {
       setState(() => _pendingAction = null);
     }
@@ -455,13 +470,11 @@ class _SignInScreenState extends State<SignInScreen> {
 
     if (!_navigatedAfterAuth && state.isAuthenticated) {
       _navigatedAfterAuth = true;
-      final destination = state.requiresVehicleSetup
-          ? const PlateNumberScreen()
-          : const MainNavigation();
-
+      // After sign-in always land on the home page — vehicle setup (and
+      // AutoPay) is handled later from the dashboard's Add Vehicle flow.
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => destination),
+        MaterialPageRoute(builder: (_) => const MainNavigation()),
         (route) => false,
       );
       return;
@@ -470,7 +483,7 @@ class _SignInScreenState extends State<SignInScreen> {
     final message = state.statusMessage;
     if (message != null && message.isNotEmpty && !state.isAuthenticated) {
       // OTP was sent successfully — now reveal the OTP card
-      if (_pendingAction == _SignInAction.requestOtp) {
+      if (completedAction == _SignInAction.requestOtp) {
         setState(() => _otpRequested = true);
       }
       ErrorHandler.showSuccess(context, message);
@@ -481,13 +494,53 @@ class _SignInScreenState extends State<SignInScreen> {
     // Clear inline error as soon as user starts typing
     if (_otpError != null) setState(() => _otpError = null);
 
-    if (value.length == 1 && index < 5) {
+    final digits = value.replaceAll(RegExp(r'\D'), '');
+
+    // A pasted or SMS-autofilled full code — spread it across every box.
+    if (digits.length >= 4) {
+      _distributeOtp(digits);
+      return;
+    }
+
+    // Typing into an already-filled box: keep only the newest digit.
+    if (digits.length > 1) {
+      final newest = digits.characters.last;
+      _otpControllers[index].text = newest;
+      _otpControllers[index].selection =
+          const TextSelection.collapsed(offset: 1);
+    }
+
+    final hasDigit = _otpControllers[index].text.isNotEmpty;
+    if (hasDigit && index < 5) {
       _otpFocusNodes[index + 1].requestFocus();
-    } else if (value.isEmpty && index > 0) {
+    } else if (!hasDigit && index > 0) {
       _otpFocusNodes[index - 1].requestFocus();
     }
 
     setState(() {});
+    _maybeAutoSubmit();
+  }
+
+  /// Spreads a multi-digit string across the 6 OTP boxes and focuses the
+  /// first empty box (or the last box once the code is complete).
+  void _distributeOtp(String raw) {
+    final digits = raw.replaceAll(RegExp(r'\D'), '');
+    for (var i = 0; i < 6; i++) {
+      _otpControllers[i].text = i < digits.length ? digits[i] : '';
+    }
+    final focusIndex = digits.length >= 6 ? 5 : digits.length;
+    _otpFocusNodes[focusIndex].requestFocus();
+    setState(() {});
+    _maybeAutoSubmit();
+  }
+
+  /// Triggers sign-in automatically once all 6 digits are present.
+  void _maybeAutoSubmit() {
+    final otp = _otpControllers.map((c) => c.text).join();
+    if (otp.length == 6 && _pendingAction == null) {
+      FocusScope.of(context).unfocus();
+      _signIn();
+    }
   }
 
   void _requestOtp() {

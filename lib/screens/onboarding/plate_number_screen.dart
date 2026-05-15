@@ -7,9 +7,8 @@ import '../../blocs/app_event.dart';
 import '../../core/error_handler.dart';
 import '../../core/theme/app_colors.dart';
 import '../../widgets/app_widgets.dart';
-import '../../widgets/plate_number_input.dart';
 import '../../widgets/primary_button.dart';
-import 'auto_toll_screen.dart';
+import '../dashboard/main_nav.dart';
 
 class PlateNumberScreen extends StatefulWidget {
   const PlateNumberScreen({super.key});
@@ -19,18 +18,15 @@ class PlateNumberScreen extends StatefulWidget {
 }
 
 class _PlateNumberScreenState extends State<PlateNumberScreen> {
+  final _plateController = TextEditingController();
   final _makeController = TextEditingController();
   final _modelController = TextEditingController();
-  String _plateNumber = '';
   String _selectedType = 'SUV / 4x4';
-
-  int get _plateCharCount {
-    // Strip spaces to count only meaningful characters
-    return _plateNumber.replaceAll(' ', '').length;
-  }
+  bool _autoPayOn = true;
 
   @override
   void dispose() {
+    _plateController.dispose();
     _makeController.dispose();
     _modelController.dispose();
     super.dispose();
@@ -38,10 +34,6 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final counterColor = _plateCharCount == 7
-        ? context.colors.success
-        : context.colors.error;
-
     return Scaffold(
       backgroundColor: context.colors.surface,
       body: SafeArea(
@@ -50,7 +42,6 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const OnboardingStepHeader(step: 2, totalSteps: 4, title: 'Add Your Car'),
               const SizedBox(height: 30),
               const Center(child: OnboardingHeroIcon(icon: LucideIcons.car, size: 96)),
               const SizedBox(height: 24),
@@ -78,32 +69,7 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
                 ),
               ),
               const SizedBox(height: 34),
-              _label('Number Plate'),
-              const SizedBox(height: 8),
-              PlateNumberInput(
-                onChanged: (value) => setState(() => _plateNumber = value),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Enter plate exactly as shown on your vehicle',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      color: context.colors.textMuted,
-                    ),
-                  ),
-                  Text(
-                    '$_plateCharCount / 7',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: _plateNumber.isEmpty ? context.colors.textMuted : counterColor,
-                    ),
-                  ),
-                ],
-              ),
+              _smallField('Number Plate', _plateController, hint: 'e.g. KBZ 123A'),
               const SizedBox(height: 24),
               _label('Vehicle Type'),
               const SizedBox(height: 8),
@@ -116,9 +82,11 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
                   Expanded(child: _smallField('Model', _modelController, hint: 'e.g. Prado')),
                 ],
               ),
+              const SizedBox(height: 24),
+              _autoPayToggle(),
               const SizedBox(height: 32),
               PrimaryButton(
-                text: 'Save Vehicle & Continue →',
+                text: 'Save Vehicle →',
                 onPressed: _saveVehicle,
               ),
             ],
@@ -184,6 +152,59 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
     );
   }
 
+  Widget _autoPayToggle() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.colors.inputFill,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: _autoPayOn ? context.colors.primary : context.colors.inputBorder,
+          width: _autoPayOn ? 1.5 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(LucideIcons.zap, color: context.colors.primary, size: 22),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'AutoPay',
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: context.colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _autoPayOn
+                      ? 'Charged automatically at exit'
+                      : 'Pay manually for each session',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12.5,
+                    color: context.colors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: _autoPayOn,
+            activeThumbColor: Colors.white,
+            activeTrackColor: context.colors.accent,
+            inactiveThumbColor: Colors.white,
+            inactiveTrackColor: context.colors.inputBorder,
+            onChanged: (value) => setState(() => _autoPayOn = value),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _label(String text) {
     return Text(
       text,
@@ -203,7 +224,7 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
   }
 
   void _saveVehicle() {
-    final plate = _plateNumber.trim().toUpperCase();
+    final plate = _plateController.text.trim().toUpperCase();
     if (plate.isEmpty) {
       ErrorHandler.showErrorMessage(context, 'Please enter your vehicle plate number.');
       return;
@@ -219,12 +240,18 @@ class _PlateNumberScreenState extends State<PlateNumberScreen> {
             model: _modelController.text.trim().isEmpty
                 ? 'Vehicle'
                 : _modelController.text.trim(),
+            autoPayEnabled: _autoPayOn,
           ),
         );
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const AutoTollScreen()),
-    );
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const MainNavigation()),
+        (route) => false,
+      );
+    }
   }
 }

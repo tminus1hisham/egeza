@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import '../core/theme/app_colors.dart';
 
 /// Logo widget used in headers
@@ -54,158 +53,6 @@ class egeshaLogo extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ONBOARDING STEP HEADER
-// ─────────────────────────────────────────────────────────────────────────────
-
-class OnboardingStepHeader extends StatelessWidget {
-  final int step;
-  final int totalSteps;
-  final String title;
-  final VoidCallback? onBack;
-  final Widget? trailing;
-
-  const OnboardingStepHeader({
-    super.key,
-    required this.step,
-    required this.totalSteps,
-    required this.title,
-    this.onBack,
-    this.trailing,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final progress = (step / totalSteps).clamp(0.0, 1.0);
-
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [AppColors.primaryDeep, Color(0xFF0B5C52), AppColors.primary],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            stops: [0.0, 0.55, 1.0],
-          ),
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primaryDark.withValues(alpha: 0.45),
-              blurRadius: 28,
-              offset: const Offset(0, 10),
-            ),
-            BoxShadow(
-              color: AppColors.accent.withValues(alpha: 0.12),
-              blurRadius: 40,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.hardEdge,
-        child: Stack(
-          children: [
-            Positioned.fill(child: CustomPaint(painter: _HeaderWavePainter())),
-            _ScatteredDots(),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 20, 18, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      _HeaderBackButton(
-                        onPressed: onBack ?? () => Navigator.pop(context),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.accent.withValues(alpha: 0.18),
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(
-                                  color: AppColors.accent.withValues(alpha: 0.42),
-                                ),
-                              ),
-                              child: Text(
-                                'Step $step of $totalSteps',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.accent,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 7),
-                            Text(
-                              title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.poppins(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                height: 1.2,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (trailing != null) ...[
-                        const SizedBox(width: 12),
-                        trailing!,
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Stack(
-                    children: [
-                      Container(
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
-                      FractionallySizedBox(
-                        alignment: Alignment.centerLeft,
-                        widthFactor: progress,
-                        child: Container(
-                          height: 5,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [AppColors.accent, AppColors.primary],
-                            ),
-                            borderRadius: BorderRadius.circular(999),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.accent.withValues(alpha: 0.50),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -494,34 +341,6 @@ class _GlassCircleBackButton extends StatelessWidget {
             ),
           ),
           child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 22),
-        ),
-      ),
-    );
-  }
-}
-
-/// Glass back button used in onboarding header
-class _HeaderBackButton extends StatelessWidget {
-  final VoidCallback onPressed;
-  const _HeaderBackButton({required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.10),
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(14),
-        splashColor: Colors.white.withValues(alpha: 0.10),
-        child: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 1.2),
-          ),
-          child: const Icon(LucideIcons.arrowLeft, size: 20, color: Colors.white),
         ),
       ),
     );

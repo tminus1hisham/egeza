@@ -39,23 +39,7 @@ class _ActivateAutoPayScreenState extends State<ActivateAutoPayScreen> {
                     padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
                     child: Column(
                       children: [
-                        OnboardingStepHeader(
-                          step: 4,
-                          totalSteps: 4,
-                          title: 'Activate AutoPay',
-                          trailing: _lastStepBadge(),
-                        ),
                         const SizedBox(height: 12),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            'Almost there!',
-                            style: GoogleFonts.poppins(
-                              fontSize: 13,
-                              color: context.colors.primary,
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -91,30 +75,7 @@ class _ActivateAutoPayScreenState extends State<ActivateAutoPayScreen> {
     );
   }
 
-  Widget _lastStepBadge() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: context.colors.successLight,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(LucideIcons.zap, size: 13, color: context.colors.success),
-          const SizedBox(width: 5),
-          Text(
-            'Last step!',
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: context.colors.success,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _vehicleCard(Vehicle? vehicle) {
     final plate = vehicle?.plateNumber ?? 'KBZ 123A';

@@ -368,16 +368,6 @@ class _SegmentedProgress extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Step $currentStep of $totalSteps',
-          style: GoogleFonts.poppins(
-            fontSize: 13,
-            height: 1.1,
-            fontWeight: FontWeight.w700,
-            color: context.colors.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 12),
         Row(
           children: List.generate(totalSteps, (index) {
             final isFilled = index < currentStep;
@@ -1048,14 +1038,6 @@ class _PaymentHeroWithProgress extends StatelessWidget {
         Positioned.fill(
           child: _PaymentPreviewBackdrop(step: step),
         ),
-        Positioned(
-          bottom: 18,
-          left: 24,
-          child: _CompactStepPill(
-            pageNumber: pageNumber,
-            totalPages: totalPages,
-          ),
-        ),
       ],
     );
   }
@@ -1235,64 +1217,6 @@ class _PaymentFloatingCard extends StatelessWidget {
               size: 17,
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CompactStepPill extends StatelessWidget {
-  final int pageNumber;
-  final int totalPages;
-
-  const _CompactStepPill({
-    required this.pageNumber,
-    required this.totalPages,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-      decoration: BoxDecoration(
-        color: context.colors.surface,
-        borderRadius: BorderRadius.circular(999),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Step $pageNumber of $totalPages',
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              height: 1,
-              fontWeight: FontWeight.w700,
-              color: context.colors.textSecondary,
-            ),
-          ),
-          const SizedBox(width: 10),
-          ...List.generate(totalPages, (index) {
-            final isActive = index == pageNumber - 1;
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 260),
-              width: isActive ? 18 : 6,
-              height: 6,
-              margin: EdgeInsets.only(left: index == 0 ? 0 : 4),
-              decoration: BoxDecoration(
-                color: isActive
-                    ? context.colors.primaryDeep
-                    : context.colors.border.withValues(alpha: 0.9),
-                borderRadius: BorderRadius.circular(999),
-              ),
-            );
-          }),
         ],
       ),
     );

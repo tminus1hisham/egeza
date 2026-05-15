@@ -48,27 +48,6 @@ class _AutoTollScreenState extends State<AutoTollScreen> {
                   padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
                   child: Column(
                     children: [
-                      OnboardingStepHeader(
-                        step: 3,
-                        totalSteps: 4,
-                        title: 'Fund Wallet',
-                        trailing: TextButton(
-                          onPressed: _skip,
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: Text(
-                            'Skip',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: context.colors.textMuted,
-                            ),
-                          ),
-                        ),
-                      ),
                       const SizedBox(height: 52),
                       const OnboardingHeroIcon(icon: LucideIcons.zap, size: 92),
                       const SizedBox(height: 24),
@@ -332,13 +311,6 @@ class _AutoTollScreenState extends State<AutoTollScreen> {
     return OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
       borderSide: BorderSide(color: color, width: width),
-    );
-  }
-
-  void _skip() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ActivateAutoPayScreen()),
     );
   }
 

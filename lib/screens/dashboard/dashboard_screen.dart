@@ -207,48 +207,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Icons.settings_outlined,
                         () => _openSettings(context),
                       ),
-                      const SizedBox(width: 8),
-                      Material(
-                        color: Colors.white.withValues(alpha: 0.13),
-                        borderRadius: BorderRadius.circular(15),
-                        child: InkWell(
-                          onTap: () {},
-                          borderRadius: BorderRadius.circular(15),
-                          child: Container(
-                            width: 42,
-                            height: 42,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(15),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.12),
-                              ),
-                            ),
-                            child: Stack(
-                              children: [
-                                const Center(
-                                  child: Icon(
-                                    Icons.notifications_outlined,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                ),
-                                Positioned(
-                                  right: 11,
-                                  top: 11,
-                                  child: Container(
-                                    width: 7,
-                                    height: 7,
-                                    decoration: BoxDecoration(
-                                      color: context.colors.accent,
-                                      borderRadius: BorderRadius.circular(999),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
+                      // const SizedBox(width: 8),
+                      // Material(
+                      //   color: Colors.white.withValues(alpha: 0.13),
+                      //   borderRadius: BorderRadius.circular(15),
+                      //   child: InkWell(
+                      //     onTap: () {},
+                      //     borderRadius: BorderRadius.circular(15),
+                      //     child: Container(
+                      //       width: 42,
+                      //       height: 42,
+                      //       decoration: BoxDecoration(
+                      //         borderRadius: BorderRadius.circular(15),
+                      //         border: Border.all(
+                      //           color: Colors.white.withValues(alpha: 0.12),
+                      //         ),
+                      //       ),
+                      //       child: Stack(
+                      //         children: [
+                      //           const Center(
+                      //             child: Icon(
+                      //               Icons.notifications_outlined,
+                      //               color: Colors.white,
+                      //               size: 20,
+                      //             ),
+                      //           ),
+                      //           Positioned(
+                      //             right: 11,
+                      //             top: 11,
+                      //             child: Container(
+                      //               width: 7,
+                      //               height: 7,
+                      //               decoration: BoxDecoration(
+                      //                 color: context.colors.accent,
+                      //                 borderRadius: BorderRadius.circular(999),
+                      //               ),
+                      //             ),
+                      //           ),
+                      //         ],
+                      //       ),
+                      //     ),
+                      //   ),
+                      // ),
                     ],
                   ),
                 ],

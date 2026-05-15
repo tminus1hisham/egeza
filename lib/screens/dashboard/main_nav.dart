@@ -8,6 +8,7 @@ import '../../core/theme/app_colors.dart';
 import '../onboarding/walkthrough_screen.dart';
 import 'dashboard_screen.dart';
 import 'history_screen.dart';
+import 'nearest_parking_screen.dart';
 import 'settings_screen.dart';
 import 'tenancy_screen.dart';
 import 'vehicles_screen.dart';
@@ -116,6 +117,19 @@ class _MainNavigationState extends State<MainNavigation> {
             index: effectiveIndex,
             children: [for (final tab in tabs) tab.screen],
           ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const NearestParkingScreen(),
+              ),
+            ),
+            backgroundColor: AppColors.primaryDark,
+            foregroundColor: Colors.white,
+            tooltip: 'Find Parking',
+            child: const Icon(Icons.location_on_rounded, size: 26),
+          ),
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           bottomNavigationBar: SafeArea(
             top: false,
             minimum: const EdgeInsets.fromLTRB(14, 0, 14, 12),

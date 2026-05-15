@@ -25,12 +25,11 @@ class PayParkingScreen extends StatefulWidget {
 }
 
 class _PayParkingScreenState extends State<PayParkingScreen> {
-  static const int _plateLength = 7;
   static const Duration _routeSettleDelay = Duration(milliseconds: 300);
 
   final _locationController = TextEditingController();
-  late final List<TextEditingController> _controllers;
-  late final List<FocusNode> _focusNodes;
+  final _plateController = TextEditingController();
+  final _plateFocus = FocusNode();
   String? _selectedLocationId;
   String? _lastShownSessionId;
   bool _waitingDialogVisible = false;
@@ -39,28 +38,20 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
   @override
   void initState() {
     super.initState();
-    _controllers = List.generate(_plateLength, (_) => TextEditingController());
-    _focusNodes = List.generate(_plateLength, (_) => FocusNode());
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focusNodes.first.requestFocus();
+      if (mounted) _plateFocus.requestFocus();
     });
   }
 
   @override
   void dispose() {
     _locationController.dispose();
-    for (final controller in _controllers) {
-      controller.dispose();
-    }
-    for (final node in _focusNodes) {
-      node.dispose();
-    }
+    _plateController.dispose();
+    _plateFocus.dispose();
     super.dispose();
   }
 
-  String get _plate => _controllers.map((c) => c.text.toUpperCase()).join();
-
-  bool _isLetter(int index) => index < 3 || index == 6;
+  String get _plate => _plateController.text.trim().toUpperCase();
 
   Future<void> _waitForRouteToSettle() async {
     await WidgetsBinding.instance.endOfFrame;
@@ -323,105 +314,31 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
   }
 
   Widget _plateCard() {
-    return Container(
-      width: double.infinity,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: context.colors.plateBg,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: context.colors.plateYellow, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: context.colors.plateYellow.withValues(alpha: 0.16),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+    return TextFormField(
+      controller: _plateController,
+      focusNode: _plateFocus,
+      textCapitalization: TextCapitalization.characters,
+      textAlign: TextAlign.center,
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]')),
+        LengthLimitingTextInputFormatter(10),
+        TextInputFormatter.withFunction(
+          (oldValue, newValue) => newValue.copyWith(
+            text: newValue.text.toUpperCase(),
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 9),
-            color: context.colors.plateYellow,
-            child: Center(
-              child: Text(
-                'K E N Y A',
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                  letterSpacing: 4,
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 19),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(_plateLength, (index) {
-                  return Row(
-                    children: [
-                      _plateBox(index),
-                      if (index == 2) const SizedBox(width: 14),
-                    ],
-                  );
-                }),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _plateBox(int index) {
-    return Container(
-      width: 40,
-      height: 52,
-      margin: const EdgeInsets.symmetric(horizontal: 3),
-      child: TextFormField(
-        controller: _controllers[index],
-        focusNode: _focusNodes[index],
-        textAlign: TextAlign.center,
-        textCapitalization: TextCapitalization.characters,
-        maxLength: 1,
-        inputFormatters: [
-          FilteringTextInputFormatter.allow(
-            _isLetter(index) ? RegExp(r'[a-zA-Z]') : RegExp(r'[0-9]'),
-          ),
-        ],
-        style: GoogleFonts.poppins(
-          fontSize: 24,
-          fontWeight: FontWeight.w800,
-          color: context.colors.textPrimary,
         ),
-        decoration: InputDecoration(
-          counterText: '',
-          filled: true,
-          fillColor: context.colors.surface,
-          contentPadding: EdgeInsets.zero,
-          border: _plateBorder(context.colors.plateYellow, 1.4),
-          enabledBorder: _plateBorder(context.colors.plateYellow, 1.4),
-          focusedBorder: _plateBorder(context.colors.primaryDark, 2.5),
-        ),
-        onChanged: (value) {
-          if (value.isNotEmpty && index < _plateLength - 1) {
-            _focusNodes[index + 1].requestFocus();
-          }
-          setState(() {});
-        },
+      ],
+      style: GoogleFonts.poppins(
+        fontSize: 20,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 3,
+        color: context.colors.textPrimary,
       ),
-    );
-  }
-
-  OutlineInputBorder _plateBorder(Color color, double width) {
-    return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: BorderSide(color: color, width: width),
+      decoration: _fieldDecoration(
+        prefixIcon: Icons.directions_car_outlined,
+        hintText: 'KAA 123A',
+      ),
+      onChanged: (_) => setState(() {}),
     );
   }
 
@@ -454,6 +371,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
           onTap: () => _lookupPlate(vehicle.plateNumber),
           borderRadius: BorderRadius.circular(18),
           child: Container(
+            width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
@@ -543,6 +461,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
 
   Widget _emptyVehicles() {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: context.colors.surface,
@@ -572,8 +491,12 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
   }
 
   void _findByTypedPlate() {
-    if (_plate.length < _plateLength) return;
-    _lookupPlate(_plate);
+    final plate = _plate.replaceAll(' ', '');
+    if (plate.length < 4) {
+      ErrorHandler.showErrorMessage(context, 'Enter a valid vehicle plate number.');
+      return;
+    }
+    _lookupPlate(plate);
   }
 
   void _lookupPlate(String plateNumber) {

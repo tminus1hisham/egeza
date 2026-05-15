@@ -165,6 +165,132 @@ class ParkingLocation {
   }
 }
 
+class PricingTier {
+  final int fromMinute;
+  final int? toMinute;
+  final String pricingType;
+  final double price;
+
+  const PricingTier({
+    required this.fromMinute,
+    this.toMinute,
+    required this.pricingType,
+    required this.price,
+  });
+
+  factory PricingTier.fromJson(Map<String, dynamic> json) {
+    return PricingTier(
+      fromMinute: jsonInt(json['fromMinute']),
+      toMinute: json['toMinute'] == null ? null : jsonInt(json['toMinute']),
+      pricingType: jsonString(json['pricingType']) ?? 'PER_HOUR',
+      price: jsonDouble(json['price']),
+    );
+  }
+
+  bool get isFlat => pricingType == 'FLAT';
+
+  String get fromLabel {
+    if (fromMinute < 60) return '${fromMinute}m';
+    final h = fromMinute ~/ 60;
+    final m = fromMinute % 60;
+    return m == 0 ? '${h}h' : '${h}h ${m}m';
+  }
+
+  String get toLabel {
+    if (toMinute == null) return '∞';
+    if (toMinute! < 60) return '${toMinute}m';
+    final h = toMinute! ~/ 60;
+    final m = toMinute! % 60;
+    return m == 0 ? '${h}h' : '${h}h ${m}m';
+  }
+}
+
+class NearestParkingLocation {
+  final String id;
+  final String name;
+  final String? address;
+  final String? displayImage;
+  final double? latitude;
+  final double? longitude;
+  final double? distanceKm;
+  final double ratePerHour;
+  final double? maxDailyCharge;
+  final int gracePeriodMinutes;
+  final int currentOccupancy;
+  final int maxCapacity;
+  final bool active;
+  final List<PricingTier> pricingTiers;
+
+  const NearestParkingLocation({
+    required this.id,
+    required this.name,
+    this.address,
+    this.displayImage,
+    this.latitude,
+    this.longitude,
+    this.distanceKm,
+    this.ratePerHour = 0,
+    this.maxDailyCharge,
+    this.gracePeriodMinutes = 0,
+    this.currentOccupancy = 0,
+    this.maxCapacity = 0,
+    this.active = true,
+    this.pricingTiers = const [],
+  });
+
+  factory NearestParkingLocation.fromJson(Map<String, dynamic> json) {
+    final rawLat = jsonDouble(json['latitude'] ?? json['lat'], double.nan);
+    final rawLng = jsonDouble(json['longitude'] ?? json['lng'] ?? json['lon'], double.nan);
+    final double? lat = rawLat.isNaN ? null : rawLat;
+    final double? lng = rawLng.isNaN ? null : rawLng;
+
+    final rawDist = jsonDouble(json['distance'] ?? json['distanceKm'] ?? json['distance_km'], double.nan);
+    final double? dist = rawDist.isNaN ? null : rawDist;
+
+    final rawDaily = jsonDouble(json['maxDailyCharge'] ?? json['max_daily_charge'], double.nan);
+    final double? maxDaily = rawDaily.isNaN || rawDaily == 0 ? null : rawDaily;
+
+    final capacity = jsonInt(json['maxCapacity'] ?? json['capacity']);
+    final occupancy = jsonInt(json['currentOccupancy'] ?? json['occupancy']);
+
+    final tiersRaw = json['pricingTiers'];
+    final tiers = tiersRaw is List
+        ? tiersRaw
+            .whereType<Map<String, dynamic>>()
+            .map(PricingTier.fromJson)
+            .where((t) => t.price > 0)
+            .toList()
+        : <PricingTier>[];
+
+    return NearestParkingLocation(
+      id: jsonString(json['id']) ?? '',
+      name: jsonString(json['name']) ?? 'Parking Location',
+      address: jsonString(json['address']),
+      displayImage: jsonString(json['displayImage'] ?? json['image'] ?? json['imageUrl']),
+      latitude: lat,
+      longitude: lng,
+      distanceKm: dist,
+      ratePerHour: jsonDouble(json['ratePerHour'] ?? json['rate_per_hour']),
+      maxDailyCharge: maxDaily,
+      gracePeriodMinutes: jsonInt(json['gracePeriodMinutes'] ?? json['grace_period_minutes']),
+      currentOccupancy: occupancy,
+      maxCapacity: capacity,
+      active: jsonBool(json['active'], true),
+      pricingTiers: tiers,
+    );
+  }
+
+  bool get hasCoordinates => latitude != null && longitude != null;
+
+  int get availableSpots => maxCapacity > 0
+      ? (maxCapacity - currentOccupancy).clamp(0, maxCapacity)
+      : 0;
+
+  double get occupancyRatio => maxCapacity > 0
+      ? (currentOccupancy / maxCapacity).clamp(0.0, 1.0)
+      : 0.0;
+}
+
 class MpesaResponse {
   final String? paymentId;
   final String? merchantRequestId;

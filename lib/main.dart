@@ -52,6 +52,8 @@ class egeshaApp extends StatelessWidget {
         ),
       ],
       child: BlocBuilder<AppBloc, AppState>(
+        buildWhen: (previous, current) =>
+            previous.themeMode != current.themeMode,
         builder: (context, state) {
           return MaterialApp(
             title: 'Park IQ',

@@ -466,6 +466,62 @@ class ParkingIqApi {
     return _dataList(response).map(ParkingLocation.fromJson).toList();
   }
 
+  Future<List<NearestParkingLocation>> fetchNearestLocations({
+    required double latitude,
+    required double longitude,
+    double radius = 10,
+    int limit = 20,
+  }) async {
+    const endpoint = '/parking/locations/nearest';
+    if (_debug) {
+      dev.log(
+        'fetchNearestLocations: GET $endpoint '
+        'lat=$latitude lng=$longitude radius=${radius}km limit=$limit',
+        name: 'ParkingIQ',
+      );
+    }
+    try {
+      final response = await _request(
+        'GET',
+        endpoint,
+        authenticated: false,
+        query: {
+          'latitude': latitude,
+          'longitude': longitude,
+          'radius': radius,
+          'limit': limit,
+        },
+      );
+      if (_debug) {
+        dev.log(
+          'fetchNearestLocations: raw response keys=${response.keys.toList()}',
+          name: 'ParkingIQ',
+        );
+      }
+      final locations = _dataList(response)
+          .map(NearestParkingLocation.fromJson)
+          .toList();
+      if (_debug) {
+        dev.log(
+          'fetchNearestLocations: loaded ${locations.length} locations: '
+          '${locations.map((l) => '${l.name} (lat=${l.latitude}, lng=${l.longitude})').join(', ')}',
+          name: 'ParkingIQ',
+        );
+      }
+      return locations;
+    } catch (error, stackTrace) {
+      if (_debug) {
+        dev.log(
+          'fetchNearestLocations: failed',
+          name: 'ParkingIQ',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
+      rethrow;
+    }
+  }
+
   Future<List<ParkingLocation>> fetchParkingLocations() async {
     const endpoint = '/parking/locations';
     if (_debug) {
