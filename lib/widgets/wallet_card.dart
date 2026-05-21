@@ -35,7 +35,7 @@ class WalletCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Park IQ Wallet',
+                'Egesha Wallet',
                 style: GoogleFonts.poppins(
                   color: context.colors.textLight.withValues(alpha: 0.8),
                   fontSize: 14,

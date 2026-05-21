@@ -56,7 +56,7 @@ class egeshaApp extends StatelessWidget {
             previous.themeMode != current.themeMode,
         builder: (context, state) {
           return MaterialApp(
-            title: 'Park IQ',
+            title: 'Egesha',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
