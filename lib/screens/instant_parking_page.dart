@@ -7,8 +7,10 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../core/api/parking_iq_api.dart';
 import '../core/theme/app_colors.dart';
+import '../models/api_models.dart';
 import '../models/parking_session.dart';
 import 'auth/sign_in_screen.dart';
+import 'dashboard/promo_qr_scanner_screen.dart';
 
 class InstantParkingPage extends StatefulWidget {
   const InstantParkingPage({super.key});
@@ -325,25 +327,19 @@ class _InstantParkingPageState extends State<InstantParkingPage> {
 
     setState(() => _loadingSessions = true);
     try {
-      var sessions = await _api.activeParkingSessionsForPlate(plate);
-      if (sessions.isEmpty) {
-        sessions = await _api.parkingSessionsForPlate(plate);
-      }
+      final session = await _api.instantPaySession(plate);
       if (!mounted) return;
 
-      final unpaid = sessions.where((s) => _amountDue(s) > 0).toList();
-      if (unpaid.isEmpty) {
-        _showMessage(
-          sessions.isEmpty
-              ? 'No parking session found for $plate.'
-              : 'No outstanding balance for $plate.',
-        );
+      if (session == null) {
+        _showMessage('No parking session found for $plate.');
+        return;
+      }
+      if (_amountDue(session) <= 0) {
+        _showMessage('No outstanding balance for $plate.');
         return;
       }
 
-      // Pay the most recent unpaid session.
-      unpaid.sort((a, b) => b.startTime.compareTo(a.startTime));
-      _showPaymentSheet(unpaid.first, plate);
+      _showPaymentSheet(session, plate);
     } on ApiException catch (e) {
       if (mounted) _showMessage(e.message);
     } catch (_) {
@@ -418,13 +414,79 @@ class _MpesaPaymentSheet extends StatefulWidget {
 
 class _MpesaPaymentSheetState extends State<_MpesaPaymentSheet> {
   final _phoneController = TextEditingController();
+  final _promoController = TextEditingController();
   bool _sending = false;
   String? _error;
+
+  bool _applyingPromo = false;
+  String? _promoError;
+  DiscountRedemption? _appliedDiscount;
+
+  /// Outstanding balance after any applied promo discount.
+  double get _effectiveAmount =>
+      _appliedDiscount?.finalAmount ?? widget.amountDue;
 
   @override
   void dispose() {
     _phoneController.dispose();
+    _promoController.dispose();
     super.dispose();
+  }
+
+  Future<void> _scanPromoCode() async {
+    final result = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const PromoQrScannerScreen()),
+    );
+    if (result == null || result.trim().isEmpty || !mounted) return;
+    _promoController.text = result.trim();
+    await _applyPromo();
+  }
+
+  Future<void> _applyPromo() async {
+    final code = _promoController.text.trim();
+    if (code.isEmpty) {
+      setState(() => _promoError = 'Enter a promo code first.');
+      return;
+    }
+
+    setState(() {
+      _applyingPromo = true;
+      _promoError = null;
+    });
+
+    try {
+      final redemption = await widget.api.applyDiscount(
+        sessionId: widget.session.id,
+        code: code,
+      );
+      if (!mounted) return;
+      setState(() {
+        _appliedDiscount = redemption;
+        _applyingPromo = false;
+      });
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _applyingPromo = false;
+          _promoError = e.message;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _applyingPromo = false;
+          _promoError = 'Could not apply this promo code. Try again.';
+        });
+      }
+    }
+  }
+
+  void _removePromo() {
+    setState(() {
+      _appliedDiscount = null;
+      _promoError = null;
+      _promoController.clear();
+    });
   }
 
   /// Normalises a Kenyan number to the 2547XXXXXXXX / 2541XXXXXXXX format.
@@ -449,18 +511,21 @@ class _MpesaPaymentSheetState extends State<_MpesaPaymentSheet> {
       return;
     }
 
+    // Apply a typed-but-not-yet-applied promo code before charging.
+    if (_appliedDiscount == null && _promoController.text.trim().isNotEmpty) {
+      await _applyPromo();
+      if (!mounted || _appliedDiscount == null) return;
+    }
+
     setState(() {
       _sending = true;
       _error = null;
     });
 
     try {
-      final response = await widget.api.startSessionStkPush(
-        phoneNumber: phone,
-        amount: widget.amountDue,
-        sessionId: widget.session.id,
+      final response = await widget.api.instantPay(
         plateNumber: widget.plate,
-        location: widget.session.locationName,
+        phoneNumber: phone,
       );
       if (!mounted) return;
       Navigator.pop(context);
@@ -527,6 +592,8 @@ class _MpesaPaymentSheetState extends State<_MpesaPaymentSheet> {
           ),
           const SizedBox(height: 16),
           _summary(colors),
+          const SizedBox(height: 16),
+          _promoSection(colors),
           const SizedBox(height: 16),
           Text(
             'M-PESA NUMBER',
@@ -599,7 +666,7 @@ class _MpesaPaymentSheetState extends State<_MpesaPaymentSheet> {
                         valueColor: AlwaysStoppedAnimation(Colors.white),
                       ),
                     )
-                  : Text('Pay KES ${widget.amountDue.toStringAsFixed(0)}'),
+                  : Text('Pay KES ${_effectiveAmount.toStringAsFixed(0)}'),
             ),
           ),
         ],
@@ -608,6 +675,7 @@ class _MpesaPaymentSheetState extends State<_MpesaPaymentSheet> {
   }
 
   Widget _summary(dynamic colors) {
+    final discount = _appliedDiscount;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -619,15 +687,198 @@ class _MpesaPaymentSheetState extends State<_MpesaPaymentSheet> {
           _summaryRow(colors, 'Plate', widget.plate),
           const SizedBox(height: 8),
           _summaryRow(colors, 'Location', widget.session.locationName),
+          if (discount != null) ...[
+            const SizedBox(height: 8),
+            _summaryRow(
+              colors,
+              'Subtotal',
+              'KES ${widget.amountDue.toStringAsFixed(0)}',
+            ),
+            const SizedBox(height: 8),
+            _summaryRow(
+              colors,
+              'Promo discount',
+              '- KES ${discount.discountAmount.toStringAsFixed(0)}',
+            ),
+          ],
           const Divider(height: 22),
           _summaryRow(
             colors,
             'Amount due',
-            'KES ${widget.amountDue.toStringAsFixed(0)}',
+            'KES ${_effectiveAmount.toStringAsFixed(0)}',
             emphasise: true,
           ),
         ],
       ),
+    );
+  }
+
+  Widget _promoSection(dynamic colors) {
+    final discount = _appliedDiscount;
+    if (discount != null) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppColors.primary.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.local_offer_rounded,
+                size: 16, color: colors.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Promo applied',
+                    style: GoogleFonts.poppins(
+                      color: colors.textPrimary,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    discount.tenantName.isEmpty
+                        ? 'You saved KES ${discount.discountAmount.toStringAsFixed(0)}'
+                        : '${discount.tenantName} · saved KES ${discount.discountAmount.toStringAsFixed(0)}',
+                    style: GoogleFonts.poppins(
+                      color: colors.textSecondary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: _sending ? null : _removePromo,
+              style: TextButton.styleFrom(
+                foregroundColor: colors.textSecondary,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                'Remove',
+                style: GoogleFonts.poppins(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'PROMO CODE',
+          style: GoogleFonts.poppins(
+            color: colors.textSecondary,
+            fontSize: 10.5,
+            letterSpacing: 0.8,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _promoController,
+                enabled: !_sending && !_applyingPromo,
+                textCapitalization: TextCapitalization.characters,
+                onSubmitted: (_) => _applyPromo(),
+                style: GoogleFonts.poppins(
+                  color: colors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Enter promo code',
+                  hintStyle: GoogleFonts.poppins(
+                    color: colors.textSecondary.withValues(alpha: 0.6),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  prefixIcon: Icon(Icons.confirmation_number_outlined,
+                      size: 19, color: colors.textSecondary),
+                  isDense: true,
+                  filled: true,
+                  fillColor: colors.textPrimary.withValues(alpha: 0.04),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  errorText: _promoError,
+                  errorStyle: GoogleFonts.poppins(fontSize: 11),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              height: 50,
+              width: 50,
+              child: OutlinedButton(
+                onPressed: _sending || _applyingPromo ? null : _scanPromoCode,
+                style: OutlinedButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  foregroundColor: colors.primary,
+                  side: BorderSide(
+                    color: colors.textPrimary.withValues(alpha: 0.12),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Icon(Icons.qr_code_scanner_rounded, size: 21),
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _sending || _applyingPromo ? null : _applyPromo,
+                style: ElevatedButton.styleFrom(
+                  elevation: 0,
+                  backgroundColor: colors.primary,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor:
+                      colors.primary.withValues(alpha: 0.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  textStyle: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                child: _applyingPromo
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          valueColor: AlwaysStoppedAnimation(Colors.white),
+                        ),
+                      )
+                    : const Text('Apply'),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 

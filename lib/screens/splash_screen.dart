@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../blocs/app_bloc.dart';
+import '../core/in_app_update_service.dart';
 import '../core/theme/app_colors.dart';
 import 'instant_parking_page.dart';
 import 'dashboard/main_nav.dart';
@@ -22,6 +23,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
+    InAppUpdateService.checkForUpdate();
     Future.delayed(const Duration(milliseconds: 2800), _navigate);
   }
 
@@ -31,12 +33,11 @@ class _SplashScreenState extends State<SplashScreen> {
     final isAuthenticated = bloc.state.isAuthenticated;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (_, animation, _) =>
-            isAuthenticated ? const MainNavigation() : const InstantParkingPage(),
-        transitionsBuilder: (_, animation, _, child) => FadeTransition(
-          opacity: animation,
-          child: child,
-        ),
+        pageBuilder: (_, animation, _) => isAuthenticated
+            ? const MainNavigation()
+            : const InstantParkingPage(),
+        transitionsBuilder: (_, animation, _, child) =>
+            FadeTransition(opacity: animation, child: child),
         transitionDuration: const Duration(milliseconds: 600),
       ),
     );
@@ -57,7 +58,11 @@ class _SplashScreenState extends State<SplashScreen> {
             72,
             150,
           );
-          final sceneTop = _clamp(size.height * 0.49, 330, math.max(330, size.height * 0.56));
+          final sceneTop = _clamp(
+            size.height * 0.49,
+            330,
+            math.max(330, size.height * 0.56),
+          );
           final sceneHeight = _clamp(size.height * 0.32, 224, 320);
 
           return Stack(
@@ -77,18 +82,19 @@ class _SplashScreenState extends State<SplashScreen> {
                 top: sceneTop,
                 left: 0,
                 right: 0,
-                child: SizedBox(
-                  height: sceneHeight,
-                  child: _ParkingScene(isDark: isDark),
-                )
-                    .animate(delay: 650.ms)
-                    .fadeIn(duration: 700.ms, curve: Curves.easeOut)
-                    .slideY(
-                      begin: 0.08,
-                      end: 0,
-                      duration: 700.ms,
-                      curve: Curves.easeOutCubic,
-                    ),
+                child:
+                    SizedBox(
+                          height: sceneHeight,
+                          child: _ParkingScene(isDark: isDark),
+                        )
+                        .animate(delay: 650.ms)
+                        .fadeIn(duration: 700.ms, curve: Curves.easeOut)
+                        .slideY(
+                          begin: 0.08,
+                          end: 0,
+                          duration: 700.ms,
+                          curve: Curves.easeOutCubic,
+                        ),
               ),
             ],
           );
@@ -123,9 +129,7 @@ class _SplashBackground extends StatelessWidget {
                   Color(0xFFF6FCFA),
                   Color(0xFFFFFFFF),
                 ],
-          stops: isDark
-              ? const [0, 0.36, 0.7, 1]
-              : const [0, 0.45, 0.72, 1],
+          stops: isDark ? const [0, 0.36, 0.7, 1] : const [0, 0.45, 0.72, 1],
         ),
       ),
       child: CustomPaint(
@@ -267,61 +271,59 @@ class _LogoMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: size * 1.7,
-      height: size * 1.7,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          for (final ring in const [1.7, 1.42, 1.18])
-            Container(
-              width: size * ring,
-              height: size * ring,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(size * 0.34 * ring),
-                border: Border.all(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.018)
-                      : const Color(0xFF5BE0C1).withValues(alpha: 0.055),
-                  width: 1,
+          width: size * 1.7,
+          height: size * 1.7,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              for (final ring in const [1.7, 1.42, 1.18])
+                Container(
+                  width: size * ring,
+                  height: size * ring,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(size * 0.34 * ring),
+                    border: Border.all(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.018)
+                          : const Color(0xFF5BE0C1).withValues(alpha: 0.055),
+                      width: 1,
+                    ),
+                    color: isDark
+                        ? const Color(0xFF12B394).withValues(alpha: 0.018)
+                        : const Color(0xFF33D0A8).withValues(alpha: 0.03),
+                  ),
                 ),
-                color: isDark
-                    ? const Color(0xFF12B394).withValues(alpha: 0.018)
-                    : const Color(0xFF33D0A8).withValues(alpha: 0.03),
+              Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(size * 0.26),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark
+                          ? Colors.black.withValues(alpha: 0.38)
+                          : const Color(0xFF8ADCCB).withValues(alpha: 0.38),
+                      blurRadius: 36,
+                      spreadRadius: 2,
+                      offset: const Offset(0, 18),
+                    ),
+                    BoxShadow(
+                      color: const Color(
+                        0xFF31D8A4,
+                      ).withValues(alpha: isDark ? 0.2 : 0.22),
+                      blurRadius: 52,
+                      spreadRadius: 10,
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(size * 0.26),
+                  child: Image.asset('assets/icon2.png', fit: BoxFit.cover),
+                ),
               ),
-            ),
-          Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(size * 0.26),
-              boxShadow: [
-                BoxShadow(
-                  color: isDark
-                      ? Colors.black.withValues(alpha: 0.38)
-                      : const Color(0xFF8ADCCB).withValues(alpha: 0.38),
-                  blurRadius: 36,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 18),
-                ),
-                BoxShadow(
-                  color: const Color(0xFF31D8A4)
-                      .withValues(alpha: isDark ? 0.2 : 0.22),
-                  blurRadius: 52,
-                  spreadRadius: 10,
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(size * 0.26),
-              child: Image.asset(
-                'assets/icon.png',
-                fit: BoxFit.cover,
-              ),
-            ),
+            ],
           ),
-        ],
-      ),
-    )
+        )
         .animate()
         .fadeIn(duration: 650.ms, curve: Curves.easeOut)
         .scale(
@@ -342,36 +344,36 @@ class _AppName extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return RichText(
-      text: TextSpan(
-        style: GoogleFonts.poppins(
-          fontSize: fontSize,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0,
-          height: 1,
-          shadows: isDark
-              ? [
-                  Shadow(
-                    color: Colors.black.withValues(alpha: 0.45),
-                    offset: const Offset(0, 6),
-                    blurRadius: 18,
-                  ),
-                ]
-              : null,
-        ),
-        children: [
-          const TextSpan(
-            text: 'E',
-            style: TextStyle(color: Color(0xFF32D79A)),
-          ),
-          TextSpan(
-            text: 'gesha',
-            style: TextStyle(
-              color: isDark ? Colors.white : const Color(0xFF1D2B34),
+          text: TextSpan(
+            style: GoogleFonts.poppins(
+              fontSize: fontSize,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0,
+              height: 1,
+              shadows: isDark
+                  ? [
+                      Shadow(
+                        color: Colors.black.withValues(alpha: 0.45),
+                        offset: const Offset(0, 6),
+                        blurRadius: 18,
+                      ),
+                    ]
+                  : null,
             ),
+            children: [
+              const TextSpan(
+                text: 'E',
+                style: TextStyle(color: Color(0xFF32D79A)),
+              ),
+              TextSpan(
+                text: 'gesha',
+                style: TextStyle(
+                  color: isDark ? Colors.white : const Color(0xFF1D2B34),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    )
+        )
         .animate(delay: 260.ms)
         .fadeIn(duration: 520.ms)
         .slideY(begin: 0.2, end: 0, duration: 520.ms, curve: Curves.easeOut);
@@ -386,17 +388,17 @@ class _Tagline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
-      'Smart Parking, Simplified',
-      textAlign: TextAlign.center,
-      style: GoogleFonts.poppins(
-        fontSize: 17,
-        fontWeight: FontWeight.w400,
-        letterSpacing: 0,
-        color: isDark
-            ? Colors.white.withValues(alpha: 0.68)
-            : const Color(0xFF74818A),
-      ),
-    )
+          'Smart Parking, Simplified',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.poppins(
+            fontSize: 17,
+            fontWeight: FontWeight.w400,
+            letterSpacing: 0,
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.68)
+                : const Color(0xFF74818A),
+          ),
+        )
         .animate(delay: 420.ms)
         .fadeIn(duration: 500.ms)
         .slideY(begin: 0.2, end: 0, duration: 500.ms, curve: Curves.easeOut);
@@ -411,37 +413,37 @@ class _LoadingMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 78,
-      height: 4,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Container(
-            height: 2,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(4),
-              color: isDark
-                  ? const Color(0xFF47D1B2).withValues(alpha: 0.26)
-                  : const Color(0xFFB6F0E2),
-            ),
-          ),
-          Container(
-            width: 36,
-            height: 3,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(4),
-              color: const Color(0xFF2EE68F),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF2EE68F).withValues(alpha: 0.4),
-                  blurRadius: 10,
+          width: 78,
+          height: 4,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                height: 2,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  color: isDark
+                      ? const Color(0xFF47D1B2).withValues(alpha: 0.26)
+                      : const Color(0xFFB6F0E2),
                 ),
-              ],
-            ),
+              ),
+              Container(
+                width: 36,
+                height: 3,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  color: const Color(0xFF2EE68F),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF2EE68F).withValues(alpha: 0.4),
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    )
+        )
         .animate(delay: 620.ms)
         .fadeIn(duration: 450.ms)
         .scaleX(begin: 0, end: 1, duration: 520.ms, curve: Curves.easeOutCubic);
@@ -547,12 +549,18 @@ class _ParkingScenePainter extends CustomPainter {
         Offset(0, size.height * 0.64),
         [
           Colors.transparent,
-          (isDark ? const Color(0xFF062C28) : Colors.white)
-              .withValues(alpha: isDark ? 0.16 : 0.74),
+          (isDark ? const Color(0xFF062C28) : Colors.white).withValues(
+            alpha: isDark ? 0.16 : 0.74,
+          ),
         ],
       );
     canvas.drawRect(
-      Rect.fromLTWH(0, baseY - size.height * 0.08, size.width, size.height * 0.24),
+      Rect.fromLTWH(
+        0,
+        baseY - size.height * 0.08,
+        size.width,
+        size.height * 0.24,
+      ),
       haze,
     );
   }
@@ -614,9 +622,7 @@ class _ParkingScenePainter extends CustomPainter {
       ..strokeWidth = 3.4
       ..strokeJoin = StrokeJoin.round
       ..strokeCap = StrokeCap.round
-      ..color = isDark
-          ? const Color(0xFF32D8B0)
-          : const Color(0xFF66E3C7);
+      ..color = isDark ? const Color(0xFF32D8B0) : const Color(0xFF66E3C7);
 
     final path = Path()
       ..moveTo(topLeft.dx, topLeft.dy)
@@ -966,7 +972,10 @@ class _ParkingScenePainter extends CustomPainter {
         Offset(0, rect.bottom),
         const [Color(0xFF0B1618), Color(0xFF010606)],
       );
-    for (final x in [rect.left + carWidth * 0.18, rect.left + carWidth * 0.72]) {
+    for (final x in [
+      rect.left + carWidth * 0.18,
+      rect.left + carWidth * 0.72,
+    ]) {
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromLTWH(

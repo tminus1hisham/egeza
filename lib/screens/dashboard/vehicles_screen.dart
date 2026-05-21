@@ -27,6 +27,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   final _plateController = TextEditingController();
   final _makeController = TextEditingController();
   final _modelController = TextEditingController();
+  bool _sheetAutoPayOn = true;
   static const _filters = ['All', 'AutoPay', 'Manual'];
 
   @override
@@ -744,13 +745,15 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     _plateController.clear();
     _makeController.clear();
     _modelController.clear();
+    _sheetAutoPayOn = true;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) {
-        return Padding(
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) => Padding(
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
           ),
@@ -812,6 +815,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 14),
+                  _sheetAutoPayTile(setSheetState),
                   const SizedBox(height: 18),
                   SizedBox(
                     width: double.infinity,
@@ -840,8 +845,64 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
               ),
             ),
           ),
+          ),
         );
       },
+    );
+  }
+
+  Widget _sheetAutoPayTile(StateSetter setSheetState) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: context.colors.inputFill,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: _sheetAutoPayOn
+              ? context.colors.primary
+              : context.colors.inputBorder,
+          width: _sheetAutoPayOn ? 1.6 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.bolt_rounded, color: context.colors.primary, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'AutoPay',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: context.colors.textPrimary,
+                  ),
+                ),
+                Text(
+                  _sheetAutoPayOn
+                      ? 'Charged automatically at exit'
+                      : 'Pay manually for each session',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: context.colors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: _sheetAutoPayOn,
+            activeThumbColor: Colors.white,
+            activeTrackColor: context.colors.accent,
+            inactiveThumbColor: Colors.white,
+            inactiveTrackColor: context.colors.inputBorder,
+            onChanged: (value) =>
+                setSheetState(() => _sheetAutoPayOn = value),
+          ),
+        ],
+      ),
     );
   }
 
@@ -896,6 +957,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
             type: 'Saloon',
             make: make.isEmpty ? 'Custom' : make,
             model: model.isEmpty ? 'Vehicle' : model,
+            autoPayEnabled: _sheetAutoPayOn,
           ),
         );
 

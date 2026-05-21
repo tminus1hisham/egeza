@@ -27,10 +27,8 @@ class PayParkingScreen extends StatefulWidget {
 class _PayParkingScreenState extends State<PayParkingScreen> {
   static const Duration _routeSettleDelay = Duration(milliseconds: 300);
 
-  final _locationController = TextEditingController();
   final _plateController = TextEditingController();
   final _plateFocus = FocusNode();
-  String? _selectedLocationId;
   String? _lastShownSessionId;
   bool _waitingDialogVisible = false;
   bool _wasWaitingForPayment = false;
@@ -45,7 +43,6 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
 
   @override
   void dispose() {
-    _locationController.dispose();
     _plateController.dispose();
     _plateFocus.dispose();
     super.dispose();
@@ -129,10 +126,6 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _sectionLabel('Parking Location'),
-                          const SizedBox(height: 12),
-                          _locationField(state),
-                          const SizedBox(height: 20),
                           _sectionLabel('Vehicle Plate Number'),
                           const SizedBox(height: 12),
                           _plateCard(),
@@ -215,67 +208,6 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
         fontWeight: FontWeight.w700,
         color: compact ? context.colors.textSecondary : context.colors.textPrimary,
         letterSpacing: compact ? 0.8 : 0,
-      ),
-    );
-  }
-
-  Widget _locationField(AppState state) {
-    final locations = state.locations;
-    if (locations.isNotEmpty) {
-      final selectedValue = locations.any((item) => item.name == _locationController.text)
-          ? _locationController.text
-          : null;
-
-      return DropdownButtonFormField<String>(
-        initialValue: selectedValue,
-        isExpanded: true,
-        hint: Text(
-          'Select parking location',
-          style: GoogleFonts.poppins(
-            fontSize: 14,
-            color: context.colors.textMuted,
-          ),
-        ),
-        decoration: _fieldDecoration(
-          prefixIcon: Icons.location_on_outlined,
-        ),
-        items: [
-          for (final location in locations)
-            DropdownMenuItem<String>(
-              value: location.name,
-              child: Text(
-                location.name,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: context.colors.textPrimary,
-                ),
-              ),
-            ),
-        ],
-        onChanged: (value) {
-          if (value == null) return;
-          final selected = locations.firstWhere((item) => item.name == value);
-          setState(() {
-            _locationController.text = selected.name;
-            _selectedLocationId = selected.id.isEmpty ? null : selected.id;
-          });
-        },
-      );
-    }
-
-    return TextFormField(
-      controller: _locationController,
-      textCapitalization: TextCapitalization.words,
-      style: GoogleFonts.poppins(
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-        color: context.colors.textPrimary,
-      ),
-      decoration: _fieldDecoration(
-        prefixIcon: Icons.location_on_outlined,
-        hintText: 'CBD Parking Zone A',
       ),
     );
   }
@@ -500,19 +432,11 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
   }
 
   void _lookupPlate(String plateNumber) {
-    final location = _locationController.text.trim();
-    if (location.isEmpty) {
-      ErrorHandler.showErrorMessage(context, 'Please select or enter the parking location.');
-      return;
-    }
-
     _lastShownSessionId = null;
     context.read<AppBloc>().add(ClearParkingSelection());
     context.read<AppBloc>().add(
           FindParkingSession(
             plateNumber.replaceAll(' ', '').toUpperCase(),
-            location: location,
-            locationId: _selectedLocationId,
           ),
         );
   }
@@ -678,9 +602,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
     );
     final plateNumber =
         session.vehicle.plateNumber.isEmpty ? _plate : session.vehicle.plateNumber;
-    final location = session.locationName == 'Parking Location'
-        ? _locationController.text.trim()
-        : session.locationName;
+    final location = session.locationName;
 
     final phoneCtrl = TextEditingController(text: initialPhone);
     final amountCtrl = TextEditingController(

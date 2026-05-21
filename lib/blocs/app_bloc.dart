@@ -218,13 +218,17 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     _log('LoadDashboardData: hasToken=${_api.hasToken}');
 
     if (!_api.hasToken) {
-      _log('LoadDashboardData: no token, using mock data');
+      // Reaching the dashboard without an auth token is an auth fault, never a
+      // normal state. Don't render mock data — clear any stale token and route
+      // the user to sign in via the session-expired guard.
+      _log('LoadDashboardData: no auth token — routing to sign-in');
+      _api.setToken(null);
+      await UserPrefs.clearToken();
       emit(
         state.copyWith(
-          vehicles: state.vehicles.isEmpty ? _mockVehicles : state.vehicles,
-          recentSessions:
-              state.recentSessions.isEmpty ? _mockSessions : state.recentSessions,
           isLoading: false,
+          sessionExpired: true,
+          clearAuthToken: true,
         ),
       );
       return;
@@ -558,10 +562,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
       ),
     );
 
-    _log(
-      'FindParkingSession: plate=${event.plateNumber} '
-      'location=${event.location} locationId=${event.locationId}',
-    );
+    _log('FindParkingSession: plate=${event.plateNumber}');
 
     try {
       if (!_api.hasToken) {
@@ -569,22 +570,27 @@ class AppBloc extends Bloc<AppEvent, AppState> {
       }
 
       PaymentValidation.validatePlateNumber(event.plateNumber);
-      PaymentValidation.validateLocation(event.location);
 
-      // Use /parking/initiate to find an EXISTING active session for payment.
-      // /parking/entry creates a new session (camera/QR entry) and must not be
-      // used here — it could ghost-create a duplicate session for the plate.
-      final session = await _api.findActiveParkingSession(
-        plateNumber: event.plateNumber.trim().toUpperCase(),
-        location: event.location.trim(),
-        locationId: event.locationId,
+      // Look up an EXISTING active session by plate alone via the public
+      // /parking/sessions/by-plate/active endpoint. No location is required —
+      // the backend resolves the session (and its location) from the plate.
+      final sessions = await _api.activeParkingSessionsForPlate(
+        event.plateNumber.trim().toUpperCase(),
       );
       _logSuccess(
-        'FindParkingSession/findActiveParkingSession',
-        'sessionId=${session.id} status=${session.status} isActive=${session.isActive}',
+        'FindParkingSession/activeParkingSessionsForPlate',
+        'count=${sessions.length}',
       );
 
-      if (!session.isActive) {
+      ParkingSession? session;
+      for (final candidate in sessions) {
+        if (candidate.isActive) {
+          session = candidate;
+          break;
+        }
+      }
+
+      if (session == null || !session.isActive) {
         emit(
           state.copyWith(
             isLoading: false,
@@ -594,23 +600,26 @@ class AppBloc extends Bloc<AppEvent, AppState> {
         return;
       }
 
-      final calculated = session.id.isEmpty
-          ? session
-          : await _api.calculateParkingSession(session.id).catchError((e, st) {
+      final activeSession = session;
+      final calculated = activeSession.id.isEmpty
+          ? activeSession
+          : await _api
+              .calculateParkingSession(activeSession.id)
+              .catchError((e, st) {
               _logError('FindParkingSession/calculateParkingSession', e, st);
-              return session;
+              return activeSession;
             });
-      if (session.id.isNotEmpty) {
+      if (activeSession.id.isNotEmpty) {
         _logSuccess('FindParkingSession/calculateParkingSession', 'cost=${calculated.cost} duration=${calculated.durationMinutes}min');
       }
 
-      // Merge billing data from calculate with lifecycle data from initiate.
-      // The calculate endpoint (ParkingDetailsDto) doesn't carry reliable
-      // status/isActive — always preserve them from the initiate response.
+      // Merge billing data from calculate with lifecycle data from the
+      // by-plate lookup. The calculate endpoint (ParkingDetailsDto) doesn't
+      // carry reliable status/isActive — always preserve them from the lookup.
       final merged = calculated.copyWith(
-        status: session.status,
-        isActive: session.isActive,
-        endTime: session.endTime,
+        status: activeSession.status,
+        isActive: activeSession.isActive,
+        endTime: activeSession.endTime,
       );
 
       emit(
@@ -1248,63 +1257,4 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     );
   }
 
-  List<Vehicle> get _mockVehicles => const [
-        Vehicle(
-          plateNumber: 'KBZ 123A',
-          type: 'SUV / 4x4',
-          make: 'Toyota',
-          model: 'Prado',
-          autoPayEnabled: true,
-        ),
-        Vehicle(
-          plateNumber: 'KBC 456B',
-          type: 'SUV',
-          make: 'Honda',
-          model: 'CR-V',
-        ),
-      ];
-
-  List<ParkingSession> get _mockSessions {
-    final vehicle1 = _mockVehicles[0];
-    final vehicle2 = _mockVehicles[1];
-
-    return [
-      ParkingSession(
-        id: '1',
-        locationName: 'Garden City Mall',
-        startTime: DateTime.now().subtract(
-          const Duration(hours: 1, minutes: 43),
-        ),
-        endTime: DateTime.now().subtract(const Duration(minutes: 2)),
-        cost: 180,
-        vehicle: vehicle1,
-        isActive: false,
-        status: 'COMPLETED',
-      ),
-      ParkingSession(
-        id: '2',
-        locationName: 'Two Rivers Mall',
-        startTime: DateTime.now().subtract(
-          const Duration(days: 1, hours: 2, minutes: 35),
-        ),
-        endTime: DateTime.now().subtract(const Duration(days: 1)),
-        cost: 290,
-        vehicle: vehicle2,
-        isActive: false,
-        status: 'COMPLETED',
-      ),
-      ParkingSession(
-        id: '3',
-        locationName: 'Westgate Shopping Centre',
-        startTime: DateTime.now().subtract(
-          const Duration(days: 2, hours: 1, minutes: 30),
-        ),
-        endTime: DateTime.now().subtract(const Duration(days: 2)),
-        cost: 150,
-        vehicle: vehicle1,
-        isActive: false,
-        status: 'COMPLETED',
-      ),
-    ];
-  }
 }

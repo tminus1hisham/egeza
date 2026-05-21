@@ -298,6 +298,67 @@ class ParkingIqApi {
     return _dataList(response).map(ParkingSession.fromJson).toList();
   }
 
+  /// Instant Pay: looks up the active parking session for [plateNumber] via the
+  /// public `/parking/instant-pay/session` endpoint. Returns `null` when there
+  /// is no active session for the plate.
+  Future<ParkingSession?> instantPaySession(String plateNumber) async {
+    final response = await _request(
+      'GET',
+      '/parking/instant-pay/session',
+      authenticated: false,
+      query: {'plateNumber': plateNumber},
+    );
+    final data = _dataMap(response);
+    if (data == null || data.isEmpty) return null;
+
+    // The DTO exposes `amountPayable` as the net outstanding balance; surface it
+    // as the session cost so the screen's `cost - amountPaid` reflects it.
+    final amountPaid = jsonDouble(data['amountPaid']);
+    final amountPayable = jsonDouble(data['amountPayable']);
+    return ParkingSession.fromJson({
+      ...data,
+      'amountDue': amountPayable + amountPaid,
+    });
+  }
+
+  /// Instant Pay: pays the active parking session for [plateNumber] via the
+  /// public `/parking/instant-pay/pay` endpoint using an M-Pesa STK push.
+  Future<MpesaResponse> instantPay({
+    required String plateNumber,
+    required String phoneNumber,
+    String paymentMethod = 'MPESA',
+  }) async {
+    final response = await _request(
+      'POST',
+      '/parking/instant-pay/pay',
+      authenticated: false,
+      body: {
+        'plateNumber': plateNumber,
+        'phoneNumber': phoneNumber,
+        'paymentMethod': paymentMethod,
+      },
+    );
+    final payload = _requiredObjectPayload(response);
+    final result = MpesaResponse.fromJson(payload);
+    // The endpoint may carry the human-readable status as the API-level
+    // `message` rather than `customerMessage` on the payload.
+    if (result.customerMessage == null) {
+      final message = _messageFrom(response);
+      if (message != null && message.isNotEmpty) {
+        return MpesaResponse(
+          paymentId: result.paymentId,
+          merchantRequestId: result.merchantRequestId,
+          checkoutRequestId: result.checkoutRequestId,
+          responseCode: result.responseCode,
+          responseDescription: result.responseDescription,
+          customerMessage: message,
+          status: result.status,
+        );
+      }
+    }
+    return result;
+  }
+
   Future<ParkingSession> findActiveParkingSession({
     required String plateNumber,
     String? location,
