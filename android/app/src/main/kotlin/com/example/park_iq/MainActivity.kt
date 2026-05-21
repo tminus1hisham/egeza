@@ -1,4 +1,4 @@
-package com.example.egesha
+package com.mobile.egesha
 
 import io.flutter.embedding.android.FlutterActivity
 
