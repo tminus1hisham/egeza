@@ -240,9 +240,10 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
           _emptyVehicles(noVehiclesAtAll: noVehiclesAtAll)
         else
           ...vehicles.map((vehicle) {
+            final plateKey = Vehicle.plateKey(vehicle.plateNumber);
             final vehicleSessions = sessions
                 .where((session) =>
-                    session.vehicle.plateNumber == vehicle.plateNumber)
+                    Vehicle.plateKey(session.vehicle.plateNumber) == plateKey)
                 .toList();
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),

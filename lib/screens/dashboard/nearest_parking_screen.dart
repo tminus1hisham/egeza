@@ -577,14 +577,17 @@ class _NearestParkingScreenState extends State<NearestParkingScreen> {
                                   ),
                                 ),
                               ),
-                              Text(
-                                'Rate (KES)',
-                                textAlign: TextAlign.right,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: context.colors.textMuted,
-                                  letterSpacing: 0.3,
+                              SizedBox(
+                                width: 62,
+                                child: Text(
+                                  'Rate (KES)',
+                                  textAlign: TextAlign.right,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: context.colors.textMuted,
+                                    letterSpacing: 0.3,
+                                  ),
                                 ),
                               ),
                             ],
@@ -635,35 +638,42 @@ class _NearestParkingScreenState extends State<NearestParkingScreen> {
                                     ),
                                     Expanded(
                                       flex: 2,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 7,
-                                          vertical: 3,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: t.isFlat
-                                              ? AppColors.infoLight
-                                              : context.colors.accentLight,
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: Text(
-                                          t.isFlat ? 'Flat fee' : 'Per hour',
-                                          style: GoogleFonts.poppins(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700,
+                                      child: Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 7,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
                                             color: t.isFlat
-                                                ? AppColors.info
-                                                : context.colors.primary,
+                                                ? AppColors.infoLight
+                                                : context.colors.accentLight,
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            t.isFlat ? 'Flat fee' : 'Per hour',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w700,
+                                              color: t.isFlat
+                                                  ? AppColors.info
+                                                  : context.colors.primary,
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
-                                    Text(
-                                      _fmt(t.price),
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w800,
-                                        color: context.colors.textPrimary,
+                                    SizedBox(
+                                      width: 62,
+                                      child: Text(
+                                        _fmt(t.price),
+                                        textAlign: TextAlign.right,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w800,
+                                          color: context.colors.textPrimary,
+                                        ),
                                       ),
                                     ),
                                   ],

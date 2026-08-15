@@ -450,142 +450,151 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
 
     showModalBottomSheet(
       context: context,
+      // Sizes to the content (and scrolls past it) instead of being capped at
+      // 9/16 of the screen, which clipped the Cancel button.
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (ctx) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(ctx).size.height * 0.9,
+        ),
         decoration: BoxDecoration(
           color: colors.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colors.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: colors.accentLight,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.local_parking_rounded,
-                  color: colors.primary,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                'Session Found',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: colors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                displayPlate,
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: colors.primary,
-                  letterSpacing: 1.5,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${session.locationName} - ${_durationLabel(session)} - KES ${session.cost.toStringAsFixed(0)}',
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  color: colors.textSecondary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: colors.background,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: colors.border),
-                ),
-                child: Column(
-                  children: [
-                    _billingRow(colors, 'Entry time', _formatDateTime(session.startTime)),
-                    const SizedBox(height: 8),
-                    _billingRow(colors, 'Grace period', '${session.gracePeriodMinutes} min free'),
-                    const SizedBox(height: 8),
-                    _billingRow(colors, 'Rate', 'KES ${session.ratePerHour}/hr'),
-                    const SizedBox(height: 8),
-                    _billingRow(colors, 'Billable hours', '${session.billableHours} billable hour(s)'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 28),
-              if (session.cost == 0)
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  width: 56,
+                  height: 56,
                   decoration: BoxDecoration(
                     color: colors.accentLight,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: colors.mintBorder),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.local_parking_rounded,
+                    color: colors.primary,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Session Found',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  displayPlate,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: colors.primary,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${session.locationName} - ${_durationLabel(session)} - KES ${session.cost.toStringAsFixed(0)}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: colors.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: colors.background,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: colors.border),
                   ),
                   child: Column(
                     children: [
-                      Icon(Icons.check_circle_outline_rounded, color: colors.primary, size: 26),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Free Parking',
-                        style: GoogleFonts.poppins(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: colors.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'No payment required for this session',
-                        style: GoogleFonts.poppins(fontSize: 12, color: colors.textSecondary),
-                      ),
+                      _billingRow(colors, 'Entry time', _formatDateTime(session.startTime)),
+                      const SizedBox(height: 8),
+                      _billingRow(colors, 'Grace period', '${session.gracePeriodMinutes} min free'),
+                      const SizedBox(height: 8),
+                      _billingRow(colors, 'Rate', 'KES ${session.ratePerHour}/hr'),
+                      const SizedBox(height: 8),
+                      _billingRow(colors, 'Billable hours', '${session.billableHours} billable hour(s)'),
                     ],
                   ),
-                )
-              else
-                PrimaryButton(
-                  text: 'Pay KES ${session.cost.toStringAsFixed(0)}',
-                  onPressed: () {
-                    Navigator.of(ctx).pop();
-                    unawaited(Future<void>(() async {
-                      await _waitForRouteToSettle();
-                      if (!mounted) return;
-                      _showStkConfirmation(session);
-                    }));
-                  },
                 ),
-              const SizedBox(height: 10),
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: Text(
-                  'Cancel',
-                  style: GoogleFonts.poppins(color: colors.textSecondary),
+                const SizedBox(height: 28),
+                if (session.cost == 0)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: colors.accentLight,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: colors.mintBorder),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(Icons.check_circle_outline_rounded, color: colors.primary, size: 26),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Free Parking',
+                          style: GoogleFonts.poppins(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: colors.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'No payment required for this session',
+                          style: GoogleFonts.poppins(fontSize: 12, color: colors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  PrimaryButton(
+                    text: 'Pay KES ${session.cost.toStringAsFixed(0)}',
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      unawaited(Future<void>(() async {
+                        await _waitForRouteToSettle();
+                        if (!mounted) return;
+                        _showStkConfirmation(session);
+                      }));
+                    },
+                  ),
+                const SizedBox(height: 10),
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.poppins(color: colors.textSecondary),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-            ],
+              ],
+            ),
           ),
         ),
       ),

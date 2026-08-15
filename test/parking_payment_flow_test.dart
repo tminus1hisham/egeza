@@ -847,6 +847,43 @@ void main() {
 
       await bloc.close();
     });
+
+    test('ongoing session found only by plate still reaches the dashboard',
+        () async {
+      final api = _PlateOnlySessionFakeApi();
+      final bloc = AppBloc(api: api, initialAuthToken: 'token');
+
+      bloc.add(LoadDashboardData());
+
+      await expectLater(
+        bloc.stream,
+        emitsThrough(
+          isA<AppState>()
+              .having((s) => s.recentSessions.length, 'sessions', 1)
+              .having(
+                (s) => s.recentSessions.first.isActive,
+                'still parked',
+                isTrue,
+              )
+              .having(
+                (s) => s.recentSessions.first.cost,
+                'amount due',
+                405,
+              )
+              // Hydrated against the registered vehicle despite the spacing.
+              .having(
+                (s) => s.recentSessions.first.vehicle.model,
+                'vehicle model',
+                'Vitz',
+              ),
+        ),
+      );
+
+      // Queried in the canonical form the gates write, not the spaced one.
+      expect(api.requestedPlates, ['KBR656Z']);
+
+      await bloc.close();
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -1420,6 +1457,12 @@ class _TenantDashboardFakeApi extends ParkingIqApi {
       ];
 
   @override
+  Future<List<ParkingSession>> parkingSessionsForPlate(
+    String plateNumber,
+  ) async =>
+      const [];
+
+  @override
   Future<List<TenancyRequest>> fetchTenancyRequests() async => const [
         TenancyRequest(
           id: 'request-1',
@@ -1433,6 +1476,77 @@ class _TenantDashboardFakeApi extends ParkingIqApi {
           status: 'APPROVED',
         ),
       ];
+}
+
+/// Fake API where the ANPR session exists only on the by-plate endpoint — the
+/// account-scoped recent/active lists never link it to the user.
+class _PlateOnlySessionFakeApi extends ParkingIqApi {
+  _PlateOnlySessionFakeApi() : super(debug: false);
+
+  final List<String> requestedPlates = [];
+
+  @override
+  bool get hasToken => true;
+
+  @override
+  Future<UserProfile> me() async => const UserProfile(
+        id: 'user-1',
+        phoneNumber: '254711111111',
+        fullName: 'Jane Driver',
+      );
+
+  @override
+  Future<double> walletBalance() async => 0;
+
+  @override
+  Future<List<Vehicle>> listVehicles() async => const [
+        Vehicle(
+          id: 'vehicle-1',
+          // Registered with spaces; the gates write 'KBR656Z'.
+          plateNumber: 'KBR 656 Z',
+          type: 'Saloon',
+          make: 'Toyota',
+          model: 'Vitz',
+        ),
+      ];
+
+  @override
+  Future<List<WalletTransaction>> walletTransactions() async => const [];
+
+  @override
+  Future<List<ParkingLocation>> fetchParkingLocations() async => const [];
+
+  @override
+  Future<List<ParkingSession>> recentParkingSessions() async => const [];
+
+  @override
+  Future<List<ParkingSession>> activeParkingSessions() async => const [];
+
+  @override
+  Future<List<ParkingSession>> parkingSessionsForPlate(
+    String plateNumber,
+  ) async {
+    requestedPlates.add(plateNumber);
+    return [
+      ParkingSession.fromJson({
+        'sessionId': 'session-anpr',
+        'plateNumber': 'KBR656Z',
+        'location': 'Sarit',
+        'entryTime': '2026-08-12T11:06:04.532395',
+        'exitTime': null,
+        'durationMinutes': 3159,
+        'amountDue': 405.00,
+        'amountPaid': null,
+        'status': 'ACTIVE',
+      }),
+    ];
+  }
+
+  @override
+  Future<List<TenantProfile>> fetchMyTenantProfiles() async => const [];
+
+  @override
+  Future<List<TenancyRequest>> fetchTenancyRequests() async => const [];
 }
 
 /// Fake API where every status poll returns a fixed terminal status immediately.

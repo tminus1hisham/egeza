@@ -282,6 +282,15 @@ class AppBloc extends Bloc<AppEvent, AppState> {
         trackUnauthorized(e, st, 'activeParkingSessions');
         return null;
       });
+      // Chained off the vehicles call because it needs the registered plates.
+      final plateSessionsFuture = vehiclesFuture.then<Object?>((result) {
+        return _sessionsForRegisteredPlates(
+          result is List<Vehicle> ? result : state.vehicles,
+        );
+      }).catchError((Object e, StackTrace st) {
+        _logError('LoadDashboardData/plateSessions', e, st);
+        return null;
+      });
 
       final coreResults = await Future.wait([
         profileFuture,
@@ -290,6 +299,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
         locationsFuture,
         recentSessionsFuture,
         activeSessionsFuture,
+        plateSessionsFuture,
       ]);
 
       if (unauthorized) {
@@ -313,9 +323,13 @@ class AppBloc extends Bloc<AppEvent, AppState> {
       final activeSessions = coreResults[5] is List<ParkingSession>
           ? coreResults[5] as List<ParkingSession>
           : null;
+      final plateSessions = coreResults[6] is List<ParkingSession>
+          ? coreResults[6] as List<ParkingSession>
+          : null;
       final sessions = _mergeFetchedSessions(
         recentSessions: recentSessions,
         activeSessions: activeSessions,
+        plateSessions: plateSessions,
         vehicles: vehicles ?? state.vehicles,
       );
 
@@ -324,7 +338,8 @@ class AppBloc extends Bloc<AppEvent, AppState> {
         'profile=${profile?.fullName} balance=$balance '
         'vehicles=${vehicles?.length} '
         'locations=${locations?.length} recent=${recentSessions?.length} '
-        'active=${activeSessions?.length}',
+        'active=${activeSessions?.length} byPlate=${plateSessions?.length} '
+        'merged=${sessions?.length}',
       );
       emit(
         state.copyWith(
@@ -420,13 +435,17 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     Emitter<AppState> emit,
   ) async {
     emit(state.copyWith(isLoading: true, clearMessages: true));
-    _log('AddVehicle: plate=${event.plateNumber} type=${event.type} make=${event.make} model=${event.model} autoPay=${event.autoPayEnabled}');
+    // Register the plate in the same canonical form the gate cameras write
+    // ('KBR 656 Z' -> 'KBR656Z'). The backend links sessions to a user by the
+    // stored plate string, so a spaced plate here never matches ANPR sessions.
+    final plateNumber = Vehicle.plateKey(event.plateNumber);
+    _log('AddVehicle: plate=$plateNumber type=${event.type} make=${event.make} model=${event.model} autoPay=${event.autoPayEnabled}');
 
     try {
       Vehicle vehicle;
       if (_api.hasToken) {
         vehicle = await _api.addVehicle(
-          plateNumber: event.plateNumber,
+          plateNumber: plateNumber,
           vehicleType: event.type,
           make: event.make,
           model: event.model,
@@ -442,7 +461,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
       } else {
         _log('AddVehicle: no token, creating local vehicle');
         vehicle = Vehicle(
-          plateNumber: event.plateNumber,
+          plateNumber: plateNumber,
           type: event.type,
           make: event.make,
           model: event.model,
@@ -575,7 +594,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
       // /parking/sessions/by-plate/active endpoint. No location is required —
       // the backend resolves the session (and its location) from the plate.
       final sessions = await _api.activeParkingSessionsForPlate(
-        event.plateNumber.trim().toUpperCase(),
+        _plateKey(event.plateNumber),
       );
       _logSuccess(
         'FindParkingSession/activeParkingSessionsForPlate',
@@ -1124,12 +1143,46 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     );
   }
 
+  /// Sessions fetched per registered plate from the open by-plate endpoint.
+  ///
+  /// The auth-scoped lists (`/parking/sessions/recent` and `/active`) only
+  /// return sessions the backend has linked to this account. ANPR creates
+  /// sessions keyed by plate alone, so an ongoing session can be missing from
+  /// those lists while `/parking/sessions/by-plate` still has it. Query by
+  /// plate as well and let the merge dedupe on session id.
+  Future<List<ParkingSession>> _sessionsForRegisteredPlates(
+    List<Vehicle> vehicles,
+  ) async {
+    // Query the canonical form the gates write, not the user's spacing.
+    final plates = <String>{
+      for (final vehicle in vehicles) _plateKey(vehicle.plateNumber),
+    }..remove('');
+    if (plates.isEmpty) return const [];
+
+    final results = await Future.wait(
+      plates.map(
+        (plate) => _api.parkingSessionsForPlate(plate).catchError(
+          (Object e, StackTrace st) {
+            _logError('LoadDashboardData/plateSessions[$plate]', e, st);
+            return const <ParkingSession>[];
+          },
+        ),
+      ),
+    );
+    return [for (final sessions in results) ...sessions];
+  }
+
   List<ParkingSession>? _mergeFetchedSessions({
     required List<ParkingSession>? recentSessions,
     required List<ParkingSession>? activeSessions,
+    required List<ParkingSession>? plateSessions,
     required List<Vehicle> vehicles,
   }) {
-    if (recentSessions == null && activeSessions == null) return null;
+    if (recentSessions == null &&
+        activeSessions == null &&
+        (plateSessions == null || plateSessions.isEmpty)) {
+      return null;
+    }
 
     final candidates = <ParkingSession>[
       if (recentSessions != null)
@@ -1142,6 +1195,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
         // Active-sessions API failed — preserve state's active sessions so a
         // partial API failure doesn't silently clear them.
         ...state.recentSessions.where((session) => session.isActive),
+      ...?plateSessions,
     ];
 
     return _mergeParkingSessions(candidates, vehicles: vehicles);
@@ -1199,9 +1253,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     return session.copyWith(vehicle: vehicle);
   }
 
-  String _plateKey(String plateNumber) {
-    return plateNumber.replaceAll(RegExp(r'\s+'), '').toUpperCase();
-  }
+  String _plateKey(String plateNumber) => Vehicle.plateKey(plateNumber);
 
   bool _isUnauthorized(Object error) =>
       error is ApiException && error.statusCode == 403;

@@ -192,15 +192,18 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.errorContainer,
+                color: context.colors.errorLight,
                 borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: context.colors.error.withValues(alpha: 0.3),
+                ),
               ),
               child: Row(
                 children: [
                   Icon(
                     Icons.close_rounded,
                     size: 16,
-                    color: Theme.of(context).colorScheme.error,
+                    color: context.colors.error,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -208,7 +211,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                       _otpError!,
                       style: GoogleFonts.poppins(
                         fontSize: 12,
-                        color: Theme.of(context).colorScheme.error,
+                        color: context.colors.error,
                       ),
                     ),
                   ),

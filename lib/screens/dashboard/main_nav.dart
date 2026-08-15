@@ -196,7 +196,11 @@ class _MainNavigationState extends State<MainNavigation> {
                     height: 30,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: isActive ? context.colors.accentLight : Colors.transparent,
+                      // Fade out via the pill's own hue at zero alpha — plain
+                      // Colors.transparent is transparent *black*, so the lerp
+                      // would darken into a grey smudge mid-animation.
+                      color: context.colors.accentLight
+                          .withValues(alpha: isActive ? 1 : 0),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Icon(

@@ -23,6 +23,7 @@ class ApiException implements Exception {
 }
 
 class ParkingIqApi {
+  // static const defaultBaseUrl = 'https://api.egesha.net/api/v1';
   static const defaultBaseUrl = 'https://parking-api.transfa.org/api/v1';
 
   final http.Client _client;
@@ -865,7 +866,51 @@ class ParkingIqApi {
       );
     }
 
-    if (decoded is Map<String, dynamic>) return decoded;
+    // A 2xx that isn't JSON means we're not talking to the API at all — most
+    // often a base URL pointing at a web host whose SPA fallback serves
+    // index.html for every path. Fail here rather than letting each caller
+    // report its own confusing "payload was missing X".
+    if (decoded is String) {
+      if (_debug) {
+        dev.log(
+          '✗ ${response.statusCode} $path — non-JSON body '
+          '(content-type: ${response.headers['content-type']})',
+          name: 'ParkingIQ',
+        );
+      }
+      throw ApiException(
+        'Server returned a non-JSON response. Check the API base URL '
+        '($_baseUri).',
+        statusCode: response.statusCode,
+        details: decoded,
+      );
+    }
+
+    if (decoded is Map<String, dynamic>) {
+      // The API wraps everything in {status, data, message} and reports some
+      // failures as 200 + status:"error" — surface those as errors too.
+      final status = jsonString(decoded['status'])?.toLowerCase();
+      final isEnvelope =
+          decoded.containsKey('data') || decoded.containsKey('message');
+      if (isEnvelope && (status == 'error' || status == 'fail')) {
+        final message = jsonString(decoded['message']) ??
+            jsonString(_dataMap(decoded)?['error']) ??
+            'Request failed';
+        if (_debug) {
+          dev.log(
+            '✗ ${response.statusCode} $path — status=$status — $message',
+            name: 'ParkingIQ',
+            error: decoded,
+          );
+        }
+        throw ApiException(
+          message,
+          statusCode: response.statusCode,
+          details: decoded,
+        );
+      }
+      return decoded;
+    }
     return {'data': decoded};
   }
 

@@ -25,6 +25,7 @@ class AppColors {
   static const Color success = Color(0xFF27AE60);
   static const Color successLight = Color(0xFFE8F8EF);
   static const Color error = Color(0xFFE74C3C);
+  static const Color errorLight = Color(0xFFFDECEA);
   static const Color warning = Color(0xFFF59E0B);
   static const Color info = Color(0xFF2563EB);
   static const Color infoLight = Color(0xFFEAF1FF);
@@ -71,6 +72,7 @@ class AppColorsData {
   final Color success;
   final Color successLight;
   final Color error;
+  final Color errorLight;
   final Color warning;
   final Color info;
   final Color infoLight;
@@ -102,6 +104,7 @@ class AppColorsData {
     required this.success,
     required this.successLight,
     required this.error,
+    required this.errorLight,
     required this.warning,
     required this.info,
     required this.infoLight,
@@ -138,6 +141,7 @@ extension AppColorsExtension on BuildContext {
       success: AppColors.success,
       successLight: isDark ? const Color(0xFF0F2B1B) : AppColors.successLight,
       error: AppColors.error,
+      errorLight: isDark ? const Color(0xFF3A1714) : AppColors.errorLight,
       warning: AppColors.warning,
       info: AppColors.info,
       infoLight: isDark ? const Color(0xFF10244A) : AppColors.infoLight,

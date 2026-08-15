@@ -51,11 +51,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
         child: BlocBuilder<AppBloc, AppState>(
           builder: (context, state) {
             final transactions = _filteredTransactions(state.walletTransactions);
-            final completedSessions = _filteredSessions(
-              state.recentSessions
-                  .where((s) => !s.isActive)
-                  .toList()
-                ..sort((a, b) => b.startTime.compareTo(a.startTime)),
+            // Ongoing sessions belong here too — they're the record of a car
+            // that's parked right now. Pinned above the finished ones.
+            final parkingSessions = _filteredSessions(
+              state.recentSessions.toList()
+                ..sort((a, b) {
+                  if (a.isActive != b.isActive) return a.isActive ? -1 : 1;
+                  return b.startTime.compareTo(a.startTime);
+                }),
             );
 
             return Column(
@@ -73,7 +76,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         children: [
                           _overviewCard(state.walletTransactions),
                           const SizedBox(height: 18),
-                          _sessionsList(completedSessions),
+                          _sessionsList(parkingSessions),
                           const SizedBox(height: 18),
                           _filterBar(),
                           const SizedBox(height: 18),
@@ -349,7 +352,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ? Padding(
                   padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
                   child: Text(
-                    'No completed sessions yet',
+                    'No parking sessions yet',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
                       color: context.colors.textSecondary,
@@ -377,6 +380,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Widget _sessionRow(ParkingSession session) {
     final amount = session.amountPaid > 0 ? session.amountPaid : session.cost;
+    // An ongoing session's amount is a running total, not money already gone,
+    // so it doesn't get the debit minus.
+    final amountLabel = amount <= 0
+        ? 'Free'
+        : session.isActive
+            ? 'KES ${_formatAmount(amount)}'
+            : '- KES ${_formatAmount(amount)}';
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Row(
@@ -429,7 +439,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                amount > 0 ? '- KES ${_formatAmount(amount)}' : 'Free',
+                amountLabel,
                 style: GoogleFonts.poppins(
                   color: context.colors.textPrimary,
                   fontSize: 14,
@@ -629,6 +639,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     switch (status.toUpperCase()) {
       case 'COMPLETED':
         return _statusChip('Paid', false);
+      case 'ACTIVE':
+      case 'PAID_ACTIVE':
+      case 'IN_PROGRESS':
+      case 'OPEN':
+        return _statusChip('Ongoing', true);
+      case 'EXIT_PENDING_PAYMENT':
+        return _statusChip('Pending', true);
       case 'CANCELLED':
       case 'CANCELED':
         return _statusChip('Cancelled', false, isError: true);

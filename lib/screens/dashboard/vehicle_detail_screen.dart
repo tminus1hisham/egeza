@@ -40,8 +40,9 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
         backgroundColor: context.colors.pageGrey,
         body: BlocBuilder<AppBloc, AppState>(
           builder: (context, state) {
+            final plateKey = Vehicle.plateKey(widget.vehicle.plateNumber);
             final sessions = state.recentSessions
-                .where((s) => s.vehicle.plateNumber == widget.vehicle.plateNumber)
+                .where((s) => Vehicle.plateKey(s.vehicle.plateNumber) == plateKey)
                 .toList();
             final activeSession = sessions
                 .where((s) => s.isActive)
@@ -51,7 +52,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
 
             return CustomScrollView(
               slivers: [
-                _heroSliver(context, pastSessions),
+                _heroSliver(context, sessions, pastSessions),
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
                   sliver: SliverList(
@@ -62,7 +63,11 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                         _activeParkingCard(activeSession),
                       ],
                       const SizedBox(height: 24),
-                      _sessionsSection(pastSessions),
+                      // Every session for this plate, ongoing ones included —
+                      // a car still parked has a record worth seeing even
+                      // though it has nothing completed yet. Already ordered
+                      // active-first, newest-first by the bloc's merge.
+                      _sessionsSection(sessions),
                       const SizedBox(height: 24),
                       _dangerZone(context),
                     ]),
@@ -76,7 +81,13 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
     );
   }
 
-  Widget _heroSliver(BuildContext context, List<ParkingSession> pastSessions) {
+  Widget _heroSliver(
+    BuildContext context,
+    List<ParkingSession> sessions,
+    List<ParkingSession> pastSessions,
+  ) {
+    // Only settled sessions count as money spent — an ongoing one is a
+    // running total, not a charge.
     final totalSpent = pastSessions.fold<double>(0, (sum, s) => sum + s.cost);
     return SliverToBoxAdapter(
       child: Container(
@@ -239,7 +250,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                   children: [
                     Expanded(
                       child: _statChip(
-                        '${pastSessions.length}',
+                        '${sessions.length}',
                         'Sessions',
                         Icons.local_parking_rounded,
                       ),
@@ -778,31 +789,41 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                 ),
               ),
               const SizedBox(height: 5),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFECFDF5),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.check_circle_rounded,
-                        color: Color(0xFF26C766), size: 11),
-                    const SizedBox(width: 3),
-                    Text(
-                      'Paid',
-                      style: GoogleFonts.poppins(
-                        color: const Color(0xFF15964B),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _statusPill(session),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusPill(ParkingSession session) {
+    final ongoing = session.isActive;
+    final foreground =
+        ongoing ? const Color(0xFFB26A00) : const Color(0xFF15964B);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: ongoing ? const Color(0xFFFFF6E6) : const Color(0xFFECFDF5),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            ongoing ? Icons.timelapse_rounded : Icons.check_circle_rounded,
+            color: ongoing ? const Color(0xFFF0A500) : const Color(0xFF26C766),
+            size: 11,
+          ),
+          const SizedBox(width: 3),
+          Text(
+            ongoing ? 'Ongoing' : 'Paid',
+            style: GoogleFonts.poppins(
+              color: foreground,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),

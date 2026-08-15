@@ -20,6 +20,10 @@ class AppTheme {
         tertiary: AppColors.info,
         surface: AppColors.surface,
         error: AppColors.error,
+        // Without this, ColorScheme falls back errorContainer -> error, which
+        // renders error text/icons invisibly on a solid red block.
+        errorContainer: AppColors.errorLight,
+        onErrorContainer: AppColors.error,
         onPrimary: AppColors.textLight,
         onSecondary: AppColors.textLight,
         onSurface: AppColors.textPrimary,
@@ -170,6 +174,8 @@ class AppTheme {
         tertiary: AppColors.info,
         surface: AppColors.darkSurface,
         error: AppColors.error,
+        errorContainer: Color(0xFF3A1714),
+        onErrorContainer: AppColors.error,
         onPrimary: AppColors.textDarkPrimary,
         onSecondary: AppColors.textDarkPrimary,
         onSurface: AppColors.textDarkPrimary,

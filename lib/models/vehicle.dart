@@ -57,6 +57,12 @@ class Vehicle {
 
   String get apiVehicleType => vehicleTypeCode(type);
 
+  /// Canonical form used to compare plates coming from different sources
+  /// (registered vehicles, ANPR sessions, manual entry). Case- and
+  /// punctuation-insensitive: 'kda-123a', 'KDA 123A' and 'KDA123A' all match.
+  static String plateKey(String plateNumber) =>
+      plateNumber.replaceAll(RegExp(r'[^A-Za-z0-9]+'), '').toUpperCase();
+
   static String vehicleTypeCode(String value) {
     final normalized = value.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]+'), '_');
 
