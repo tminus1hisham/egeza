@@ -613,10 +613,35 @@ void main() {
       );
     });
 
-    test('prevents payment when session is not active', () {
+    test('allows payment for an exit the driver never paid for', () {
+      // The gate leaves an unpaid exit inactive but still owing. Treating
+      // "not active" as "already paid" is what made the app refuse to collect
+      // on these — and label them Paid on the dashboard.
       expect(
         () => PaymentValidation.validateSessionCanBePaid(
-          _session(status: 'ACTIVE', isActive: false),
+          _session(status: 'EXIT_PENDING_PAYMENT', isActive: false),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('prevents payment once the fee has been collected', () {
+      expect(
+        () => PaymentValidation.validateSessionCanBePaid(
+          _session(
+            status: 'EXIT_PENDING_PAYMENT',
+            isActive: false,
+            amountPaid: 5,
+          ),
+        ),
+        throwsA(isA<PaymentValidationException>()),
+      );
+    });
+
+    test('prevents payment for a cancelled session', () {
+      expect(
+        () => PaymentValidation.validateSessionCanBePaid(
+          _session(status: 'CANCELLED', isActive: false),
         ),
         throwsA(isA<PaymentValidationException>()),
       );
@@ -1392,12 +1417,17 @@ TenantProfile _tenantProfile({
   );
 }
 
-ParkingSession _session({String status = 'ACTIVE', bool isActive = true}) {
+ParkingSession _session({
+  String status = 'ACTIVE',
+  bool isActive = true,
+  double amountPaid = 0,
+}) {
   return ParkingSession(
     id: 'session-1',
     locationName: 'CBD Parking Zone A',
     startTime: DateTime(2026, 5, 1, 8),
     cost: 5,
+    amountPaid: amountPaid,
     status: status,
     vehicle: const Vehicle(
       plateNumber: 'KBC 123A',

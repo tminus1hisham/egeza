@@ -1,16 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../../blocs/app_bloc.dart';
 import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/parking_session.dart';
 import '../../models/vehicle.dart';
+import '../../widgets/app_widgets.dart';
 
+/// One registered plate: what it is, whether it is parked right now, how it is
+/// configured, and where it has been.
+///
+/// The order is deliberate. A live session is time-sensitive and costs money,
+/// so it sits directly under the hero; AutoPay is a setting a driver touches
+/// twice a year, so it drops into a settings group below it.
+///
+/// Every colour on this screen resolves through `context.colors`. The screen
+/// used to carry five private constants and its own gradient, which is why it
+/// was the only page in the dashboard that did not survive dark mode.
 class VehicleDetailScreen extends StatefulWidget {
   final Vehicle vehicle;
+
   const VehicleDetailScreen({super.key, required this.vehicle});
 
   @override
@@ -18,550 +30,274 @@ class VehicleDetailScreen extends StatefulWidget {
 }
 
 class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
-  late bool _autoPayOn;
+  /// History is capped until the driver asks for the rest.
+  static const _historyPreviewCount = 5;
 
-  static const _ink = Color(0xFF172133);
-  static const _muted = Color(0xFF9AA4B4);
-  static const _line = Color(0xFFE2E6EC);
-  static const _teal = Color(0xFF0E6B5C);
-  static const _tealLight = Color(0xFF168D7C);
+  bool _showAllHistory = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _autoPayOn = widget.vehicle.autoPayEnabled;
-  }
+  /// The AutoPay value the driver asked for, held only until the bloc confirms
+  /// it. The switch renders this while in flight so it never sits mid-way, and
+  /// the listener below drops it — reverting the switch — if the call fails.
+  /// Nothing else on the screen keeps a local copy of server state.
+  bool? _pendingAutoPay;
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+    return AdaptiveStatusBar(
       child: Scaffold(
         backgroundColor: context.colors.pageGrey,
-        body: BlocBuilder<AppBloc, AppState>(
-          builder: (context, state) {
-            final plateKey = Vehicle.plateKey(widget.vehicle.plateNumber);
-            final sessions = state.recentSessions
-                .where((s) => Vehicle.plateKey(s.vehicle.plateNumber) == plateKey)
-                .toList();
-            final activeSession = sessions
-                .where((s) => s.isActive)
-                .cast<ParkingSession?>()
-                .firstOrNull;
-            final pastSessions = sessions.where((s) => !s.isActive).toList();
-
-            return CustomScrollView(
-              slivers: [
-                _heroSliver(context, sessions, pastSessions),
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      _autoPayCard(),
-                      if (activeSession != null) ...[
-                        const SizedBox(height: 16),
-                        _activeParkingCard(activeSession),
-                      ],
-                      const SizedBox(height: 24),
-                      // Every session for this plate, ongoing ones included —
-                      // a car still parked has a record worth seeing even
-                      // though it has nothing completed yet. Already ordered
-                      // active-first, newest-first by the bloc's merge.
-                      _sessionsSection(sessions),
-                      const SizedBox(height: 24),
-                      _dangerZone(context),
-                    ]),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _heroSliver(
-    BuildContext context,
-    List<ParkingSession> sessions,
-    List<ParkingSession> pastSessions,
-  ) {
-    // Only settled sessions count as money spent — an ongoing one is a
-    // running total, not a charge.
-    final totalSpent = pastSessions.fold<double>(0, (sum, s) => sum + s.cost);
-    return SliverToBoxAdapter(
-      child: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF0A4F44), Color(0xFF168D7C)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.only(
-            bottomLeft: Radius.circular(32),
-            bottomRight: Radius.circular(32),
-          ),
-        ),
-        child: SafeArea(
+        body: SafeArea(
           bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          child: BlocConsumer<AppBloc, AppState>(
+            listenWhen: (previous, current) =>
+                previous.vehicles != current.vehicles ||
+                previous.errorMessage != current.errorMessage,
+            listener: _onStateChanged,
+            builder: (context, state) {
+              final vehicle = _resolveVehicle(state);
+              final sessions = _sessionsFor(state, vehicle);
+              // Anything still owing gets the card, whether the car is inside
+              // or already gone — an exited-unpaid session needs the Pay now
+              // button more than a running one does.
+              final active = sessions.where((s) => !s.isSettled).firstOrNull;
+
+              // Settled sessions only. The hero's count and total are drawn
+              // from this one list so the two numbers always reconcile — a
+              // running session is money in progress, not money spent, and it
+              // has its own card above.
+              final settled = sessions.where((s) => s.isSettled).toList();
+
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 22, 20, 34),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Material(
-                      color: Colors.white.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(14),
-                      child: InkWell(
-                        onTap: () => Navigator.pop(context),
-                        borderRadius: BorderRadius.circular(14),
-                        child: Container(
-                          width: 42,
-                          height: 42,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.12),
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.arrow_back_rounded,
-                            color: Colors.white,
-                            size: 22,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Vehicle Details',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.poppins(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            'Plate, AutoPay, and recent sessions',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.poppins(
-                              color: Colors.white.withValues(alpha: 0.66),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    _hero(vehicle, sessions, settled),
+                    if (active != null) ...[
+                      const SizedBox(height: 18),
+                      _liveSession(active, vehicle),
+                    ],
+                    const SizedBox(height: 22),
+                    _setupGroup(vehicle),
+                    const SizedBox(height: 22),
+                    _history(settled),
+                    const SizedBox(height: 22),
+                    _removeButton(vehicle),
                   ],
                 ),
-                const SizedBox(height: 28),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.directions_car_filled_rounded,
-                        color: Colors.white,
-                        size: 34,
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${widget.vehicle.make} ${widget.vehicle.model}',
-                            style: GoogleFonts.poppins(
-                              color: Colors.white.withValues(alpha: 0.72),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 7),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.15),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: Text(
-                              widget.vehicle.plateNumber,
-                              style: GoogleFonts.poppins(
-                                color: const Color(0xFF172133),
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 2.8,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              widget.vehicle.type,
-                              style: GoogleFonts.poppins(
-                                color: Colors.white.withValues(alpha: 0.85),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 28),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _statChip(
-                        '${sessions.length}',
-                        'Sessions',
-                        Icons.local_parking_rounded,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _statChip(
-                        'KES ${totalSpent.toStringAsFixed(0)}',
-                        'Total Spent',
-                        Icons.payments_outlined,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _statChip(
-                        _autoPayOn ? 'ON' : 'OFF',
-                        'AutoPay',
-                        Icons.bolt_rounded,
-                        highlight: _autoPayOn,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ),
     );
   }
 
-  Widget _statChip(
-    String value,
-    String label,
-    IconData icon, {
-    bool highlight = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: highlight ? 0.25 : 0.12),
-        borderRadius: BorderRadius.circular(16),
-        border: highlight
-            ? Border.all(
-                color: Colors.white.withValues(alpha: 0.4), width: 1.5)
-            : null,
+  // ───────────────────────────────────────────────────────────────────────────
+  // HERO
+  // ───────────────────────────────────────────────────────────────────────────
+
+  Widget _hero(
+    Vehicle vehicle,
+    List<ParkingSession> sessions,
+    List<ParkingSession> settled,
+  ) {
+    final spent = settled.fold<double>(0, (sum, s) => sum + s.cost);
+    final autoPayOn = _pendingAutoPay ?? vehicle.autoPayEnabled;
+
+    return PageHero(
+      // The eyebrow names the page on every other screen. Here the car does —
+      // the plate is what a driver recognises, so it takes the value line.
+      eyebrow: _describe(vehicle),
+      value: vehicle.plateNumber,
+      valueLetterSpacing: 2.2,
+      valueLeading: Container(
+        width: 6,
+        height: 30,
+        decoration: BoxDecoration(
+          color: context.colors.plateYellow,
+          borderRadius: BorderRadius.circular(3),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: Colors.white.withValues(alpha: 0.8), size: 17),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: GoogleFonts.poppins(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          Text(
-            label,
-            style: GoogleFonts.poppins(
-              color: Colors.white.withValues(alpha: 0.62),
-              fontSize: 11,
-            ),
-          ),
-        ],
+      onBack: () => Navigator.pop(context),
+      pill: PageHeroPill(
+        icon: autoPayOn ? Icons.bolt_rounded : Icons.account_balance_wallet_outlined,
+        label: autoPayOn ? 'AutoPay on' : 'Manual pay',
       ),
+      metrics: [
+        PageHeroMetric('Sessions', '${settled.length}'),
+        PageHeroMetric('Spent', 'KES ${_money(spent)}'),
+        PageHeroMetric('Last seen', _lastSeenLabel(sessions)),
+      ],
     );
   }
 
-  Widget _autoPayCard() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: context.colors.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: _autoPayOn
-                  ? _teal.withValues(alpha: 0.1)
-                  : const Color(0xFFF1F3F6),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(
-              Icons.bolt_rounded,
-              color: _autoPayOn ? _teal : _muted,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'AutoPay',
-                  style: GoogleFonts.poppins(
-                    color: context.colors.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  _autoPayOn
-                      ? 'Exits processed automatically'
-                      : 'Deducts automatically at exit',
-                  style: GoogleFonts.poppins(
-                    color: _autoPayOn ? _teal : context.colors.textSecondary,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Transform.scale(
-            scale: 0.85,
-            child: Switch(
-              value: _autoPayOn,
-              activeTrackColor: _teal,
-              activeThumbColor: Colors.white,
-              inactiveTrackColor: const Color(0xFFE3E7ED),
-              inactiveThumbColor: Colors.white,
-              trackOutlineColor:
-                  const WidgetStatePropertyAll(Colors.transparent),
-              onChanged: (value) {
-                setState(() => _autoPayOn = value);
-                context.read<AppBloc>().add(
-                      SetVehicleAutoPay(
-                        vehicleId: widget.vehicle.id,
-                        plateNumber: widget.vehicle.plateNumber,
-                        enabled: value,
-                      ),
-                    );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // ───────────────────────────────────────────────────────────────────────────
+  // LIVE SESSION
+  // ───────────────────────────────────────────────────────────────────────────
 
-  Widget _activeParkingCard(ParkingSession session) {
-    final duration = _durationLabel(session);
+  /// Only built when the plate is parked. Leads with the running total, since
+  /// that is the number the driver opened the screen to check.
+  Widget _liveSession(ParkingSession session, Vehicle vehicle) {
+    final autoPayOn = _pendingAutoPay ?? vehicle.autoPayEnabled;
+    // The car has left and the fee wasn't collected: same card, but it's a
+    // bill now, not a meter, so the green "Parked now" framing would lie.
+    final due = session.isAwaitingPayment;
+    final tone = due ? context.colors.warning : context.colors.success;
+
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: context.colors.surface,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: due ? tone.withValues(alpha: 0.45) : context.colors.mintBorder,
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF26C766).withValues(alpha: 0.18),
+            color: tone.withValues(alpha: 0.14),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
         ],
-        border: Border.all(color: const Color(0xFF71F0D8), width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
-            decoration: const BoxDecoration(
-              color: Color(0xFFD9FBE6),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(22),
-                topRight: Radius.circular(22),
-              ),
-            ),
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
+            color: due
+                ? tone.withValues(alpha: 0.12)
+                : context.colors.successLight,
             child: Row(
               children: [
                 Container(
                   width: 9,
                   height: 9,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF26C766),
-                    shape: BoxShape.circle,
-                  ),
+                  decoration: BoxDecoration(color: tone, shape: BoxShape.circle),
                 ),
-                const SizedBox(width: 10),
-                Text(
-                  'Currently Parked',
-                  style: GoogleFonts.poppins(
-                    color: const Color(0xFF15964B),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF15964B).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
+                const SizedBox(width: 9),
+                Expanded(
                   child: Text(
-                    duration,
+                    '${due ? 'Payment due' : 'Parked now'} · '
+                    '${session.locationName}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.poppins(
-                      color: const Color(0xFF15964B),
-                      fontSize: 12,
+                      color: tone,
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _durationLabel(session),
+                  style: GoogleFonts.poppins(
+                    color: tone,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(18),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    _locationIcon(),
-                    const SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            session.locationName,
+                            due ? 'Amount due' : 'Running total',
                             style: GoogleFonts.poppins(
-                              color: _ink,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                              color: context.colors.textSecondary,
+                              fontSize: 12,
                             ),
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            _locationSubtitle(session),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            'KES ${_money(session.cost)}',
                             style: GoogleFonts.poppins(
-                              color: _muted,
-                              fontSize: 13,
+                              color: context.colors.textPrimary,
+                              fontSize: 26,
+                              height: 1.1,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _metricTile(
-                        'Entry Time',
-                        _timeLabel(session.startTime),
-                        Icons.access_time_rounded,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _metricTile(
-                        'Amount Due',
-                        'KES ${session.cost.toStringAsFixed(0)}',
-                        null,
-                        highlighted: true,
-                      ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Entered',
+                          style: GoogleFonts.poppins(
+                            color: context.colors.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          _timeLabel(session.startTime),
+                          style: GoogleFonts.poppins(
+                            color: context.colors.textPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
                 const SizedBox(height: 18),
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      context.read<AppBloc>().add(
-                            PayParkingSession(sessionId: session.id),
-                          );
-                    },
-                    icon: const Icon(Icons.check_circle_outline_rounded,
-                        size: 19),
-                    label: Text(
-                        'Pay KES ${session.cost.toStringAsFixed(0)} Now'),
+                  child: ElevatedButton(
+                    onPressed: () => context
+                        .read<AppBloc>()
+                        .add(PayParkingSession(sessionId: session.id)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _tealLight,
+                      backgroundColor: context.colors.primary,
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(15),
                       ),
                       textStyle: GoogleFonts.poppins(
-                        fontSize: 15,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
+                    child: const Text('Pay now'),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 9),
                 Text(
-                  'Or pay at the exit barrier',
+                  // Each state describes itself. The old copy told drivers with
+                  // AutoPay off that they would be charged automatically.
+                  due
+                      ? 'This exit was not paid for — settle it here'
+                      : autoPayOn
+                          ? 'AutoPay will charge this at the barrier'
+                          : 'Pay here or at the exit barrier',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(color: _muted, fontSize: 13),
+                  style: GoogleFonts.poppins(
+                    color: context.colors.textSecondary,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
@@ -571,354 +307,534 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
     );
   }
 
-  Widget _metricTile(
-    String label,
-    String value,
-    IconData? icon, {
-    bool highlighted = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 13, 14, 15),
-      decoration: BoxDecoration(
-        color: highlighted
-            ? const Color(0xFFEFFFFB)
-            : const Color(0xFFF1F3F6),
-        borderRadius: BorderRadius.circular(16),
-        border: highlighted
-            ? Border.all(color: const Color(0xFF71F0D8))
-            : null,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+  // ───────────────────────────────────────────────────────────────────────────
+  // SETUP
+  // ───────────────────────────────────────────────────────────────────────────
+
+  /// AutoPay plus the vehicle's registered facts, in one grouped card.
+  ///
+  /// The three fact rows are read-only on purpose: the API exposes no vehicle
+  /// update endpoint (`/vehicles/{id}` is DELETE only), so a chevron here would
+  /// promise an edit screen that cannot exist yet. Getting the details right at
+  /// registration is handled in the add sheet instead.
+  Widget _setupGroup(Vehicle vehicle) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionLabel('Vehicle setup'),
+        const SizedBox(height: 10),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+          decoration: BoxDecoration(
+            color: context.colors.surface,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: context.colors.border),
+          ),
+          child: Column(
             children: [
-              if (icon != null) ...[
-                Icon(icon, size: 13, color: _muted),
-                const SizedBox(width: 5),
-              ],
+              _autoPayRow(vehicle),
+              _rowDivider(),
+              _factRow('Vehicle type', vehicle.type),
+              _rowDivider(),
+              _factRow('Make & model', _makeAndModel(vehicle)),
+              _rowDivider(),
+              _factRow('Plate number', vehicle.plateNumber),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _autoPayRow(Vehicle vehicle) {
+    final on = _pendingAutoPay ?? vehicle.autoPayEnabled;
+    final inFlight = _pendingAutoPay != null;
+
+    return Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: on ? context.colors.accentLight : context.colors.surfaceRaised,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: context.colors.border.withValues(alpha: 0.6)),
+          ),
+          child: Icon(
+            Icons.bolt_rounded,
+            color: on ? context.colors.primary : context.colors.textMuted,
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Text(
-                label,
+                'AutoPay',
                 style: GoogleFonts.poppins(
-                  color: highlighted ? const Color(0xFF12A04A) : _muted,
+                  color: context.colors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                on
+                    ? 'Charged at the barrier when you exit'
+                    : 'You pay for each session yourself',
+                style: GoogleFonts.poppins(
+                  color: context.colors.textSecondary,
                   fontSize: 12,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 7),
-          Text(
-            value,
-            style: GoogleFonts.poppins(
-              color: highlighted ? _tealLight : _ink,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
+        ),
+        Transform.scale(
+          scale: 0.85,
+          child: Switch(
+            value: on,
+            activeThumbColor: Colors.white,
+            activeTrackColor: context.colors.primary,
+            inactiveThumbColor: Colors.white,
+            inactiveTrackColor: context.colors.inputBorder,
+            trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+            // Locked while the change is in flight, so a second tap cannot
+            // queue a request that contradicts the first.
+            onChanged: inFlight ? null : (value) => _setAutoPay(vehicle, value),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _sessionsSection(List<ParkingSession> sessions) {
+  Widget _factRow(String label, String value) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: GoogleFonts.poppins(
+              color: context.colors.textPrimary,
+              fontSize: 14,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: GoogleFonts.poppins(
+              color: context.colors.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _rowDivider() => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        child: Container(height: 1, color: context.colors.divider),
+      );
+
+  void _setAutoPay(Vehicle vehicle, bool enabled) {
+    setState(() => _pendingAutoPay = enabled);
+    context.read<AppBloc>().add(
+          SetVehicleAutoPay(
+            vehicleId: vehicle.id,
+            plateNumber: vehicle.plateNumber,
+            enabled: enabled,
+          ),
+        );
+  }
+
+  /// Resolves the pending toggle once the bloc has spoken. A confirmed change
+  /// arrives as a new vehicle list; a failure arrives as an error message, and
+  /// dropping the pending value snaps the switch back to what the server holds.
+  void _onStateChanged(BuildContext context, AppState state) {
+    final pending = _pendingAutoPay;
+    if (pending == null) return;
+
+    if (_resolveVehicle(state).autoPayEnabled == pending) {
+      setState(() => _pendingAutoPay = null);
+      return;
+    }
+
+    if (state.errorMessage != null) {
+      setState(() => _pendingAutoPay = null);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: context.colors.error,
+            content: Text(
+              'AutoPay unchanged — ${state.errorMessage}',
+              style: GoogleFonts.poppins(fontSize: 13, color: Colors.white),
+            ),
+          ),
+        );
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // HISTORY
+  // ───────────────────────────────────────────────────────────────────────────
+
+  /// Settled sessions only — the live one has its own card, so it is not
+  /// listed twice, and the count here matches the hero's.
+  Widget _history(List<ParkingSession> settled) {
+    final capped = _showAllHistory || settled.length <= _historyPreviewCount;
+    final shown = capped ? settled : settled.take(_historyPreviewCount).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            const Icon(Icons.history_rounded,
-                color: Color(0xFF6D7889), size: 18),
-            const SizedBox(width: 8),
-            Text(
-              'Parking History',
-              style: GoogleFonts.poppins(
-                color: context.colors.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const Spacer(),
-            if (sessions.isNotEmpty)
-              Text(
-                '${sessions.length} session${sessions.length == 1 ? '' : 's'}',
-                style: GoogleFonts.poppins(color: context.colors.textSecondary, fontSize: 13),
+            Expanded(child: _sectionLabel('Parking history')),
+            if (settled.length > _historyPreviewCount)
+              GestureDetector(
+                onTap: () => setState(() => _showAllHistory = !_showAllHistory),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  child: Text(
+                    _showAllHistory ? 'Show less' : 'View all ${settled.length}',
+                    style: GoogleFonts.poppins(
+                      color: context.colors.primary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               ),
           ],
         ),
-        const SizedBox(height: 12),
-        if (sessions.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 32),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F3F6),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: const Icon(Icons.history_rounded,
-                      color: Color(0xFFB0BAC9), size: 26),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'No sessions yet',
-                  style: GoogleFonts.poppins(
-                    color: _ink,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Parking history will appear here',
-                  style: GoogleFonts.poppins(color: _muted, fontSize: 13),
-                ),
-              ],
-            ),
-          )
-        else
-          Container(
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              color: context.colors.surface,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                for (var i = 0; i < sessions.length; i++) ...[
-                  _sessionRow(sessions[i]),
-                  if (i != sessions.length - 1)
-                    const Divider(
-                        color: _line, height: 1, indent: 20, endIndent: 20),
-                ],
-              ],
-            ),
-          ),
+        const SizedBox(height: 10),
+        if (shown.isEmpty) _historyEmpty() else _historyList(shown),
       ],
     );
   }
 
-  Widget _sessionRow(ParkingSession session) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-      child: Row(
-        children: [
-          _locationIcon(),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  session.locationName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    color: context.colors.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  _locationSubtitle(session),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(color: context.colors.textSecondary, fontSize: 12),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: context.colors.cardSurface,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        _dateLabel(session.startTime),
-                        style: GoogleFonts.poppins(
-                          color: context.colors.textSecondary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _durationLabel(session),
-                      style: GoogleFonts.poppins(color: context.colors.textSecondary, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ],
+  Widget _historyList(List<ParkingSession> sessions) {
+    // Sessions arrive newest-first from the bloc's merge, so walking them in
+    // order emits each month's header exactly once.
+    String? lastGroup;
+    final children = <Widget>[];
+
+    for (final session in sessions) {
+      final group = _monthLabel(session.startTime);
+      if (group != lastGroup) {
+        children.add(
+          Padding(
+            padding: EdgeInsets.only(top: lastGroup == null ? 0 : 16, bottom: 10),
+            child: Text(
+              group,
+              style: GoogleFonts.poppins(
+                color: context.colors.textMuted,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.9,
+              ),
             ),
           ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+        );
+        lastGroup = group;
+      } else {
+        children.add(_rowDivider());
+      }
+      children.add(_historyRow(session));
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: context.colors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      ),
+    );
+  }
+
+  Widget _historyRow(ParkingSession session) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'KES ${session.cost.toStringAsFixed(0)}',
+                session.locationName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.poppins(
                   color: context.colors.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 5),
-              _statusPill(session),
+              const SizedBox(height: 3),
+              Text(
+                // Real times, from the session itself. This line used to hold a
+                // floor and bay number invented by string-matching the location
+                // name — data the API never sent.
+                _sessionTimeRange(session),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.poppins(
+                  color: context.colors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statusPill(ParkingSession session) {
-    final ongoing = session.isActive;
-    final foreground =
-        ongoing ? const Color(0xFFB26A00) : const Color(0xFF15964B);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: ongoing ? const Color(0xFFFFF6E6) : const Color(0xFFECFDF5),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            ongoing ? Icons.timelapse_rounded : Icons.check_circle_rounded,
-            color: ongoing ? const Color(0xFFF0A500) : const Color(0xFF26C766),
-            size: 11,
-          ),
-          const SizedBox(width: 3),
-          Text(
-            ongoing ? 'Ongoing' : 'Paid',
-            style: GoogleFonts.poppins(
-              color: foreground,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _locationIcon() {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: const Color(0xFFEFFFFB),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: const Icon(
-        Icons.location_on_outlined,
-        color: Color(0xFF168D7C),
-        size: 22,
-      ),
-    );
-  }
-
-  Widget _dangerZone(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _confirmRemove(context),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: context.colors.surface,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFFF6B6B).withValues(alpha: 0.1),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
-          border: Border.all(
-              color: const Color(0xFFFFE0E0).withValues(alpha: 0.8),
-              width: 1.5),
         ),
-        child: Row(
+        const SizedBox(width: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF1F1),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(
-                Icons.delete_outline_rounded,
-                color: Color(0xFFFF6B6B),
-                size: 22,
+            Text(
+              'KES ${_money(session.cost)}',
+              style: GoogleFonts.poppins(
+                color: context.colors.textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Remove Vehicle',
-                    style: GoogleFonts.poppins(
-                      color: const Color(0xFFFF6B6B),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    'Permanently delete from your account',
-                    style: GoogleFonts.poppins(
-                      color: const Color(0xFFFF6B6B).withValues(alpha: 0.6),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 2),
+            Text(
+              _durationLabel(session),
+              style: GoogleFonts.poppins(
+                color: context.colors.textMuted,
+                fontSize: 11,
               ),
-            ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: Color(0xFFFF6B6B),
-              size: 22,
             ),
           ],
         ),
+      ],
+    );
+  }
+
+  Widget _historyEmpty() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 34, horizontal: 24),
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: context.colors.border),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: context.colors.surfaceRaised,
+              borderRadius: BorderRadius.circular(17),
+              border: Border.all(color: context.colors.border),
+            ),
+            child: Icon(
+              Icons.history_rounded,
+              color: context.colors.textMuted,
+              size: 24,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'No sessions yet',
+            style: GoogleFonts.poppins(
+              color: context.colors.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Parking history will appear here',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              color: context.colors.textSecondary,
+              fontSize: 13,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  // Treat naive (non-UTC) datetimes from the API as UTC
+  // ───────────────────────────────────────────────────────────────────────────
+  // REMOVE
+  // ───────────────────────────────────────────────────────────────────────────
+
+  /// Quiet at rest. Destructive weight belongs in the confirmation, not in a
+  /// red card competing with the settings above it.
+  Widget _removeButton(Vehicle vehicle) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton(
+        onPressed: () => _confirmRemove(vehicle),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: context.colors.error,
+          side: BorderSide(color: context.colors.border),
+          padding: const EdgeInsets.symmetric(vertical: 15),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          textStyle: GoogleFonts.poppins(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        child: const Text('Remove this vehicle'),
+      ),
+    );
+  }
+
+  void _confirmRemove(Vehicle vehicle) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: context.colors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Remove ${vehicle.plateNumber}?',
+          style: GoogleFonts.poppins(
+            color: context.colors.textPrimary,
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
+          ),
+        ),
+        content: Text(
+          'The plate stops being recognised at barriers and AutoPay will no '
+          'longer cover it. Past sessions stay in your history.',
+          style: GoogleFonts.poppins(
+            fontSize: 13,
+            color: context.colors.textSecondary,
+          ),
+        ),
+        actions: [
+          TextButton(
+            autofocus: true,
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Keep it',
+              style: GoogleFonts.poppins(
+                color: context.colors.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              context.read<AppBloc>().add(
+                    RemoveVehicle(
+                      vehicleId: vehicle.id,
+                      plateNumber: vehicle.plateNumber,
+                    ),
+                  );
+              Navigator.pop(dialogContext);
+              Navigator.pop(context);
+            },
+            child: Text(
+              'Remove',
+              style: GoogleFonts.poppins(
+                color: context.colors.error,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // SHARED
+  // ───────────────────────────────────────────────────────────────────────────
+
+  Widget _sectionLabel(String text) {
+    return Text(
+      text,
+      style: GoogleFonts.poppins(
+        color: context.colors.textPrimary,
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+
+  /// The vehicle as the bloc currently holds it, so the AutoPay switch reads
+  /// server state rather than a copy taken when the route was pushed. Falls
+  /// back to the pushed vehicle while the list is loading, or after removal.
+  Vehicle _resolveVehicle(AppState state) {
+    final key = Vehicle.plateKey(widget.vehicle.plateNumber);
+    for (final vehicle in state.vehicles) {
+      if (Vehicle.plateKey(vehicle.plateNumber) == key) return vehicle;
+    }
+    return widget.vehicle;
+  }
+
+  List<ParkingSession> _sessionsFor(AppState state, Vehicle vehicle) {
+    final key = Vehicle.plateKey(vehicle.plateNumber);
+    return state.recentSessions
+        .where((s) => Vehicle.plateKey(s.vehicle.plateNumber) == key)
+        .toList();
+  }
+
+  String _describe(Vehicle vehicle) {
+    final name = _makeAndModel(vehicle);
+    final type = vehicle.type.trim();
+    if (type.isEmpty) return name;
+    return '$name · $type';
+  }
+
+  String _makeAndModel(Vehicle vehicle) {
+    final parts = [vehicle.make.trim(), vehicle.model.trim()]
+        .where((part) => part.isNotEmpty);
+    return parts.isEmpty ? 'Unnamed vehicle' : parts.join(' ');
+  }
+
+  String _lastSeenLabel(List<ParkingSession> sessions) {
+    if (sessions.isEmpty) return 'Never';
+    var latest = sessions.first.startTime;
+    for (final session in sessions) {
+      if (session.startTime.isAfter(latest)) latest = session.startTime;
+    }
+    return _dateLabel(latest);
+  }
+
+  String _money(double amount) {
+    final digits = amount.abs().round().toString();
+    final buffer = StringBuffer(amount < 0 ? '-' : '');
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(',');
+      buffer.write(digits[i]);
+    }
+    return buffer.toString();
+  }
+
+  /// Treat naive (non-UTC) datetimes from the API as UTC.
   DateTime _asUtc(DateTime dt) => dt.isUtc
       ? dt
       : DateTime.utc(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second);
+
+  DateTime _toEat(DateTime dt) => _asUtc(dt).add(const Duration(hours: 3));
 
   String _durationLabel(ParkingSession session) {
     final start = _asUtc(session.startTime);
@@ -936,7 +852,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
   }
 
   String _timeLabel(DateTime dateTime) {
-    final eat = _asUtc(dateTime).add(const Duration(hours: 3));
+    final eat = _toEat(dateTime);
     final hour = eat.hour == 0
         ? 12
         : eat.hour > 12
@@ -947,82 +863,39 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
     return '$hour:$minute $period';
   }
 
-  String _locationSubtitle(ParkingSession session) {
-    final lowerName = session.locationName.toLowerCase();
-    if (lowerName.contains('garden')) return 'Thika rd, Nairobi, Kenya';
-    if (lowerName.contains('two rivers')) return 'Ground Floor · Bay A-07';
-    if (lowerName.contains('hub')) return 'Level 1 · Bay D-05';
-    if (lowerName.contains('sarit')) return 'Basement · Bay B-11';
-    if (lowerName.contains('westgate')) return 'Rooftop · Bay C-12';
-    return 'Ground Floor · Bay A-07';
+  String _clock(DateTime dateTime) {
+    final eat = _toEat(dateTime);
+    return '${eat.hour.toString().padLeft(2, '0')}:'
+        '${eat.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _sessionTimeRange(ParkingSession session) {
+    final day = '${_toEat(session.startTime).day} '
+        '${_months[_toEat(session.startTime).month - 1]}';
+    if (session.endTime == null) return '$day · from ${_clock(session.startTime)}';
+    return '$day · ${_clock(session.startTime)} → ${_clock(session.endTime!)}';
+  }
+
+  String _monthLabel(DateTime dateTime) {
+    final eat = _toEat(dateTime);
+    final month = _months[eat.month - 1].toUpperCase();
+    return eat.year == DateTime.now().year ? month : '$month ${eat.year}';
   }
 
   String _dateLabel(DateTime dateTime) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final sessionDay =
-        DateTime(dateTime.year, dateTime.month, dateTime.day);
+    final sessionDay = DateTime(dateTime.year, dateTime.month, dateTime.day);
     final diff = today.difference(sessionDay).inDays;
 
     if (diff == 0) return 'Today';
     if (diff == 1) return 'Yesterday';
     if (diff < 7) return '${diff}d ago';
-
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${dateTime.day} ${months[dateTime.month - 1]}';
+    return '${dateTime.day} ${_months[dateTime.month - 1]}';
   }
 
-  void _confirmRemove(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Remove Vehicle?',
-          style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w700, fontSize: 16),
-        ),
-        content: Text(
-          'Are you sure you want to remove ${widget.vehicle.plateNumber} from your account?',
-          style: GoogleFonts.poppins(
-              fontSize: 13, color: context.colors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.poppins(
-                color: context.colors.textSecondary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              context.read<AppBloc>().add(
-                    RemoveVehicle(
-                      vehicleId: widget.vehicle.id,
-                      plateNumber: widget.vehicle.plateNumber,
-                    ),
-                  );
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            child: Text(
-              'Remove',
-              style: GoogleFonts.poppins(
-                color: context.colors.error,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  static const _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
 }

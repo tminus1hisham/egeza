@@ -67,7 +67,10 @@ class PaymentValidation {
   }
 
   static void validateSessionCanBePaid(ParkingSession session) {
-    if (session.status.toUpperCase() == 'COMPLETED' || !session.isActive) {
+    // Payable means unsettled, not "still running" — a session the driver
+    // exited without paying (EXIT_PENDING_PAYMENT) is inactive and is exactly
+    // the one we most need to collect on.
+    if (session.isSettled) {
       throw const PaymentValidationException('This parking session is already completed');
     }
   }

@@ -8,9 +8,9 @@ import '../../blocs/app_state.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/parking_session.dart';
 import '../../models/vehicle.dart';
+import '../../widgets/add_vehicle_sheet.dart';
 import '../../widgets/app_widgets.dart';
 import '../../widgets/primary_button.dart';
-import '../onboarding/plate_number_screen.dart';
 import 'vehicle_detail_screen.dart';
 
 class VehiclesScreen extends StatefulWidget {
@@ -24,19 +24,7 @@ class VehiclesScreen extends StatefulWidget {
 
 class _VehiclesScreenState extends State<VehiclesScreen> {
   int _filterIndex = 0;
-  final _plateController = TextEditingController();
-  final _makeController = TextEditingController();
-  final _modelController = TextEditingController();
-  bool _sheetAutoPayOn = true;
   static const _filters = ['All', 'AutoPay', 'Manual'];
-
-  @override
-  void dispose() {
-    _plateController.dispose();
-    _makeController.dispose();
-    _modelController.dispose();
-    super.dispose();
-  }
 
   Future<void> _onRefresh() async {
     context.read<AppBloc>().add(LoadDashboardData());
@@ -45,63 +33,41 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: context.colors.pageGrey,
-      body: SafeArea(
-        bottom: false,
-        child: BlocBuilder<AppBloc, AppState>(
-          builder: (context, state) {
-            final vehicles = _filteredVehicles(state.vehicles);
+    return AdaptiveStatusBar(
+      child: Scaffold(
+        backgroundColor: context.colors.pageGrey,
+        body: SafeArea(
+          bottom: false,
+          child: BlocBuilder<AppBloc, AppState>(
+            builder: (context, state) {
+              final vehicles = _filteredVehicles(state.vehicles);
 
-            return Column(
-              children: [
-                _header(context),
-                Expanded(
-                  child: RefreshIndicator(
-                    color: context.colors.primary,
-                    onRefresh: _onRefresh,
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _fleetCard(state),
-                          const SizedBox(height: 18),
-                          _filterBar(),
-                          const SizedBox(height: 18),
-                          _vehicleList(
-                            context,
-                            vehicles,
-                            state.recentSessions,
-                            noVehiclesAtAll: state.vehicles.isEmpty,
-                          ),
-                          const SizedBox(height: 18),
-                          _addVehicleCard(context),
-                        ],
+              return RefreshIndicator(
+                color: context.colors.primary,
+                onRefresh: _onRefresh,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 30),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _fleetCard(state),
+                      const SizedBox(height: 18),
+                      _filterBar(),
+                      const SizedBox(height: 18),
+                      _vehicleList(
+                        context,
+                        vehicles,
+                        state.recentSessions,
+                        noVehiclesAtAll: state.vehicles.isEmpty,
                       ),
-                    ),
+                    ],
                   ),
                 ),
-              ],
-            );
-          },
+              );
+            },
+          ),
         ),
-      ),
-    );
-  }
-
-  Widget _header(BuildContext context) {
-    return AppPageHeader(
-      title: 'Vehicles',
-      subtitle: 'Plates, AutoPay, and parking status',
-      icon: Icons.directions_car_outlined,
-      showBackButton: widget.showBackButton,
-      onBack: () => Navigator.pop(context),
-      trailing: AppHeaderButton(
-        icon: Icons.add_rounded,
-        tooltip: 'Add vehicle',
-        active: true,
-        onTap: () => _showAddVehicleSheet(context),
       ),
     );
   }
@@ -110,59 +76,22 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     final autoPayCount = state.vehicles.where((v) => v.autoPayEnabled).length;
     final activeCount = state.recentSessions.where((s) => s.isActive).length;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),
-      decoration: BoxDecoration(
-        color: context.colors.primaryDark,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: context.colors.primaryDark.withValues(alpha: 0.15),
-            blurRadius: 22,
-            offset: const Offset(0, 12),
-          ),
-        ],
+    return PageHero(
+      eyebrow: 'Registered fleet',
+      value: '${state.vehicles.length} vehicles',
+      onBack: widget.showBackButton ? () => Navigator.pop(context) : null,
+      pill: const PageHeroPill(
+        icon: Icons.camera_alt_outlined,
+        label: 'ANPR ready',
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Registered fleet',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white.withValues(alpha: 0.68),
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              _darkPill(Icons.camera_alt_outlined, 'ANPR ready'),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            '${state.vehicles.length} vehicles',
-            style: GoogleFonts.poppins(
-              color: Colors.white,
-              fontSize: 32,
-              height: 1.1,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 22),
-          Row(
-            children: [
-              Expanded(child: _fleetMetric('AutoPay on', '$autoPayCount')),
-              _metricDivider(),
-              Expanded(child: _fleetMetric('Manual', '${state.vehicles.length - autoPayCount}')),
-              _metricDivider(),
-              Expanded(child: _fleetMetric('Parked now', '$activeCount')),
-            ],
-          ),
-        ],
-      ),
+      // The single persistent way to add a car. It never scrolls out of reach,
+      // which is why the duplicate card at the foot of the page is gone.
+      trailing: _addVehicleButton(),
+      metrics: [
+        PageHeroMetric('AutoPay on', '$autoPayCount'),
+        PageHeroMetric('Manual', '${state.vehicles.length - autoPayCount}'),
+        PageHeroMetric('Parked now', '$activeCount'),
+      ],
     );
   }
 
@@ -397,90 +326,6 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     ));
   }
 
-  Widget _addVehicleCard(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: context.colors.cardSurface,
-        borderRadius: BorderRadius.circular(24),
-        child: InkWell(
-          onTap: () => _showAddVehicleSheet(context),
-          borderRadius: BorderRadius.circular(24),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-            ),
-          child: Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      context.colors.warning.withValues(alpha: 0.18),
-                      context.colors.warning.withValues(alpha: 0.10),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  Icons.add_rounded,
-                  color: context.colors.warning,
-                  size: 26,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Add vehicle',
-                      style: GoogleFonts.poppins(
-                        color: context.colors.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Register another plate for ANPR',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(
-                        color: context.colors.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: context.colors.textMuted,
-                size: 22,
-              ),
-            ],
-          ),
-        ),
-      ),
-    ));
-  }
-
   Widget _emptyVehicles({required bool noVehiclesAtAll}) {
     if (!noVehiclesAtAll) {
       // Filter returned no results, but user does have vehicles
@@ -535,10 +380,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
           const SizedBox(height: 24),
           PrimaryButton(
             text: 'Add Vehicle',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const PlateNumberScreen()),
-            ),
+            onPressed: () => showAddVehicleSheet(context),
           ),
         ],
       ),
@@ -635,65 +477,39 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     );
   }
 
-  Widget _darkPill(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white.withValues(alpha: 0.78), size: 13),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: GoogleFonts.poppins(
-              color: Colors.white.withValues(alpha: 0.82),
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _fleetMetric(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.poppins(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 3),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.poppins(
-            color: Colors.white.withValues(alpha: 0.58),
-            fontSize: 11,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _metricDivider() {
-    return Container(
-      width: 1,
-      height: 34,
-      margin: const EdgeInsets.symmetric(horizontal: 14),
+  /// Compact add control sitting inside the fleet card, beside the vehicle
+  /// count. Styled for the dark card, so it uses translucent white rather than
+  /// the brand colour.
+  Widget _addVehicleButton() {
+    return Material(
       color: Colors.white.withValues(alpha: 0.14),
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        onTap: () => showAddVehicleSheet(context),
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 8, 14, 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.add_rounded, color: Colors.white, size: 18),
+              const SizedBox(width: 5),
+              Text(
+                'Add',
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -742,226 +558,4 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     return amount.toStringAsFixed(0);
   }
 
-  void _showAddVehicleSheet(BuildContext context) {
-    _plateController.clear();
-    _makeController.clear();
-    _modelController.clear();
-    _sheetAutoPayOn = true;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (sheetContext, setSheetState) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
-          ),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
-            decoration: BoxDecoration(
-              color: context.colors.surface,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 42,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: context.colors.border,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  Text(
-                    'Add vehicle',
-                    style: GoogleFonts.poppins(
-                      color: context.colors.textPrimary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _sheetField(
-                    controller: _plateController,
-                    label: 'Plate number',
-                    hint: 'KBZ 123A',
-                    textCapitalization: TextCapitalization.characters,
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _sheetField(
-                          controller: _makeController,
-                          label: 'Make',
-                          hint: 'Toyota',
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _sheetField(
-                          controller: _modelController,
-                          label: 'Model',
-                          hint: 'Prado',
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  _sheetAutoPayTile(setSheetState),
-                  const SizedBox(height: 18),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _saveVehicle(context, sheetContext),
-                      icon: const Icon(Icons.check_circle_outline_rounded),
-                      label: Text(
-                        'Save Vehicle',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: context.colors.primary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _sheetAutoPayTile(StateSetter setSheetState) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: context.colors.inputFill,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: _sheetAutoPayOn
-              ? context.colors.primary
-              : context.colors.inputBorder,
-          width: _sheetAutoPayOn ? 1.6 : 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.bolt_rounded, color: context.colors.primary, size: 22),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'AutoPay',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: context.colors.textPrimary,
-                  ),
-                ),
-                Text(
-                  _sheetAutoPayOn
-                      ? 'Charged automatically at exit'
-                      : 'Pay manually for each session',
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: context.colors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: _sheetAutoPayOn,
-            activeThumbColor: Colors.white,
-            activeTrackColor: context.colors.accent,
-            inactiveThumbColor: Colors.white,
-            inactiveTrackColor: context.colors.inputBorder,
-            onChanged: (value) =>
-                setSheetState(() => _sheetAutoPayOn = value),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _sheetField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    TextCapitalization textCapitalization = TextCapitalization.words,
-  }) {
-    return TextField(
-      controller: controller,
-      textCapitalization: textCapitalization,
-      style: GoogleFonts.poppins(
-        color: context.colors.textPrimary,
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-      ),
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        filled: true,
-        fillColor: context.colors.inputFill,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: context.colors.inputBorder),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: context.colors.inputBorder),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: context.colors.primary, width: 1.6),
-        ),
-      ),
-    );
-  }
-
-  void _saveVehicle(BuildContext context, BuildContext sheetContext) {
-    final plate = _plateController.text.trim().toUpperCase();
-    if (plate.isEmpty) {
-      return;
-    }
-
-    final make = _makeController.text.trim();
-    final model = _modelController.text.trim();
-
-    context.read<AppBloc>().add(
-          AddVehicle(
-            plateNumber: plate,
-            type: 'Saloon',
-            make: make.isEmpty ? 'Custom' : make,
-            model: model.isEmpty ? 'Vehicle' : model,
-            autoPayEnabled: _sheetAutoPayOn,
-          ),
-        );
-
-    Navigator.pop(sheetContext);
-  }
 }

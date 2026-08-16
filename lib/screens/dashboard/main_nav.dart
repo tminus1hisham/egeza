@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../blocs/app_bloc.dart';
+import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
 import '../../core/theme/app_colors.dart';
 import '../onboarding/walkthrough_screen.dart';
@@ -21,7 +22,8 @@ class MainNavigation extends StatefulWidget {
   State<MainNavigation> createState() => _MainNavigationState();
 }
 
-class _MainNavigationState extends State<MainNavigation> {
+class _MainNavigationState extends State<MainNavigation>
+    with WidgetsBindingObserver {
   String _selectedTabId = 'home';
 
   late final Widget _dashboardScreen;
@@ -29,6 +31,10 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    context.read<AppBloc>()
+      ..add(const StartWalletBalanceWatch())
+      ..add(const StartSessionWatch());
     _dashboardScreen = DashboardScreen(
       onVehiclesTap: () => _selectTab('vehicles'),
       onWalletTap: () => _selectTab('wallet'),
@@ -41,6 +47,30 @@ class _MainNavigationState extends State<MainNavigation> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
+    // No point polling a screen nobody is looking at — restart on resume, which
+    // also refreshes immediately so a top-up confirmed, or a session opened at
+    // the gate, while backgrounded shows the moment the app comes back.
+    final bloc = context.read<AppBloc>();
+    if (lifecycleState == AppLifecycleState.resumed) {
+      bloc
+        ..add(const StartWalletBalanceWatch())
+        ..add(const StartSessionWatch());
+    } else if (lifecycleState == AppLifecycleState.paused ||
+        lifecycleState == AppLifecycleState.detached) {
+      bloc
+        ..add(StopWalletBalanceWatch())
+        ..add(StopSessionWatch());
+    }
   }
 
   List<_NavTab> _tabsFor(AppState state) {
@@ -58,12 +88,12 @@ class _MainNavigationState extends State<MainNavigation> {
       label: 'Vehicles',
       screen: VehiclesScreen(),
     );
-    const walletTab = _NavTab(
+    final walletTab = _NavTab(
       id: 'wallet',
       activeIcon: Icons.account_balance_wallet_rounded,
       inactiveIcon: Icons.account_balance_wallet_outlined,
       label: 'Wallet',
-      screen: WalletScreen(),
+      screen: WalletScreen(onSeeAllActivity: () => _selectTab('history')),
     );
     const historyTab = _NavTab(
       id: 'history',

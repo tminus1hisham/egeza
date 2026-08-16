@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as dev;
 
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
@@ -16,6 +17,16 @@ import 'app_state.dart';
 
 class AppBloc extends Bloc<AppEvent, AppState> {
   final ParkingIqApi _api;
+
+  /// Wallet balance is polled rather than pushed — the API is plain REST with
+  /// no socket channel, and top-ups land asynchronously via the M-Pesa callback.
+  Timer? _walletBalanceTimer;
+  bool _walletBalancePollInFlight = false;
+
+  /// Sessions are polled for the same reason: ANPR opens a session at the gate
+  /// with nothing to push it to the app, so the home screen has to go looking.
+  Timer? _sessionWatchTimer;
+  bool _sessionPollInFlight = false;
 
   AppBloc({
     ParkingIqApi? api,
@@ -39,6 +50,12 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     on<LoadDashboardData>(_onLoadDashboardData);
     on<AddVehicle>(_onAddVehicle);
     on<TopUpWallet>(_onTopUpWallet);
+    on<StartWalletBalanceWatch>(_onStartWalletBalanceWatch);
+    on<StopWalletBalanceWatch>(_onStopWalletBalanceWatch);
+    on<WalletBalanceUpdated>(_onWalletBalanceUpdated);
+    on<StartSessionWatch>(_onStartSessionWatch);
+    on<StopSessionWatch>(_onStopSessionWatch);
+    on<SessionsUpdated>(_onSessionsUpdated);
     on<EndParkingSession>(_onEndParkingSession);
     on<FindParkingSession>(_onFindParkingSession);
     on<PayParkingSession>(_onPayParkingSession);
@@ -562,6 +579,202 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     }
   }
 
+  void _onStartWalletBalanceWatch(
+    StartWalletBalanceWatch event,
+    Emitter<AppState> emit,
+  ) {
+    _walletBalanceTimer?.cancel();
+    if (!_api.hasToken) {
+      _log('StartWalletBalanceWatch: no auth token — watch not started');
+      return;
+    }
+
+    _log('StartWalletBalanceWatch: every ${event.interval.inSeconds}s');
+    _walletBalanceTimer =
+        Timer.periodic(event.interval, (_) => _pollWalletBalance());
+    // Poll straight away so a balance that changed while the watch was off
+    // (app backgrounded, top-up confirmed elsewhere) shows without a delay.
+    _pollWalletBalance();
+  }
+
+  void _onStopWalletBalanceWatch(
+    StopWalletBalanceWatch event,
+    Emitter<AppState> emit,
+  ) {
+    if (_walletBalanceTimer == null) return;
+    _log('StopWalletBalanceWatch');
+    _walletBalanceTimer?.cancel();
+    _walletBalanceTimer = null;
+  }
+
+  void _onWalletBalanceUpdated(
+    WalletBalanceUpdated event,
+    Emitter<AppState> emit,
+  ) {
+    // Balance only — the watch runs in the background, so it must never touch
+    // isLoading or the status/error messages the screens surface as snackbars.
+    emit(state.copyWith(walletBalance: event.balance));
+  }
+
+  Future<void> _pollWalletBalance() async {
+    if (isClosed || !_api.hasToken || _walletBalancePollInFlight) return;
+
+    _walletBalancePollInFlight = true;
+    try {
+      final balance = await _api.walletBalance();
+      if (isClosed) return;
+      if ((balance - state.walletBalance).abs() < 0.005) return;
+      _logSuccess(
+        'WalletBalanceWatch',
+        'balance ${state.walletBalance} → $balance',
+      );
+      add(WalletBalanceUpdated(balance));
+    } catch (error, st) {
+      _logError('WalletBalanceWatch', error, st);
+      if (_isUnauthorized(error)) {
+        // Stop rather than hammer the API with a dead token. Session expiry is
+        // surfaced by the next user-driven load, not by a background poll.
+        _walletBalanceTimer?.cancel();
+        _walletBalanceTimer = null;
+      }
+    } finally {
+      _walletBalancePollInFlight = false;
+    }
+  }
+
+  void _onStartSessionWatch(
+    StartSessionWatch event,
+    Emitter<AppState> emit,
+  ) {
+    _sessionWatchTimer?.cancel();
+    if (!_api.hasToken) {
+      _log('StartSessionWatch: no auth token — watch not started');
+      return;
+    }
+
+    _log('StartSessionWatch: every ${event.interval.inSeconds}s');
+    _sessionWatchTimer = Timer.periodic(event.interval, (_) => _pollSessions());
+    // Poll straight away so a session that started while the watch was off
+    // (app backgrounded, car driven in) shows without waiting a full interval.
+    _pollSessions();
+  }
+
+  void _onStopSessionWatch(
+    StopSessionWatch event,
+    Emitter<AppState> emit,
+  ) {
+    if (_sessionWatchTimer == null) return;
+    _log('StopSessionWatch');
+    _sessionWatchTimer?.cancel();
+    _sessionWatchTimer = null;
+  }
+
+  void _onSessionsUpdated(
+    SessionsUpdated event,
+    Emitter<AppState> emit,
+  ) {
+    // Sessions only — like the balance watch, this runs in the background and
+    // must never flip isLoading or the messages screens surface as snackbars.
+    emit(state.copyWith(recentSessions: event.sessions));
+  }
+
+  Future<void> _pollSessions() async {
+    if (isClosed || !_api.hasToken || _sessionPollInFlight) return;
+    // A payment in flight rewrites the session list itself, and a user-driven
+    // load is already fetching. Either would be rewound by a poll landing on
+    // top of it with data read before the write.
+    if (state.isWaitingForPayment || state.isLoading) return;
+
+    _sessionPollInFlight = true;
+    var unauthorized = false;
+
+    void track(Object e, StackTrace st, String tag) {
+      if (_isUnauthorized(e)) unauthorized = true;
+      _logError('SessionWatch/$tag', e, st);
+    }
+
+    try {
+      final vehicles = state.vehicles;
+      final results = await Future.wait([
+        _api.recentParkingSessions().then<Object?>((v) => v).catchError(
+          (Object e, StackTrace st) {
+            track(e, st, 'recent');
+            return null;
+          },
+        ),
+        _activeParkingSessionsWithAmounts().then<Object?>((v) => v).catchError(
+          (Object e, StackTrace st) {
+            track(e, st, 'active');
+            return null;
+          },
+        ),
+        _sessionsForRegisteredPlates(vehicles).then<Object?>((v) => v).catchError(
+          (Object e, StackTrace st) {
+            _logError('SessionWatch/byPlate', e, st);
+            return null;
+          },
+        ),
+      ]);
+
+      if (isClosed) return;
+      if (unauthorized) {
+        // Stop rather than hammer the API with a dead token. Session expiry is
+        // surfaced by the next user-driven load, not by a background poll.
+        _log('SessionWatch: token rejected — watch stopped');
+        _sessionWatchTimer?.cancel();
+        _sessionWatchTimer = null;
+        return;
+      }
+
+      final merged = _mergeFetchedSessions(
+        recentSessions: results[0] is List<ParkingSession>
+            ? results[0] as List<ParkingSession>
+            : null,
+        activeSessions: results[1] is List<ParkingSession>
+            ? results[1] as List<ParkingSession>
+            : null,
+        plateSessions: results[2] is List<ParkingSession>
+            ? results[2] as List<ParkingSession>
+            : null,
+        vehicles: vehicles,
+      );
+      if (merged == null) return;
+
+      // ParkingSession has no value equality, so every poll would otherwise
+      // emit a "new" list and rebuild the dashboard on a 20s heartbeat.
+      if (_sessionsSignature(merged) == _sessionsSignature(state.recentSessions)) {
+        return;
+      }
+
+      _logSuccess(
+        'SessionWatch',
+        'sessions ${state.recentSessions.length} → ${merged.length}',
+      );
+      add(SessionsUpdated(merged));
+    } catch (error, st) {
+      _logError('SessionWatch', error, st);
+    } finally {
+      _sessionPollInFlight = false;
+    }
+  }
+
+  /// Everything the dashboard actually renders per session. Deliberately not
+  /// the whole object: `currentTime` moves on every poll and would defeat the
+  /// comparison it exists to serve.
+  String _sessionsSignature(List<ParkingSession> sessions) {
+    return sessions
+        .map((session) => [
+              _sessionKey(session),
+              session.status,
+              session.isActive,
+              session.cost,
+              session.amountPaid,
+              session.locationName,
+              session.endTime?.toIso8601String() ?? '',
+            ].join('|'))
+        .join(';');
+  }
+
   Future<void> _onEndParkingSession(
     EndParkingSession event,
     Emitter<AppState> emit,
@@ -601,15 +814,18 @@ class AppBloc extends Bloc<AppEvent, AppState> {
         'count=${sessions.length}',
       );
 
+      // Take any unsettled session, not just a running one: a driver who
+      // exited without paying has an inactive EXIT_PENDING_PAYMENT session and
+      // is precisely who this screen exists for. Prefer a running session when
+      // the plate somehow has both.
       ParkingSession? session;
       for (final candidate in sessions) {
-        if (candidate.isActive) {
-          session = candidate;
-          break;
-        }
+        if (candidate.isSettled) continue;
+        session = candidate;
+        if (candidate.isActive) break;
       }
 
-      if (session == null || !session.isActive) {
+      if (session == null) {
         emit(
           state.copyWith(
             isLoading: false,
@@ -1083,9 +1299,22 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     SignOut event,
     Emitter<AppState> emit,
   ) async {
+    _walletBalanceTimer?.cancel();
+    _walletBalanceTimer = null;
+    _sessionWatchTimer?.cancel();
+    _sessionWatchTimer = null;
     _api.setToken(null);
     await UserPrefs.clearToken();
     emit(const AppState());
+  }
+
+  @override
+  Future<void> close() {
+    _walletBalanceTimer?.cancel();
+    _walletBalanceTimer = null;
+    _sessionWatchTimer?.cancel();
+    _sessionWatchTimer = null;
+    return super.close();
   }
 
   Future<List<ParkingSession>> _activeParkingSessionsWithAmounts() async {
@@ -1211,13 +1440,15 @@ class AppBloc extends Bloc<AppEvent, AppState> {
       final hydrated = _hydrateSessionVehicle(session, vehicles: vehicles);
       final key = _sessionKey(hydrated);
       final existing = byKey[key];
-      // Prefer completed/paid over active so a paid session isn't reverted by
-      // stale active-endpoint data. A session with amountPaid > 0 is always
-      // treated as completed even if the server still lists it as active.
-      final hydratedIsDone = !hydrated.isActive || hydrated.amountPaid > 0;
-      final existingIsDone = existing != null &&
-          (!existing.isActive || existing.amountPaid > 0);
-      if (existing == null || (!existingIsDone && hydratedIsDone)) {
+      // Keep whichever copy is furthest along the lifecycle so a stale list
+      // can't rewind a session: settled beats unsettled, and an exited-but-
+      // unpaid copy beats one the active endpoint still reports as running.
+      final existingIsSettled = existing?.isSettled ?? false;
+      final hydratedIsLater = existing != null &&
+          !existingIsSettled &&
+          (hydrated.isSettled ||
+              (existing.isActive && hydrated.isAwaitingPayment));
+      if (existing == null || hydratedIsLater) {
         byKey[key] = hydrated;
       }
     }

@@ -83,374 +83,414 @@ class OnboardingHeroIcon extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// APP PAGE HEADER  — premium dark card matching reference design
+// PAGE CONTROLS
 // ─────────────────────────────────────────────────────────────────────────────
 
-class AppPageHeader extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Widget? trailing;
-  final bool showBackButton;
-  final bool showIconWithBack;
-  final VoidCallback? onBack;
-
-  const AppPageHeader({
-    super.key,
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    this.trailing,
-    this.showBackButton = false,
-    this.showIconWithBack = false,
-    this.onBack,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
-      child: Padding(
-        // Floating card with side margins — matches reference design
-        padding: const EdgeInsets.fromLTRB(6, 0, 6, 0),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [
-                AppColors.primaryDeep,
-                Color(0xFF0B5C52),
-                AppColors.primary,
-              ],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              stops: [0.0, 0.52, 1.0],
-            ),
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primaryDark.withValues(alpha: 0.50),
-                blurRadius: 32,
-                offset: const Offset(0, 12),
-              ),
-              BoxShadow(
-                color: AppColors.accent.withValues(alpha: 0.10),
-                blurRadius: 48,
-                spreadRadius: 2,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.hardEdge,
-          child: Stack(
-            children: [
-              // Wave curves background painter
-              Positioned.fill(child: CustomPaint(painter: _HeaderWavePainter())),
-              // Scattered accent dots
-              _ScatteredDots(),
-              // Content row
-              Padding(
-                padding: const EdgeInsets.fromLTRB(10, 14, 10, 16),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Icon / back button
-                    if (showBackButton && !showIconWithBack)
-                      _GlassCircleBackButton(
-                        onTap: onBack ?? () => Navigator.pop(context),
-                      )
-                    else
-                      _NeonGlowIcon(icon: icon),
-                    const SizedBox(width: 20),
-                    // Title + subtitle
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.poppins(
-                              color: Colors.white,
-                              fontSize: 18,
-                              height: 1.1,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            subtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.poppins(
-                              color: Colors.white.withValues(alpha: 0.55),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w400,
-                              height: 1.3,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (trailing != null) ...[
-                      const SizedBox(width: 14),
-                      trailing!,
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// APP HEADER BUTTON — glass style for dark headers
-// ─────────────────────────────────────────────────────────────────────────────
-
-class AppHeaderButton extends StatelessWidget {
+/// A bare icon control — no fill, no border, no shadow, no label. Built on
+/// InkWell rather than IconButton because the app's `iconButtonTheme` gives
+/// IconButton a surface-coloured box, which is exactly what we're removing.
+///
+/// Screens carry no titles, so these are the only chrome on a page. Add one
+/// only where nothing else already performs the action.
+class PageAction extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
-  final bool active;
-  final String? tooltip;
 
-  const AppHeaderButton({
+  /// Always set this. With no visible label it is the only thing naming the
+  /// control for screen readers and long-press.
+  final String tooltip;
+
+  /// Tints the icon with the brand colour, for a control that is the primary
+  /// action on its row.
+  final bool primary;
+
+  /// For a control sitting on a [PageHero] rather than the page background.
+  /// Still bare — this only swaps the ink, it adds no surface of its own.
+  final bool onDark;
+
+  /// Trims the tap target for a control inlined into a hero's eyebrow row,
+  /// where 44px would force the whole row taller than its type.
+  final bool compact;
+
+  const PageAction({
     super.key,
     required this.icon,
     required this.onTap,
-    this.active = false,
-    this.tooltip,
+    required this.tooltip,
+    this.primary = false,
+    this.onDark = false,
+    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final child = Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        splashColor: Colors.white.withValues(alpha: 0.10),
-        child: Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: active
-                ? AppColors.accent.withValues(alpha: 0.20)
-                : Colors.white.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: active
-                  ? AppColors.accent.withValues(alpha: 0.55)
-                  : Colors.white.withValues(alpha: 0.18),
-              width: 1.2,
+    final colors = context.colors;
+    final Color ink;
+    if (onDark) {
+      ink = primary ? Colors.white : Colors.white.withValues(alpha: 0.86);
+    } else {
+      ink = primary ? colors.primary : colors.textSecondary;
+    }
+
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: SizedBox(
+            width: compact ? 34 : 44,
+            height: compact ? 34 : 44,
+            child: Icon(
+              icon,
+              size: compact ? 20 : 23,
+              semanticLabel: tooltip,
+              color: ink,
             ),
-            boxShadow: active
-                ? [
-                    BoxShadow(
-                      color: AppColors.accent.withValues(alpha: 0.30),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Icon(
-            icon,
-            color: active ? AppColors.accent : Colors.white,
-            size: 21,
           ),
         ),
       ),
     );
+  }
+}
 
-    if (tooltip == null) return child;
-    return Tooltip(message: tooltip!, child: child);
+/// The back affordance for a pushed route. With page titles gone this is the
+/// only chrome at the top of a sub-page, so it stands alone, left-aligned and
+/// nudged out to put the arrow's optical edge on the page gutter rather than
+/// the edge of its 44px tap target.
+///
+/// Pass [label] on a sub-page that has no [PageHero] to name it. The label is
+/// attached to the control, on the page background, with no surface, border,
+/// shadow or gradient of its own — it scrolls away with the content and costs
+/// no height over the bare arrow, which already occupies a 44px row.
+class PageBackButton extends StatelessWidget {
+  final VoidCallback? onBack;
+  final String? label;
+
+  const PageBackButton({super.key, this.onBack, this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final button = PageAction(
+      icon: Icons.arrow_back_rounded,
+      tooltip: 'Back',
+      onTap: onBack ?? () => Navigator.pop(context),
+    );
+
+    if (label == null) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Transform.translate(offset: const Offset(-10, 0), child: button),
+      );
+    }
+
+    return Transform.translate(
+      offset: const Offset(-10, 0),
+      child: Row(
+        children: [
+          button,
+          Expanded(
+            child: Text(
+              label!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.poppins(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: context.colors.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PRIVATE WIDGETS
+// PAGE HERO
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Circular neon-glow icon — matches reference design
-class _NeonGlowIcon extends StatelessWidget {
+/// One metric in a [PageHero]'s footer row.
+class PageHeroMetric {
+  final String label;
+  final String value;
+
+  const PageHeroMetric(this.label, this.value);
+}
+
+/// How dark the hero reads. [PageHeroTone.brand] keeps a lighter stop for the
+/// money page so Wallet still reads as its own; everything else is identical.
+enum PageHeroTone { deep, brand }
+
+/// The first card on a screen, and — since the page header was removed — the
+/// thing that names it.
+///
+/// Anatomy, fixed for every screen that uses it:
+///
+///   [back] eyebrow ....................... [pill]
+///   value                               [trailing]
+///   ──────────────────────────────────────────────
+///   metric │ metric │ metric
+///
+/// The eyebrow is the page name ("Registered fleet", "Available balance"), so
+/// on a pushed route the back arrow inlines into that row rather than floating
+/// alone above the card.
+class PageHero extends StatelessWidget {
+  final String eyebrow;
+  final String value;
+
+  /// Small status chip on the right of the eyebrow row.
+  final Widget? pill;
+
+  /// Action sitting on the baseline of the value line, e.g. Vehicles' add.
+  final Widget? trailing;
+
+  /// Accent set immediately before the value, e.g. the plate band on Vehicle
+  /// Details. Sized by the caller so it can align to the value's cap height.
+  final Widget? valueLeading;
+
+  /// Tracking for the value line. A plate is set wide so it reads as a plate;
+  /// ordinary values leave this at zero.
+  final double valueLetterSpacing;
+
+  /// Up to three. Rendered under a hairline, evenly divided.
+  final List<PageHeroMetric> metrics;
+
+  /// Set on a pushed route to inline the back arrow into the eyebrow row.
+  final VoidCallback? onBack;
+
+  /// Makes the whole card tappable, for a hero that is also a link.
+  final VoidCallback? onTap;
+
+  final PageHeroTone tone;
+
+  const PageHero({
+    super.key,
+    required this.eyebrow,
+    required this.value,
+    this.pill,
+    this.trailing,
+    this.valueLeading,
+    this.valueLetterSpacing = 0,
+    this.metrics = const [],
+    this.onBack,
+    this.onTap,
+    this.tone = PageHeroTone.deep,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final gradient = tone == PageHeroTone.brand
+        ? const [AppColors.primary, AppColors.primaryDark]
+        : const [AppColors.primaryDark, AppColors.primaryDeep];
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: gradient,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryDeep.withValues(alpha: 0.3),
+            blurRadius: 22,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(24),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          splashColor: Colors.white.withValues(alpha: 0.1),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),
+            child: _content(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _content() {
+    return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (onBack != null) ...[
+                Transform.translate(
+                  offset: const Offset(-8, 0),
+                  child: PageAction(
+                    icon: Icons.arrow_back_rounded,
+                    tooltip: 'Back',
+                    onTap: onBack!,
+                    onDark: true,
+                    compact: true,
+                  ),
+                ),
+                const SizedBox(width: 2),
+              ],
+              Expanded(
+                child: Text(
+                  eyebrow,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    color: Colors.white.withValues(alpha: 0.68),
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              if (pill != null) ...[const SizedBox(width: 10), pill!],
+            ],
+          ),
+          SizedBox(height: onBack == null ? 10 : 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (valueLeading != null) ...[
+                      valueLeading!,
+                      const SizedBox(width: 12),
+                    ],
+                    Flexible(
+                      child: Text(
+                        value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 32,
+                          height: 1.1,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: valueLetterSpacing,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (trailing != null) ...[const SizedBox(width: 10), trailing!],
+            ],
+          ),
+          if (metrics.isNotEmpty) ...[
+            Container(
+              height: 1,
+              margin: const EdgeInsets.only(top: 20, bottom: 14),
+              color: Colors.white.withValues(alpha: 0.14),
+            ),
+            Row(
+              children: [
+                for (var i = 0; i < metrics.length; i++) ...[
+                  if (i != 0)
+                    Container(
+                      width: 1,
+                      height: 34,
+                      color: Colors.white.withValues(alpha: 0.14),
+                    ),
+                  Expanded(child: _metric(metrics[i])),
+                ],
+              ],
+            ),
+          ],
+        ],
+    );
+  }
+
+  Widget _metric(PageHeroMetric metric) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          metric.label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: GoogleFonts.poppins(
+            color: Colors.white.withValues(alpha: 0.56),
+            fontSize: 11,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          metric.value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: GoogleFonts.poppins(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The status chip that sits at the right of a [PageHero]'s eyebrow row.
+class PageHeroPill extends StatelessWidget {
   final IconData icon;
-  const _NeonGlowIcon({required this.icon});
+  final String label;
+
+  const PageHeroPill({super.key, required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 42,
-      height: 42,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        // Dark glass background
-        color: const Color(0xFF062D27).withValues(alpha: 0.65),
-        border: Border.all(
-          color: AppColors.accent.withValues(alpha: 0.55),
-          width: 1.5,
-        ),
-        boxShadow: [
-          // Inner tight glow
-          BoxShadow(
-            color: AppColors.accent.withValues(alpha: 0.38),
-            blurRadius: 18,
-            spreadRadius: 1,
-          ),
-          // Outer soft aura
-          BoxShadow(
-            color: AppColors.accent.withValues(alpha: 0.16),
-            blurRadius: 40,
-            spreadRadius: 6,
-          ),
-        ],
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
       ),
-      child: Icon(icon, color: AppColors.accent, size: 20),
-    );
-  }
-}
-
-/// Glass circular back button for dark headers
-class _GlassCircleBackButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _GlassCircleBackButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      shape: const CircleBorder(),
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        splashColor: Colors.white.withValues(alpha: 0.10),
-        child: Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white.withValues(alpha: 0.10),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.22),
-              width: 1.2,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white.withValues(alpha: 0.76), size: 13),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              color: Colors.white.withValues(alpha: 0.82),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
             ),
           ),
-          child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 22),
-        ),
+        ],
       ),
     );
   }
 }
 
-/// Wave curves drawn in background — matches the flowing lines in reference
-class _HeaderWavePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final strokePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    // Wave 1 — mid card, sweeping left-to-right
-    strokePaint
-      ..color = const Color(0xFF30D68B).withValues(alpha: 0.18)
-      ..strokeWidth = 1.8;
-    final wave1 = Path()
-      ..moveTo(size.width * 0.18, size.height * 0.85)
-      ..cubicTo(
-        size.width * 0.38, size.height * 0.28,
-        size.width * 0.62, size.height * 0.92,
-        size.width * 1.05, size.height * 0.38,
-      );
-    canvas.drawPath(wave1, strokePaint);
-
-    // Wave 2 — lower, more subtle
-    strokePaint
-      ..color = const Color(0xFF30D68B).withValues(alpha: 0.10)
-      ..strokeWidth = 1.4;
-    final wave2 = Path()
-      ..moveTo(-size.width * 0.05, size.height * 1.05)
-      ..cubicTo(
-        size.width * 0.30, size.height * 0.55,
-        size.width * 0.58, size.height * 1.10,
-        size.width * 1.08, size.height * 0.58,
-      );
-    canvas.drawPath(wave2, strokePaint);
-
-    // Wave 3 — upper faint sweep
-    strokePaint
-      ..color = const Color(0xFF30D68B).withValues(alpha: 0.07)
-      ..strokeWidth = 1.2;
-    final wave3 = Path()
-      ..moveTo(size.width * 0.42, -size.height * 0.1)
-      ..cubicTo(
-        size.width * 0.55, size.height * 0.45,
-        size.width * 0.78, size.height * 0.20,
-        size.width * 1.10, size.height * 0.65,
-      );
-    canvas.drawPath(wave3, strokePaint);
-
-    // Right-side lighter region — subtle radial highlight
-    final radialPaint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          const Color(0xFF30D68B).withValues(alpha: 0.08),
-          Colors.transparent,
-        ],
-      ).createShader(Rect.fromCircle(
-        center: Offset(size.width * 0.82, size.height * 0.5),
-        radius: size.height * 0.9,
-      ));
-    canvas.drawCircle(
-      Offset(size.width * 0.82, size.height * 0.5),
-      size.height * 0.9,
-      radialPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_HeaderWavePainter oldDelegate) => false;
-}
-
-/// Scattered small accent dots — the tiny glowing dots in the reference
-class _ScatteredDots extends StatelessWidget {
-  const _ScatteredDots();
+/// Applies status bar icon colouring for a screen whose background is the page
+/// tone. Wrap the `Scaffold`, not the content — it has to stay painted for the
+/// whole route, which scrolling content does not.
+class AdaptiveStatusBar extends StatelessWidget {
+  final Widget child;
+  const AdaptiveStatusBar({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: CustomPaint(painter: _DotsPainter()),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+      ),
+      child: child,
     );
   }
-}
-
-class _DotsPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final dotPaint = Paint()..color = AppColors.accent.withValues(alpha: 0.55);
-    final dots = [
-      Offset(size.width * 0.52, size.height * 0.18),
-      Offset(size.width * 0.76, size.height * 0.72),
-      Offset(size.width * 0.65, size.height * 0.90),
-    ];
-    for (final d in dots) {
-      canvas.drawCircle(d, 3.0, dotPaint);
-      canvas.drawCircle(
-        d,
-        6.0,
-        Paint()
-          ..color = AppColors.accent.withValues(alpha: 0.12)
-          ..style = PaintingStyle.fill,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DotsPainter old) => false;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -10,6 +10,7 @@ import '../../blocs/app_bloc.dart';
 import '../../core/api/parking_iq_api.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/api_models.dart';
+import '../../widgets/app_widgets.dart';
 
 // Nairobi CBD — fallback when location permission is denied
 const _fallbackLat = -1.2921;
@@ -26,7 +27,6 @@ class _NearestParkingScreenState extends State<NearestParkingScreen> {
   List<NearestParkingLocation> _locations = [];
   bool _loading = true;
   String? _error;
-  bool _usingFallbackLocation = false;
 
   @override
   void initState() {
@@ -39,13 +39,12 @@ class _NearestParkingScreenState extends State<NearestParkingScreen> {
     setState(() {
       _loading = true;
       _error = null;
-      _usingFallbackLocation = false;
     });
     try {
-      final (lat, lng, fallback) = await _resolveLocation();
-      if (mounted) {
-        setState(() => _usingFallbackLocation = fallback);
-      }
+      // NOTE: `fallback` says we fell back to Nairobi CBD because location was
+      // denied. It used to be surfaced as the header subtitle; with page
+      // wordings removed there is nowhere left showing it.
+      final (lat, lng, _) = await _resolveLocation();
 
       final token = context.read<AppBloc>().state.authToken;
       final api = ParkingIqApi(token: token);
@@ -154,126 +153,140 @@ class _NearestParkingScreenState extends State<NearestParkingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: context.colors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.primaryDeep,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Nearby Parking',
-              style: GoogleFonts.poppins(
-                color: Colors.white,
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            if (_usingFallbackLocation)
-              Text(
-                'Enable location for better results',
-                style: GoogleFonts.poppins(
-                  color: Colors.white60,
-                  fontSize: 11,
-                ),
-              ),
-          ],
-        ),
-        actions: [
-          if (!_loading)
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded),
-              onPressed: _load,
-            ),
-        ],
+    return AdaptiveStatusBar(
+      child: Scaffold(
+      backgroundColor: context.colors.pageGrey,
+      // Refresh moved to pull-to-refresh on the list, matching every
+      // other screen — see _buildBody. The back control lives inside the
+      // scrolling body too, so it scrolls away like every other screen's.
+      body: SafeArea(bottom: false, child: _buildBody()),
       ),
-      body: _buildBody(),
     );
   }
 
+  /// The page's only chrome. It rides inside whichever scroll view the current
+  /// state builds, so it scrolls away as on every other screen.
+  Widget get _backRow => const Padding(
+        padding: EdgeInsets.fromLTRB(20, 22, 20, 12),
+        child: PageBackButton(label: 'Find parking'),
+      );
+
   Widget _buildBody() {
     if (_loading) {
-      return Center(
-        child: CircularProgressIndicator(color: context.colors.primary),
+      return Column(
+        children: [
+          _backRow,
+          Expanded(
+            child: Center(
+              child: CircularProgressIndicator(color: context.colors.primary),
+            ),
+          ),
+        ],
       );
     }
 
     if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.wifi_off_rounded,
-                size: 48,
-                color: context.colors.textMuted,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                _error!,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(
-                  color: context.colors.textSecondary,
-                  fontSize: 14,
+      return Column(
+        children: [
+          _backRow,
+          Expanded(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.wifi_off_rounded,
+                      size: 48,
+                      color: context.colors.textMuted,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _error!,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        color: context.colors.textSecondary,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton.icon(
+                      onPressed: _load,
+                      icon: const Icon(Icons.refresh_rounded, size: 17),
+                      label: const Text('Try Again'),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: _load,
-                icon: const Icon(Icons.refresh_rounded, size: 17),
-                label: const Text('Try Again'),
-              ),
-            ],
+            ),
           ),
-        ),
+        ],
       );
     }
 
     if (_locations.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.local_parking_rounded,
-                size: 56,
-                color: context.colors.textMuted,
+      return RefreshIndicator(
+        color: context.colors.primary,
+        onRefresh: _load,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            _backRow,
+            Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.local_parking_rounded,
+                    size: 56,
+                    color: context.colors.textMuted,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No parking locations found',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: context.colors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Pull down to refresh.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: context.colors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              Text(
-                'No parking locations found',
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: context.colors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Check back later or try refreshing.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  color: context.colors.textSecondary,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-      itemCount: _locations.length,
-      separatorBuilder: (context, _) => const SizedBox(height: 10),
-      itemBuilder: (context, i) => _locationCard(_locations[i]),
+    // Pull-to-refresh replaces the header's refresh button, and matches how
+    // every other list in the app reloads.
+    return RefreshIndicator(
+      color: context.colors.primary,
+      onRefresh: _load,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 32),
+        children: [
+          _backRow,
+          for (var i = 0; i < _locations.length; i++)
+            Padding(
+              padding: EdgeInsets.fromLTRB(16, i == 0 ? 0 : 10, 16, 0),
+              child: _locationCard(_locations[i]),
+            ),
+        ],
+      ),
     );
   }
 

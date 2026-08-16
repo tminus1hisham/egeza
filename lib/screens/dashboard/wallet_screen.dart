@@ -15,7 +15,16 @@ import '../../widgets/app_widgets.dart';
 class WalletScreen extends StatefulWidget {
   final bool showBackButton;
 
-  const WalletScreen({super.key, this.showBackButton = false});
+  /// Switches to the History tab. Null when the screen is pushed rather than
+  /// hosted by MainNavigation, in which case "See all" is hidden rather than
+  /// rendered as a link that does nothing.
+  final VoidCallback? onSeeAllActivity;
+
+  const WalletScreen({
+    super.key,
+    this.showBackButton = false,
+    this.onSeeAllActivity,
+  });
 
   @override
   State<WalletScreen> createState() => _WalletScreenState();
@@ -39,179 +48,80 @@ class _WalletScreenState extends State<WalletScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: context.colors.pageGrey,
-      body: SafeArea(
-        bottom: false,
-        child: BlocConsumer<AppBloc, AppState>(
-          listenWhen: (prev, curr) =>
-              curr.errorMessage != prev.errorMessage ||
-              curr.statusMessage != prev.statusMessage,
-          listener: (context, state) {
-            if (state.errorMessage != null && state.errorMessage!.isNotEmpty) {
-              ErrorHandler.showErrorMessage(context, state.errorMessage!);
-            } else if (state.statusMessage != null && state.statusMessage!.isNotEmpty) {
-              ErrorHandler.showSuccess(context, state.statusMessage!);
-            }
-          },
-          builder: (context, state) {
-            return Column(
-              children: [
-                _header(context, state),
-                Expanded(
-                  child: RefreshIndicator(
-                    color: context.colors.primary,
-                    onRefresh: _onRefresh,
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _balanceCard(state),
-                          const SizedBox(height: 14),
-                          _walletStats(state),
-                          const SizedBox(height: 20),
-                          _topUpPanel(context),
-                          const SizedBox(height: 22),
-                          _recentActivity(state),
-                        ],
-                      ),
-                    ),
+    return AdaptiveStatusBar(
+      child: Scaffold(
+        backgroundColor: context.colors.pageGrey,
+        body: SafeArea(
+          bottom: false,
+          child: BlocConsumer<AppBloc, AppState>(
+            listenWhen: (prev, curr) =>
+                curr.errorMessage != prev.errorMessage ||
+                curr.statusMessage != prev.statusMessage,
+            listener: (context, state) {
+              if (state.errorMessage != null && state.errorMessage!.isNotEmpty) {
+                ErrorHandler.showErrorMessage(context, state.errorMessage!);
+              } else if (state.statusMessage != null &&
+                  state.statusMessage!.isNotEmpty) {
+                ErrorHandler.showSuccess(context, state.statusMessage!);
+              }
+            },
+            builder: (context, state) {
+              return RefreshIndicator(
+                color: context.colors.primary,
+                onRefresh: _onRefresh,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 30),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _balanceCard(state),
+                      const SizedBox(height: 20),
+                      _topUpPanel(context),
+                      const SizedBox(height: 22),
+                      _recentActivity(state),
+                    ],
                   ),
                 ),
-              ],
-            );
-          },
+              );
+            },
+          ),
         ),
-      ),
-    );
-  }
-
-  Widget _header(BuildContext context, AppState state) {
-    return AppPageHeader(
-      title: 'Wallet',
-      subtitle: 'KES ${_formatAmount(state.walletBalance)} available',
-      icon: Icons.account_balance_wallet_outlined,
-      showBackButton: widget.showBackButton,
-      onBack: () => Navigator.pop(context),
-      trailing: AppHeaderButton(
-        icon: Icons.receipt_long_outlined,
-        tooltip: 'Receipts',
-        onTap: () {},
       ),
     );
   }
 
   Widget _balanceCard(AppState state) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.3),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Available balance',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white.withValues(alpha: 0.72),
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              _darkPill(Icons.phone_android_rounded, 'M-Pesa linked'),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'KES ${_formatAmount(state.walletBalance)}',
-            style: GoogleFonts.poppins(
-              color: Colors.white,
-              fontSize: 34,
-              height: 1.05,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 22),
-          Row(
-            children: [
-              Expanded(
-                child: _balanceMetric(
-                  'AutoPay cars',
-                  '${state.vehicles.where((v) => v.autoPayEnabled).length}/${state.vehicles.length}',
-                ),
-              ),
-              Container(
-                width: 1,
-                height: 34,
-                color: Colors.white.withValues(alpha: 0.14),
-              ),
-              Expanded(
-                child: _balanceMetric(
-                  'Last charge',
-                  state.recentSessions.isEmpty
-                      ? 'KES 0'
-                      : 'KES ${_formatAmount(state.recentSessions.first.cost)}',
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+    // Both numbers are about money that actually left the wallet, so they
+    // count settled sessions only — an exited session with the fee still
+    // outstanding is a bill, not a paid exit.
+    final completed = state.recentSessions.where((s) => s.isSettled).length;
+    final monthSpend = state.recentSessions
+        .where((session) => session.isSettled)
+        .fold<double>(
+          0,
+          (total, session) =>
+              total +
+              (session.amountPaid > 0 ? session.amountPaid : session.cost),
+        );
+    final autoPayCars = state.vehicles.where((v) => v.autoPayEnabled).length;
 
-  Widget _walletStats(AppState state) {
-    final completed = state.recentSessions.where((s) => !s.isActive).length;
-    final monthSpend = state.recentSessions.fold<double>(
-      0,
-      (total, session) => total + session.cost,
-    );
-
-    return Row(
-      children: [
-        Expanded(
-          child: _statTile(
-            icon: Icons.check_circle_outline_rounded,
-            label: 'Paid exits',
-            value: completed.toString(),
-            color: context.colors.success,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _statTile(
-            icon: Icons.trending_up_rounded,
-            label: 'Spend',
-            value: 'KES ${_formatCompact(monthSpend)}',
-            color: const Color(0xFF3366CC),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _statTile(
-            icon: Icons.bolt_outlined,
-            label: 'AutoPay',
-            value: 'On',
-            color: context.colors.warning,
-          ),
-        ),
+    // These three replace the stat tiles that used to sit under this card:
+    // two of them restated metrics already shown here, and the third reported
+    // AutoPay as always on regardless of state.
+    return PageHero(
+      eyebrow: 'Available balance',
+      value: 'KES ${_formatAmount(state.walletBalance)}',
+      tone: PageHeroTone.brand,
+      onBack: widget.showBackButton ? () => Navigator.pop(context) : null,
+      pill: const PageHeroPill(
+        icon: Icons.phone_android_rounded,
+        label: 'M-Pesa linked',
+      ),
+      metrics: [
+        PageHeroMetric('This month', 'KES ${_formatCompact(monthSpend)}'),
+        PageHeroMetric('Paid exits', '$completed'),
+        PageHeroMetric('AutoPay cars', '$autoPayCars/${state.vehicles.length}'),
       ],
     );
   }
@@ -243,17 +153,18 @@ class _WalletScreenState extends State<WalletScreen> {
             ],
           ),
           const SizedBox(height: 15),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _amountOptions.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 3.1,
+          // One row rather than a 2x2 grid — four short amounts fit across the
+          // panel and it keeps the top-up button above the fold.
+          SizedBox(
+            height: 46,
+            child: Row(
+              children: [
+                for (var i = 0; i < _amountOptions.length; i++) ...[
+                  if (i != 0) const SizedBox(width: 8),
+                  Expanded(child: _amountOption(_amountOptions[i])),
+                ],
+              ],
             ),
-            itemBuilder: (context, index) => _amountOption(_amountOptions[index]),
           ),
           const SizedBox(height: 14),
           TextField(
@@ -402,9 +313,10 @@ class _WalletScreenState extends State<WalletScreen> {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            if (state.recentSessions.isNotEmpty)
+            if (state.recentSessions.isNotEmpty &&
+                widget.onSeeAllActivity != null)
               GestureDetector(
-                onTap: () {},
+                onTap: widget.onSeeAllActivity,
                 child: Text(
                   'See all',
                   style: GoogleFonts.poppins(
@@ -572,107 +484,19 @@ class _WalletScreenState extends State<WalletScreen> {
             width: selected ? 1.6 : 1,
           ),
         ),
-        child: Text(
-          'KES ${_formatAmount(amount)}',
-          style: GoogleFonts.poppins(
-            color: selected ? context.colors.primary : context.colors.textPrimary,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _statTile({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    return Container(
-      height: 94,
-      padding: const EdgeInsets.all(12),
-      decoration: _panelDecoration(radius: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 19, color: color),
-          const Spacer(),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+        // No "KES" per chip — four across is tight, and the panel's custom
+        // field and button both carry the currency already.
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            _formatAmount(amount),
             style: GoogleFonts.poppins(
-              color: context.colors.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
+              color: selected ? context.colors.primary : context.colors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.poppins(
-              color: context.colors.textSecondary,
-              fontSize: 11,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _balanceMetric(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.poppins(
-            color: Colors.white.withValues(alpha: 0.58),
-            fontSize: 11,
-          ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.poppins(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _darkPill(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white.withValues(alpha: 0.76), size: 13),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: GoogleFonts.poppins(
-              color: Colors.white.withValues(alpha: 0.82),
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
       ),
     );
   }

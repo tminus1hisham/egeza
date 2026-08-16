@@ -126,6 +126,21 @@ class ParkingSession {
     );
   }
 
+  /// Nothing is owed on this session any more — the fee was collected, or the
+  /// session closed with nothing to collect.
+  ///
+  /// This is the question every "Paid" label wants answered, and it is *not*
+  /// `!isActive`: the gate leaves an exited-but-unpaid session as
+  /// `EXIT_PENDING_PAYMENT` with a null `amountPaid`, which is neither active
+  /// nor settled.
+  bool get isSettled =>
+      amountPaid > 0 || _settledStatuses.contains(status.toUpperCase());
+
+  /// The car has left but the fee is still outstanding.
+  bool get isAwaitingPayment => !isActive && !isSettled;
+
+  static const _settledStatuses = {'COMPLETED', 'CANCELLED', 'CANCELED'};
+
   ParkingSession copyWith({
     String? id,
     String? locationName,

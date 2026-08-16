@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:equatable/equatable.dart';
 
+import '../models/parking_session.dart';
+
 abstract class AppEvent extends Equatable {
   const AppEvent();
 
@@ -89,6 +91,60 @@ class AddVehicle extends AppEvent {
         model,
         autoPayEnabled,
       ];
+}
+
+/// Starts the periodic wallet-balance poll. Safe to add repeatedly — an
+/// already-running watch is restarted rather than duplicated.
+class StartWalletBalanceWatch extends AppEvent {
+  final Duration interval;
+
+  const StartWalletBalanceWatch({
+    this.interval = const Duration(seconds: 15),
+  });
+
+  @override
+  List<Object?> get props => [interval];
+}
+
+class StopWalletBalanceWatch extends AppEvent {}
+
+/// Emitted by the watcher when the backend reports a different balance.
+class WalletBalanceUpdated extends AppEvent {
+  final double balance;
+
+  const WalletBalanceUpdated(this.balance);
+
+  @override
+  List<Object?> get props => [balance];
+}
+
+/// Starts the periodic parking-session poll that keeps the home screen live.
+///
+/// Sessions are created by the gate cameras, not by this app, so a car that
+/// drives in has to *arrive* on the dashboard by itself. Same REST-only story
+/// as the wallet balance — no socket channel to subscribe to.
+/// Safe to add repeatedly: an already-running watch is restarted, not doubled.
+class StartSessionWatch extends AppEvent {
+  final Duration interval;
+
+  const StartSessionWatch({
+    this.interval = const Duration(seconds: 20),
+  });
+
+  @override
+  List<Object?> get props => [interval];
+}
+
+class StopSessionWatch extends AppEvent {}
+
+/// Emitted by the watcher when the merged session list actually changed.
+class SessionsUpdated extends AppEvent {
+  final List<ParkingSession> sessions;
+
+  const SessionsUpdated(this.sessions);
+
+  @override
+  List<Object?> get props => [sessions];
 }
 
 class TopUpWallet extends AppEvent {

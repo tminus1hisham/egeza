@@ -318,31 +318,26 @@ class _TenancyScreenState extends State<TenancyScreen> {
   Widget build(BuildContext context) {
     final profiles = _profiles ?? const <TenantProfile>[];
 
-    return Scaffold(
+    return AdaptiveStatusBar(
+      child: Scaffold(
       backgroundColor: context.colors.pageGrey,
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            AppPageHeader(
-              title: 'Tenancy',
-              subtitle: 'Tenant parking subscriptions',
-              icon: Icons.domain_outlined,
-              showBackButton: widget.showBackButton,
-              showIconWithBack: widget.showBackButton,
-              trailing: AppHeaderButton(
-                icon: Icons.refresh_rounded,
-                tooltip: 'Refresh tenancy',
-                onTap: _loadData,
-              ),
-            ),
             Expanded(
               child: RefreshIndicator(
                 color: context.colors.primary,
                 onRefresh: _loadData,
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 110),
+                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 110),
                   children: [
+                    // Refresh dropped: the RefreshIndicator above already
+                    // covers it with pull-to-refresh.
+                    if (widget.showBackButton) ...[
+                      const PageBackButton(),
+                      const SizedBox(height: 12),
+                    ],
                     _TenancySummaryHeader(
                       profiles: profiles,
                       onRequest: _openRequestForm,
@@ -389,6 +384,7 @@ class _TenancyScreenState extends State<TenancyScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -487,24 +483,13 @@ class _TenantProfileDetailScreenState
         ? null
         : _subscriptions!.where((item) => item.isActivePaid).firstOrNull;
 
-    return Scaffold(
+    return AdaptiveStatusBar(
+      child: Scaffold(
       backgroundColor: context.colors.pageGrey,
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            AppPageHeader(
-              title: 'Tenant profile',
-              subtitle: profile.locationName,
-              icon: Icons.domain_outlined,
-              showBackButton: true,
-              showIconWithBack: true,
-              trailing: AppHeaderButton(
-                icon: Icons.refresh_rounded,
-                tooltip: 'Refresh subscriptions',
-                onTap: _loadSubscriptions,
-              ),
-            ),
             Expanded(
               child: RefreshIndicator(
                 color: context.colors.primary,
@@ -512,11 +497,15 @@ class _TenantProfileDetailScreenState
                 child: ListView(
                   padding: EdgeInsets.fromLTRB(
                     20,
-                    18,
+                    22,
                     20,
                     profile.canPay ? 120 : 36,
                   ),
                   children: [
+                    // Refresh dropped: the RefreshIndicator above already
+                    // covers it with pull-to-refresh.
+                    const PageBackButton(label: 'Tenant profile'),
+                    const SizedBox(height: 12),
                     _TenantDetailHeader(
                       profile: profile,
                       activeSubscription: activeSubscription,
@@ -619,6 +608,7 @@ class _TenantProfileDetailScreenState
               ),
             )
           : null,
+      ),
     );
   }
 }

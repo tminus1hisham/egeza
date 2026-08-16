@@ -44,11 +44,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: context.colors.pageGrey,
-      body: SafeArea(
-        bottom: false,
-        child: BlocBuilder<AppBloc, AppState>(
+    return AdaptiveStatusBar(
+      child: Scaffold(
+        backgroundColor: context.colors.pageGrey,
+        body: SafeArea(
+          bottom: false,
+          child: BlocBuilder<AppBloc, AppState>(
           builder: (context, state) {
             final transactions = _filteredTransactions(state.walletTransactions);
             // Ongoing sessions belong here too — they're the record of a car
@@ -61,90 +62,90 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 }),
             );
 
-            return Column(
-              children: [
-                _header(),
-                Expanded(
-                  child: RefreshIndicator(
-                    color: context.colors.primary,
-                    onRefresh: _onRefresh,
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _overviewCard(state.walletTransactions),
-                          const SizedBox(height: 18),
-                          _sessionsList(parkingSessions),
-                          const SizedBox(height: 18),
-                          _filterBar(),
-                          const SizedBox(height: 18),
-                          _historyList(transactions),
-                        ],
-                      ),
-                    ),
-                  ),
+            return RefreshIndicator(
+              color: context.colors.primary,
+              onRefresh: _onRefresh,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 22, 20, 30),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _overviewCard(state.walletTransactions),
+                    const SizedBox(height: 18),
+                    // The filter and search govern both lists below, so they
+                    // sit above both rather than between them.
+                    _filterBar(),
+                    _searchField(),
+                    const SizedBox(height: 18),
+                    _sessionsList(parkingSessions),
+                    const SizedBox(height: 18),
+                    _historyList(transactions),
+                  ],
                 ),
-              ],
+              ),
             );
-          },
+            },
+          ),
         ),
       ),
     );
   }
 
-  Widget _header() {
-    return Column(
-      children: [
-        AppPageHeader(
-          title: 'History',
-          subtitle: 'Wallet transactions and payments',
-          icon: Icons.history_rounded,
-          trailing: AppHeaderButton(
-            icon: _searchOpen ? Icons.close_rounded : Icons.search_rounded,
-            active: _searchOpen,
-            tooltip: _searchOpen ? 'Close search' : 'Search history',
-            onTap: () => setState(() {
-              _searchOpen = !_searchOpen;
-              if (!_searchOpen) _searchController.clear();
-            }),
-          ),
-        ),
-        AnimatedSize(
+  /// Expands under the filter bar when the search action there is toggled on.
+  Widget _searchField() {
+    return AnimatedSize(
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeInOut,
+          alignment: Alignment.topCenter,
           child: _searchOpen
-              ? Container(
-                  color: context.colors.surface,
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 12),
                   child: TextField(
                     controller: _searchController,
                     autofocus: true,
                     onChanged: (_) => setState(() {}),
-                    style: GoogleFonts.poppins(fontSize: 14, color: context.colors.textPrimary),
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: context.colors.textPrimary,
+                    ),
                     decoration: InputDecoration(
                       hintText: 'Search by description or reference...',
-                      hintStyle: GoogleFonts.poppins(color: context.colors.textMuted, fontSize: 14),
-                      prefixIcon: Icon(Icons.search_rounded, color: context.colors.textMuted, size: 20),
+                      hintStyle: GoogleFonts.poppins(
+                        color: context.colors.textMuted,
+                        fontSize: 14,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search_rounded,
+                        color: context.colors.textMuted,
+                        size: 20,
+                      ),
                       filled: true,
-                      fillColor: context.colors.inputFill,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      fillColor: context.colors.surface,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
+                        borderSide: BorderSide(color: context.colors.inputBorder),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: context.colors.inputBorder),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: context.colors.primary, width: 1.5),
+                        borderSide: BorderSide(
+                          color: context.colors.primary,
+                          width: 1.5,
+                        ),
                       ),
                     ),
                   ),
                 )
-              : const SizedBox.shrink(),
-        ),
-      ],
-    );
+              : const SizedBox(width: double.infinity, height: 0),
+        );
   }
 
   Widget _overviewCard(List<WalletTransaction> transactions) {
@@ -164,104 +165,83 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }).length;
     final autoPayCount = monthTx.where(_isAutoPay).length;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primaryDark, AppColors.primaryDeep],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primaryDeep.withValues(alpha: 0.4),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
+    return PageHero(
+      eyebrow: 'Total parking spend',
+      value: 'KES ${_formatAmount(totalSpend)}',
+      pill: const PageHeroPill(
+        icon: Icons.calendar_today_rounded,
+        label: 'This month',
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Total parking spend',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white.withValues(alpha: 0.66),
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              _monthPill(),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'KES ${_formatAmount(totalSpend)}',
-            style: GoogleFonts.poppins(
-              color: Colors.white,
-              fontSize: 32,
-              height: 1.1,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 22),
-          Row(
-            children: [
-              Expanded(child: _overviewMetric('Transactions', '${transactions.length}')),
-              _metricDivider(),
-              Expanded(child: _overviewMetric('Completed', '$completed')),
-              _metricDivider(),
-              Expanded(child: _overviewMetric('AutoPay', '$autoPayCount')),
-            ],
-          ),
-        ],
-      ),
+      metrics: [
+        PageHeroMetric('Transactions', '${transactions.length}'),
+        PageHeroMetric('Completed', '$completed'),
+        PageHeroMetric('AutoPay', '$autoPayCount'),
+      ],
     );
   }
 
   Widget _filterBar() {
-    return Container(
-      height: 46,
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: context.colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.colors.border),
-      ),
-      child: Row(
-        children: List.generate(_filters.length, (index) {
-          final selected = index == _filterIndex;
-
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => _filterIndex = index),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 170),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? (index == 2 ? const Color(0xFF7C3AED) : context.colors.primary)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  _filters[index],
-                  style: GoogleFonts.poppins(
-                    color: selected ? Colors.white : context.colors.textSecondary,
-                    fontSize: 13,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                  ),
-                ),
-              ),
+    // Search lives on this row: with the page header gone it is the only
+    // remaining entry point, and the filter bar is the control strip for
+    // exactly the list it searches.
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: 46,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: context.colors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: context.colors.border),
             ),
-          );
-        }),
-      ),
+            child: Row(
+              children: List.generate(_filters.length, (index) {
+                final selected = index == _filterIndex;
+
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _filterIndex = index),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 170),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? (index == 2
+                                ? const Color(0xFF7C3AED)
+                                : context.colors.primary)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _filters[index],
+                        style: GoogleFonts.poppins(
+                          color: selected
+                              ? Colors.white
+                              : context.colors.textSecondary,
+                          fontSize: 13,
+                          fontWeight:
+                              selected ? FontWeight.w600 : FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        PageAction(
+          icon: _searchOpen ? Icons.close_rounded : Icons.search_rounded,
+          primary: _searchOpen,
+          tooltip: _searchOpen ? 'Close search' : 'Search history',
+          onTap: () => setState(() {
+            _searchOpen = !_searchOpen;
+            if (!_searchOpen) _searchController.clear();
+          }),
+        ),
+      ],
     );
   }
 
@@ -269,27 +249,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Activity',
-                style: GoogleFonts.poppins(
-                  color: context.colors.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Text(
-              '${transactions.length} records',
-              style: GoogleFonts.poppins(
-                color: context.colors.textMuted,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
+        _sectionHeader('Activity', '${transactions.length} records'),
         const SizedBox(height: 12),
         Container(
           width: double.infinity,
@@ -322,26 +282,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Parking Sessions',
-                style: GoogleFonts.poppins(
-                  color: context.colors.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Text(
-              '${sessions.length} sessions',
-              style: GoogleFonts.poppins(
-                color: context.colors.textMuted,
-                fontSize: 12,
-              ),
-            ),
-          ],
+        _sectionHeader(
+          'Parking Sessions',
+          '${sessions.length} sessions',
+          // A running session is the one row here anyone is looking for.
+          chip: sessions.any((session) => session.isActive)
+              ? const StatusBadge(label: 'Live', isActive: true)
+              : null,
         ),
         const SizedBox(height: 12),
         Container(
@@ -352,7 +299,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ? Padding(
                   padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
                   child: Text(
-                    'No parking sessions yet',
+                    _filterIndex != 0 || _searchController.text.isNotEmpty
+                        ? 'No parking sessions match this filter'
+                        : 'No parking sessions yet',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
                       color: context.colors.textSecondary,
@@ -380,13 +329,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Widget _sessionRow(ParkingSession session) {
     final amount = session.amountPaid > 0 ? session.amountPaid : session.cost;
-    // An ongoing session's amount is a running total, not money already gone,
-    // so it doesn't get the debit minus.
+    // The debit minus means "this money left your account". An ongoing
+    // session's amount is a running total, and an exited-unpaid session's is a
+    // bill — neither has been collected, so neither gets the minus.
     final amountLabel = amount <= 0
         ? 'Free'
-        : session.isActive
-            ? 'KES ${_formatAmount(amount)}'
-            : '- KES ${_formatAmount(amount)}';
+        : session.isSettled
+            ? '- KES ${_formatAmount(amount)}'
+            : 'KES ${_formatAmount(amount)}';
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Row(
@@ -692,58 +642,34 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _monthPill() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        'This month',
-        style: GoogleFonts.poppins(
-          color: Colors.white.withValues(alpha: 0.82),
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-
-  Widget _overviewMetric(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  /// Both lists on this page are records of the same activity, so they share
+  /// one header shape — label, optional state chip, then the count.
+  Widget _sectionHeader(String label, String count, {Widget? chip}) {
+    return Row(
       children: [
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.poppins(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.poppins(
+              color: context.colors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
-        const SizedBox(height: 3),
+        if (chip != null) ...[const SizedBox(width: 8), chip],
+        const Spacer(),
+        const SizedBox(width: 8),
         Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+          count,
           style: GoogleFonts.poppins(
-            color: Colors.white.withValues(alpha: 0.58),
-            fontSize: 11,
+            color: context.colors.textMuted,
+            fontSize: 12,
           ),
         ),
       ],
-    );
-  }
-
-  Widget _metricDivider() {
-    return Container(
-      width: 1,
-      height: 34,
-      margin: const EdgeInsets.symmetric(horizontal: 14),
-      color: Colors.white.withValues(alpha: 0.14),
     );
   }
 
@@ -795,9 +721,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   List<ParkingSession> _filteredSessions(List<ParkingSession> sessions) {
+    var result = sessions;
+    // The filter bar sits above this list too, so it has to bite here — a
+    // session is "Paid" once nothing is owed on it, and "AutoPay" when the fee
+    // is collected off the wallet without the driver doing anything.
+    if (_filterIndex == 1) {
+      result = result.where((s) => s.isSettled).toList();
+    }
+    if (_filterIndex == 2) {
+      result = result.where((s) => s.autoPayEnabled).toList();
+    }
+
     final query = _searchController.text.trim().toLowerCase();
-    if (query.isEmpty) return sessions;
-    return sessions
+    if (query.isEmpty) return result;
+    return result
         .where((s) =>
             s.locationName.toLowerCase().contains(query) ||
             s.vehicle.plateNumber.toLowerCase().contains(query) ||

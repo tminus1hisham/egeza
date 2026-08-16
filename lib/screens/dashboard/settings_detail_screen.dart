@@ -20,8 +20,6 @@ class PersonalDetailsSettingsPage extends StatelessWidget {
 
     return _SettingsSubPageScaffold(
       title: 'Personal details',
-      subtitle: 'Profile and contact info',
-      icon: Icons.person_outline_rounded,
       children: [
         _ProfileHero(
           name: state.userName,
@@ -83,42 +81,28 @@ class PersonalDetailsSettingsPage extends StatelessWidget {
 }
 
 class SecuritySettingsPage extends StatefulWidget {
-  final bool biometricsEnabled;
-
-  const SecuritySettingsPage({super.key, required this.biometricsEnabled});
+  const SecuritySettingsPage({super.key});
 
   @override
   State<SecuritySettingsPage> createState() => _SecuritySettingsPageState();
 }
 
 class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
-  late bool _biometricsEnabled;
   bool _pinRequired = true;
   bool _trustedDevice = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _biometricsEnabled = widget.biometricsEnabled;
-  }
 
   @override
   Widget build(BuildContext context) {
     return _SettingsSubPageScaffold(
       title: 'Security',
-      subtitle: 'PIN and device access',
-      icon: Icons.lock_outline_rounded,
-      onBack: () => Navigator.pop(context, _biometricsEnabled),
+      onBack: () => Navigator.pop(context),
       footer: _PrimaryActionButton(
         icon: Icons.check_rounded,
         label: 'Save security',
-        onPressed: () => Navigator.pop(context, _biometricsEnabled),
+        onPressed: () => Navigator.pop(context),
       ),
       children: [
-        _SecurityHero(
-          biometricsEnabled: _biometricsEnabled,
-          pinRequired: _pinRequired,
-        ),
+        _SecurityHero(pinRequired: _pinRequired),
         const SizedBox(height: 18),
         _InfoPanel(
           title: 'Access control',
@@ -129,13 +113,6 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
               subtitle: 'Ask for a device PIN before sensitive actions',
               value: _pinRequired,
               onChanged: (value) => setState(() => _pinRequired = value),
-            ),
-            _ToggleRow(
-              icon: Icons.fingerprint_rounded,
-              title: 'Biometric approval',
-              subtitle: 'Use fingerprint or face unlock for top-ups',
-              value: _biometricsEnabled,
-              onChanged: (value) => setState(() => _biometricsEnabled = value),
             ),
             _ToggleRow(
               icon: Icons.phone_iphone_rounded,
@@ -208,8 +185,6 @@ class _PreferenceSettingsPageState extends State<PreferenceSettingsPage> {
   Widget build(BuildContext context) {
     return _SettingsSubPageScaffold(
       title: widget.title,
-      subtitle: widget.subtitle,
-      icon: widget.icon,
       onBack: () => Navigator.pop(context, _enabled),
       footer: _PrimaryActionButton(
         icon: Icons.check_rounded,
@@ -267,8 +242,6 @@ class _MpesaNumberSettingsPageState extends State<MpesaNumberSettingsPage> {
   Widget build(BuildContext context) {
     return _SettingsSubPageScaffold(
       title: 'M-Pesa number',
-      subtitle: 'Default payment phone',
-      icon: Icons.phone_android_rounded,
       footer: _PrimaryActionButton(
         icon: Icons.check_rounded,
         label: 'Done',
@@ -297,79 +270,6 @@ class _MpesaNumberSettingsPageState extends State<MpesaNumberSettingsPage> {
           title: 'Wallet top-ups',
           body:
               'This number is shown when you confirm an M-Pesa wallet top-up.',
-        ),
-      ],
-    );
-  }
-}
-
-class HelpCenterSettingsPage extends StatelessWidget {
-  const HelpCenterSettingsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return _SettingsSubPageScaffold(
-      title: 'Help center',
-      subtitle: 'FAQs and support',
-      icon: Icons.help_outline_rounded,
-      children: [
-        _InfoPanel(
-          title: 'Common questions',
-          children: [
-            _ActionRow(
-              icon: Icons.local_parking_outlined,
-              title: 'Parking session not showing',
-              subtitle: 'Check plate number and location status',
-              onTap: () => _showSnack(context, 'Session help is ready.'),
-            ),
-            _ActionRow(
-              icon: Icons.payments_outlined,
-              title: 'Payment failed',
-              subtitle: 'Review wallet balance and M-Pesa prompt status',
-              onTap: () => _showSnack(context, 'Payment help is ready.'),
-            ),
-            _ActionRow(
-              icon: Icons.directions_car_outlined,
-              title: 'Vehicle AutoPay',
-              subtitle: 'Manage AutoPay from each vehicle profile',
-              onTap: () => _showSnack(context, 'Vehicle help is ready.'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
-        _InfoPanel(
-          title: 'Tenancy',
-          children: [
-            _ActionRow(
-              icon: Icons.domain_outlined,
-              title: 'Request tenancy',
-              subtitle: 'Apply for a dedicated parking space',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const TenancySettingsPage(),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
-        _InfoPanel(
-          title: 'Contact',
-          children: [
-            _ActionRow(
-              icon: Icons.chat_bubble_outline_rounded,
-              title: 'Live chat',
-              subtitle: 'Talk to egesha support',
-              onTap: () => _showSnack(context, 'Support chat is ready.'),
-            ),
-            _ActionRow(
-              icon: Icons.mail_outline_rounded,
-              title: 'Email support',
-              subtitle: 'support@egesha.co.ke',
-              onTap: () => _showSnack(context, 'Email support is ready.'),
-            ),
-          ],
         ),
       ],
     );
@@ -444,9 +344,7 @@ class _TenancySettingsPageState extends State<TenancySettingsPage> {
   @override
   Widget build(BuildContext context) {
     return _SettingsSubPageScaffold(
-      title: 'Tenancy',
-      subtitle: 'Dedicated parking space requests',
-      icon: Icons.domain_outlined,
+      title: 'Tenant parking',
       onRefresh: _loadRequests,
       children: [
         _TenancyHero(onRequest: _openRequestForm),
@@ -1194,8 +1092,6 @@ class _PrivacyTermsSettingsPageState extends State<PrivacyTermsSettingsPage> {
   Widget build(BuildContext context) {
     return _SettingsSubPageScaffold(
       title: 'Privacy and terms',
-      subtitle: 'Data, payments, and app terms',
-      icon: Icons.privacy_tip_outlined,
       footer: _PrimaryActionButton(
         icon: Icons.check_rounded,
         label: 'Done',
@@ -1660,20 +1556,19 @@ class _LegalDetailRow extends StatelessWidget {
   }
 }
 
+/// Sub-pages have no header band. They name themselves with a label on the
+/// back control — one row, on the page background, no surface of its own,
+/// scrolling away with the content.
 class _SettingsSubPageScaffold extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
   final List<Widget> children;
+  final String title;
   final Widget? footer;
   final VoidCallback? onBack;
   final RefreshCallback? onRefresh;
 
   const _SettingsSubPageScaffold({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
     required this.children,
+    required this.title,
     this.footer,
     this.onBack,
     this.onRefresh,
@@ -1686,28 +1581,30 @@ class _SettingsSubPageScaffold extends StatelessWidget {
       physics: onRefresh == null ? null : const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.fromLTRB(
         20,
-        18,
+        22,
         20,
         footer == null ? 30 + bottomPadding : 18,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: children,
+        children: [
+          PageBackButton(
+            label: title,
+            onBack: onBack ?? () => Navigator.pop(context),
+          ),
+          const SizedBox(height: 12),
+          ...children,
+        ],
       ),
     );
 
-    return Scaffold(
-      backgroundColor: context.colors.pageGrey,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _SubPageHeader(
-              title: title,
-              subtitle: subtitle,
-              icon: icon,
-              onBack: onBack ?? () => Navigator.pop(context),
-            ),
+    return AdaptiveStatusBar(
+      child: Scaffold(
+        backgroundColor: context.colors.pageGrey,
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
             Expanded(
               child: onRefresh == null
                   ? scrollView
@@ -1733,35 +1630,10 @@ class _SettingsSubPageScaffold extends StatelessWidget {
                 ),
                 child: footer,
               ),
-          ],
+            ],
+          ),
         ),
       ),
-    );
-  }
-}
-
-class _SubPageHeader extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final VoidCallback onBack;
-
-  const _SubPageHeader({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.onBack,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AppPageHeader(
-      title: title,
-      subtitle: subtitle,
-      icon: icon,
-      showBackButton: true,
-      showIconWithBack: true,
-      onBack: onBack,
     );
   }
 }
@@ -1850,20 +1722,13 @@ class _ProfileHero extends StatelessWidget {
 }
 
 class _SecurityHero extends StatelessWidget {
-  final bool biometricsEnabled;
   final bool pinRequired;
 
-  const _SecurityHero({
-    required this.biometricsEnabled,
-    required this.pinRequired,
-  });
+  const _SecurityHero({required this.pinRequired});
 
   @override
   Widget build(BuildContext context) {
-    final activeItems = [
-      if (pinRequired) 'PIN',
-      if (biometricsEnabled) 'Biometrics',
-    ];
+    final activeItems = [if (pinRequired) 'PIN'];
 
     return Container(
       width: double.infinity,

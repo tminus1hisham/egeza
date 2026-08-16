@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -9,6 +11,7 @@ import '../../blocs/app_state.dart';
 import '../../models/api_models.dart';
 import '../../models/vehicle.dart';
 import '../../models/parking_session.dart';
+import '../../widgets/add_vehicle_sheet.dart';
 import 'wallet_screen.dart';
 import 'active_session_screen.dart';
 import 'pay_parking_screen.dart';
@@ -318,15 +321,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      'KES ${state.walletBalance.toStringAsFixed(0).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',')}',
-                      style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontSize: 34,
-                        fontWeight: FontWeight.w700,
-                        height: 1.1,
-                      ),
-                    ),
+                    _AnimatedBalance(balance: state.walletBalance),
                     if (isLowBalance) ...[
                       const SizedBox(height: 8),
                       Container(
@@ -577,7 +572,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: _quickTile(
                   Icons.directions_car_outlined,
                   'Add Car',
-                  onTap: () => _openVehicles(context),
+                  // Opens the sheet directly — the tile says Add Car, so
+                  // landing on the Vehicles list was a step too many.
+                  onTap: () => showAddVehicleSheet(context),
                 ),
               ),
               const SizedBox(width: 10),
@@ -1137,6 +1134,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // ── RECENT SESSIONS ──────────────────────────────────────────────────────
   Widget _buildRecentSessions(BuildContext context, AppState state) {
+    final activeCount =
+        state.recentSessions.where((session) => session.isActive).length;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -1144,12 +1144,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Recent Sessions',
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: context.colors.textPrimary,
+              Flexible(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'Recent Sessions',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: context.colors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    if (activeCount > 0) ...[
+                      const SizedBox(width: 8),
+                      _LivePill(count: activeCount),
+                    ],
+                  ],
                 ),
               ),
               TextButton(
@@ -1233,20 +1248,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final amount = session.amountPaid > 0 ? session.amountPaid : session.cost;
     final amountLabel =
         amount > 0 ? 'KES ${amount.toStringAsFixed(0)}' : 'Free';
-    final startUtc = _apiUtc(session.startTime);
-    final endUtc = session.endTime == null
-        ? DateTime.now().toUtc()
-        : _apiUtc(session.endTime!);
-    final rawDuration = endUtc.difference(startUtc);
-    final duration = rawDuration.isNegative ? Duration.zero : rawDuration;
-    final h = duration.inHours;
-    final m = duration.inMinutes % 60;
-    final durationStr = h > 0 ? '${h}h ${m}m' : '${m}m';
     final dayStr = _dayLabel(session.startTime);
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      onTap: session.isActive
+      onTap: !session.isSettled
           ? () => Navigator.push(
               context,
               MaterialPageRoute(
@@ -1296,8 +1302,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         size: 12,
                         color: context.colors.textMuted,
                       ),
-                      Text(
-                        durationStr,
+                      _SessionDuration(
+                        session: session,
                         style: GoogleFonts.poppins(
                           fontSize: 11,
                           color: context.colors.textSecondary,
@@ -1328,51 +1334,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 const SizedBox(height: 3),
-                session.isActive
-                    ? Row(
-                        children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: context.colors.success,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Active',
-                            style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              color: context.colors.success,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      )
-                    : Row(
-                        children: [
-                          Icon(
-                            Icons.check_circle_rounded,
-                            size: 13,
-                            color: context.colors.success,
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            'Paid',
-                            style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              color: context.colors.success,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
+                _sessionStateLabel(context, session),
               ],
             ),
           ],
         ),
       ),
+    );
+  }
+
+  /// Three states, not two: a session can be running, settled, or exited with
+  /// the fee still owing. Collapsing the last two into "Paid" told drivers
+  /// their money was taken when it hadn't been.
+  Widget _sessionStateLabel(BuildContext context, ParkingSession session) {
+    if (session.isActive) {
+      return _sessionStateRow(
+        color: context.colors.success,
+        label: 'Active',
+        dot: true,
+      );
+    }
+    if (session.isAwaitingPayment) {
+      return _sessionStateRow(
+        color: context.colors.warning,
+        label: 'Payment due',
+        icon: Icons.error_outline_rounded,
+      );
+    }
+    return _sessionStateRow(
+      color: context.colors.success,
+      label: 'Paid',
+      icon: Icons.check_circle_rounded,
+    );
+  }
+
+  Widget _sessionStateRow({
+    required Color color,
+    required String label,
+    IconData? icon,
+    bool dot = false,
+  }) {
+    return Row(
+      children: [
+        if (dot)
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          )
+        else if (icon != null)
+          Icon(icon, size: 13, color: color),
+        SizedBox(width: dot ? 4 : 3),
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 11,
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 
@@ -1524,22 +1545,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return days[value.weekday - 1];
   }
 
-  DateTime _apiUtc(DateTime dt) {
-    if (dt.isUtc) return dt;
-    return DateTime.utc(
-      dt.year,
-      dt.month,
-      dt.day,
-      dt.hour,
-      dt.minute,
-      dt.second,
-      dt.millisecond,
-      dt.microsecond,
-    );
-  }
-
-  DateTime _eat(DateTime dt) => _apiUtc(dt).add(const Duration(hours: 3));
-
   void _openWallet(BuildContext context) {
     if (widget.onWalletTap != null) {
       widget.onWalletTap!();
@@ -1615,6 +1620,182 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => const TenancyScreen(showBackButton: true),
+      ),
+    );
+  }
+}
+
+DateTime _apiUtc(DateTime dt) {
+  if (dt.isUtc) return dt;
+  return DateTime.utc(
+    dt.year,
+    dt.month,
+    dt.day,
+    dt.hour,
+    dt.minute,
+    dt.second,
+    dt.millisecond,
+    dt.microsecond,
+  );
+}
+
+DateTime _eat(DateTime dt) => _apiUtc(dt).add(const Duration(hours: 3));
+
+String _formatBalance(double balance) {
+  return 'KES ${balance.toStringAsFixed(0).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',')}';
+}
+
+/// Counts from the old balance to the new one instead of swapping digits.
+///
+/// The balance now changes on its own, from a background poll the user didn't
+/// ask for — a number that silently rewrites itself mid-glance reads as a
+/// render glitch, where a short count-up reads as money arriving.
+class _AnimatedBalance extends StatelessWidget {
+  const _AnimatedBalance({required this.balance});
+
+  final double balance;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      // begin == end, so the first build is static; on rebuild the builder
+      // animates from the previous tween's end to this one.
+      tween: Tween<double>(begin: balance, end: balance),
+      duration: const Duration(milliseconds: 700),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, _) => Text(
+        _formatBalance(value),
+        style: GoogleFonts.poppins(
+          color: Colors.white,
+          fontSize: 34,
+          fontWeight: FontWeight.w700,
+          height: 1.1,
+        ),
+      ),
+    );
+  }
+}
+
+/// A running session's elapsed time, ticked once a second.
+///
+/// Only the tile that is still running holds a timer; a finished session's
+/// duration is fixed, so it renders as plain text with nothing scheduled.
+class _SessionDuration extends StatefulWidget {
+  const _SessionDuration({required this.session, required this.style});
+
+  final ParkingSession session;
+  final TextStyle style;
+
+  @override
+  State<_SessionDuration> createState() => _SessionDurationState();
+}
+
+class _SessionDurationState extends State<_SessionDuration> {
+  Timer? _ticker;
+
+  bool get _isRunning => widget.session.endTime == null;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncTicker();
+  }
+
+  @override
+  void didUpdateWidget(covariant _SessionDuration oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncTicker();
+  }
+
+  void _syncTicker() {
+    if (_isRunning) {
+      _ticker ??= Timer.periodic(
+        const Duration(seconds: 1),
+        (_) => setState(() {}),
+      );
+      return;
+    }
+    _ticker?.cancel();
+    _ticker = null;
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final startUtc = _apiUtc(widget.session.startTime);
+    final endUtc = widget.session.endTime == null
+        ? DateTime.now().toUtc()
+        : _apiUtc(widget.session.endTime!);
+    final raw = endUtc.difference(startUtc);
+    final duration = raw.isNegative ? Duration.zero : raw;
+    final h = duration.inHours;
+    final m = duration.inMinutes % 60;
+
+    return Text(h > 0 ? '${h}h ${m}m' : '${m}m', style: widget.style);
+  }
+}
+
+/// Pulsing "live" marker shown while at least one session is running, so the
+/// list reads as something being watched rather than a stale snapshot.
+class _LivePill extends StatefulWidget {
+  const _LivePill({required this.count});
+
+  final int count;
+
+  @override
+  State<_LivePill> createState() => _LivePillState();
+}
+
+class _LivePillState extends State<_LivePill>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = context.colors.success;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.24)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FadeTransition(
+            opacity: Tween<double>(begin: 1, end: 0.25).animate(_controller),
+            child: Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            widget.count == 1 ? 'Live' : 'Live · ${widget.count}',
+            style: GoogleFonts.poppins(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }
