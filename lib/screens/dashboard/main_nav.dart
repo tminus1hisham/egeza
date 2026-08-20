@@ -5,11 +5,15 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../blocs/app_bloc.dart';
 import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
+import '../../blocs/manager_cubit.dart';
+import '../../core/api/parking_iq_api.dart';
 import '../../core/theme/app_colors.dart';
 import '../onboarding/walkthrough_screen.dart';
 import 'dashboard_screen.dart';
 import 'history_screen.dart';
 import 'nearest_parking_screen.dart';
+import 'property_sessions_screen.dart';
+import 'reports_screen.dart';
 import 'settings_screen.dart';
 import 'tenancy_screen.dart';
 import 'vehicles_screen.dart';
@@ -28,6 +32,12 @@ class _MainNavigationState extends State<MainNavigation>
 
   late final Widget _dashboardScreen;
 
+  /// Filters handed to the property sessions tab from the reports screen.
+  /// A notifier rather than a field so pushing a filter does not rebuild the
+  /// whole navigator, and so the same filter can be sent twice.
+  final ValueNotifier<PropertySessionsPreset?> _sessionsPreset =
+      ValueNotifier(null);
+
   @override
   void initState() {
     super.initState();
@@ -38,7 +48,7 @@ class _MainNavigationState extends State<MainNavigation>
     _dashboardScreen = DashboardScreen(
       onVehiclesTap: () => _selectTab('vehicles'),
       onWalletTap: () => _selectTab('wallet'),
-      onHistoryTap: () => _selectTab('history'),
+      onHistoryTap: _openMyActivity,
       onTenancyTap: () => _selectTab('tenancy'),
       onSettingsTap: () => Navigator.push(
         context,
@@ -52,6 +62,7 @@ class _MainNavigationState extends State<MainNavigation>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _sessionsPreset.dispose();
     super.dispose();
   }
 
@@ -93,7 +104,7 @@ class _MainNavigationState extends State<MainNavigation>
       activeIcon: Icons.account_balance_wallet_rounded,
       inactiveIcon: Icons.account_balance_wallet_outlined,
       label: 'Wallet',
-      screen: WalletScreen(onSeeAllActivity: () => _selectTab('history')),
+      screen: WalletScreen(onSeeAllActivity: _openMyActivity),
     );
     const historyTab = _NavTab(
       id: 'history',
@@ -102,6 +113,34 @@ class _MainNavigationState extends State<MainNavigation>
       label: 'History',
       screen: HistoryScreen(),
     );
+
+    // An owner gets Reports in the middle, and the History tab becomes the
+    // property's sessions rather than this account's own. Their personal
+    // history is still one tap away from the sessions hero and the wallet.
+    if (state.shouldShowReports) {
+      return [
+        homeTab,
+        _NavTab(
+          id: 'sessions',
+          activeIcon: Icons.receipt_long_rounded,
+          inactiveIcon: Icons.receipt_long_outlined,
+          label: 'Sessions',
+          screen: PropertySessionsScreen(
+            preset: _sessionsPreset,
+            onOpenMyActivity: _openMyActivity,
+          ),
+        ),
+        _NavTab(
+          id: 'reports',
+          activeIcon: Icons.insights_rounded,
+          inactiveIcon: Icons.insights_outlined,
+          label: 'Reports',
+          screen: ReportsScreen(onOpenSessions: _openSessionsWith),
+        ),
+        walletTab,
+        vehiclesTab,
+      ];
+    }
 
     if (state.shouldShowTenancy) {
       return [
@@ -127,12 +166,19 @@ class _MainNavigationState extends State<MainNavigation>
     return BlocConsumer<AppBloc, AppState>(
       listenWhen: (prev, curr) =>
           (!prev.sessionExpired && curr.sessionExpired) ||
-          (prev.shouldShowTenancy && !curr.shouldShowTenancy),
+          (prev.shouldShowTenancy && !curr.shouldShowTenancy) ||
+          (prev.shouldShowReports && !curr.shouldShowReports),
       listener: (context, state) {
         if (state.sessionExpired) {
           _showSessionExpiredDialog(context);
         }
         if (!state.shouldShowTenancy && _selectedTabId == 'tenancy') {
+          setState(() => _selectedTabId = 'home');
+        }
+        // The debug switch can drop the owner side out from under the tab that
+        // is open; land on Home rather than on an index that no longer exists.
+        if (!state.shouldShowReports &&
+            (_selectedTabId == 'reports' || _selectedTabId == 'sessions')) {
           setState(() => _selectedTabId = 'home');
         }
       },
@@ -142,7 +188,7 @@ class _MainNavigationState extends State<MainNavigation>
             tabs.indexWhere((tab) => tab.id == _selectedTabId);
         final effectiveIndex = selectedIndex < 0 ? 0 : selectedIndex;
 
-        return Scaffold(
+        final scaffold = Scaffold(
           body: IndexedStack(
             index: effectiveIndex,
             children: [for (final tab in tabs) tab.screen],
@@ -185,6 +231,18 @@ class _MainNavigationState extends State<MainNavigation>
             ),
           ),
         );
+
+        if (!state.shouldShowReports) return scaffold;
+
+        // One controller and one poll behind both owner tabs: the reports and
+        // the sessions list are the same site read the same moment, and the
+        // figures cannot disagree between them.
+        return _OwnerDataScope(
+          key: ValueKey(state.debugSampleData),
+          api: context.read<AppBloc>().api,
+          useSampleData: state.debugSampleData,
+          child: scaffold,
+        );
       },
     );
   }
@@ -205,9 +263,37 @@ class _MainNavigationState extends State<MainNavigation>
     setState(() => _selectedTabId = tabId);
   }
 
+  /// This account's own parking and wallet history.
+  ///
+  /// It is a tab for a driver and a pushed route for an owner, whose History
+  /// tab has been given over to the whole property — either way the control
+  /// that asks for it works.
+  void _openMyActivity() {
+    if (_tabsFor(context.read<AppBloc>().state)
+        .any((tab) => tab.id == 'history')) {
+      _selectTab('history');
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const HistoryScreen(showBackButton: true),
+      ),
+    );
+  }
+
+  /// Opens the property sessions tab on a filter chosen elsewhere.
+  void _openSessionsWith(PropertySessionsPreset preset) {
+    _sessionsPreset.value = preset;
+    _selectTab('sessions');
+  }
+
   Widget _navItem(_NavTab tab) {
     final isActive = _selectedTabId == tab.id;
     return Expanded(
+      // Named so the bar can be driven and read without going through label
+      // text, which several screens also print in their own content.
+      key: ValueKey('nav-${tab.id}'),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -275,6 +361,66 @@ class _MainNavigationState extends State<MainNavigation>
         ),
       ),
     );
+  }
+}
+
+/// Owns the [ManagerCubit] behind the owner tabs.
+///
+/// Lives here rather than inside either screen because both of them are alive
+/// at once inside the [IndexedStack] — one owner of the polling loop, started
+/// when the owner side appears and stopped when the app goes to the background.
+class _OwnerDataScope extends StatefulWidget {
+  final ParkingIqApi api;
+  final bool useSampleData;
+  final Widget child;
+
+  const _OwnerDataScope({
+    super.key,
+    required this.api,
+    required this.useSampleData,
+    required this.child,
+  });
+
+  @override
+  State<_OwnerDataScope> createState() => _OwnerDataScopeState();
+}
+
+class _OwnerDataScopeState extends State<_OwnerDataScope>
+    with WidgetsBindingObserver {
+  late final ManagerCubit _cubit;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _cubit = ManagerCubit(
+      api: widget.api,
+      useSampleData: widget.useSampleData,
+    )..start();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _cubit.close();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
+    // Restarting on resume also refreshes immediately, so an owner coming back
+    // to the app sees the site as it is now rather than as it was.
+    if (lifecycleState == AppLifecycleState.resumed) {
+      _cubit.start();
+    } else if (lifecycleState == AppLifecycleState.paused ||
+        lifecycleState == AppLifecycleState.detached) {
+      _cubit.stop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider<ManagerCubit>.value(value: _cubit, child: widget.child);
   }
 }
 

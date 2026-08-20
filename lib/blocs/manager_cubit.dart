@@ -102,9 +102,28 @@ class ManagerCubit extends Cubit<ManagerState> {
       todaySessions: const [],
       activeSessions: const [],
       todayPayments: const [],
+      historySessions: const [],
+      historyPayments: const [],
       clearError: true,
     ));
     await refresh();
+  }
+
+  /// Switches the period the reports read. No refetch — the endpoints hand back
+  /// the site's whole record, so every period is already in hand.
+  void selectRange(ReportRange range) {
+    if (range == state.range && range != ReportRange.custom) return;
+    emit(state.copyWith(range: range));
+  }
+
+  /// Applies a picked pair of dates. Order does not matter; the window sorts
+  /// them and covers both days in full.
+  void selectCustomRange(DateTime start, DateTime end) {
+    emit(state.copyWith(
+      range: ReportRange.custom,
+      customStart: start,
+      customEnd: end,
+    ));
   }
 
   /// One pass over the selected location's sessions and payments.
@@ -117,6 +136,9 @@ class ManagerCubit extends Cubit<ManagerState> {
       // only ever moves forward — cars whose stay has run out exit and their
       // payment joins the takings while the screen is open.
       final snapshot = ManagerSampleData.forLocation(locationId);
+      // The weeks behind today are generated once and cached, so only the
+      // current day is redrawn on a poll.
+      final past = ManagerSampleData.historyFor(locationId);
       emit(state.copyWith(
         isLoading: false,
         todaySessions: _todaySessions(
@@ -125,6 +147,8 @@ class ManagerCubit extends Cubit<ManagerState> {
         ),
         activeSessions: snapshot.activeSessions,
         todayPayments: _todayPayments(snapshot.payments),
+        historySessions: [...snapshot.sessions, ...past.sessions],
+        historyPayments: [...snapshot.payments, ...past.payments],
         revenueSource: ManagerRevenueSource.payments,
         lastUpdated: DateTime.now(),
         clearError: true,
@@ -201,6 +225,12 @@ class ManagerCubit extends Cubit<ManagerState> {
       activeSessions: effectiveActive,
       todayPayments:
           payments == null ? state.todayPayments : _todayPayments(payments),
+      // Kept whole for the reports and the sessions list, which pick their own
+      // period out of it. A failed call leaves the last good record in place.
+      historySessions: allSessions == null
+          ? state.historySessions
+          : _mergedHistory(allSessions, effectiveActive),
+      historyPayments: payments ?? state.historyPayments,
       revenueSource: payments == null
           ? ManagerRevenueSource.sessions
           : ManagerRevenueSource.payments,
@@ -259,6 +289,27 @@ class ManagerCubit extends Cubit<ManagerState> {
     );
 
     return [for (final location in probes) ?location];
+  }
+
+  /// The site's whole record, newest first, with the live list folded in.
+  ///
+  /// Same reason as [_todaySessions]: a session the gate opened moments ago can
+  /// be missing from the full list while the active endpoint already has it.
+  /// Deduped on session id so nothing is counted twice.
+  List<ParkingSession> _mergedHistory(
+    List<ParkingSession> allSessions,
+    List<ParkingSession> activeSessions,
+  ) {
+    final byKey = <String, ParkingSession>{};
+    var index = 0;
+
+    for (final session in [...allSessions, ...activeSessions]) {
+      final key = session.id.isNotEmpty ? session.id : 'row-${index++}';
+      byKey.putIfAbsent(key, () => session);
+    }
+
+    return byKey.values.toList()
+      ..sort((a, b) => b.startTime.compareTo(a.startTime));
   }
 
   /// Today's sessions, in the device's local day.

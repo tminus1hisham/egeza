@@ -91,6 +91,20 @@ class AppState extends Equatable {
   /// without changing the account's role in the backend.
   bool get isManager => debugManagerMode ?? hasManagerRole;
 
+  /// Whether this account runs a property rather than only parking in one.
+  ///
+  /// The same set of roles as [hasManagerRole] — on this backend the site
+  /// owner is a `CLIENT` and the person running the gate is a `MANAGER`, and
+  /// both are entitled to the site's own figures. Named separately because the
+  /// reports tab is about ownership of the numbers, not about the manager
+  /// view, and the two would otherwise be impossible to tell apart later.
+  bool get isOwner => isManager;
+
+  /// Whether to give this account the Reports tab and turn the sessions list
+  /// over to the whole property. Only a gate on the entry point — the
+  /// `/manager/*` endpoints decide which sites, if any, actually open.
+  bool get shouldShowReports => isOwner;
+
   /// True when the mode on screen is not the one the account's role implies.
   bool get isDebugModeOverridden =>
       debugManagerMode != null && debugManagerMode != hasManagerRole;

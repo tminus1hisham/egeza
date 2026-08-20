@@ -3,16 +3,11 @@ import 'package:equatable/equatable.dart';
 import '../models/api_models.dart';
 import '../models/parking_session.dart';
 import '../models/vehicle.dart';
+import 'report_metrics.dart';
 
-/// Where the day's takings figure came from.
-///
-/// [ManagerRevenueSource.payments] is the real one — money that actually landed,
-/// dated by when it landed. [ManagerRevenueSource.sessions] is the fallback used
-/// when the payments endpoint is unavailable; it sums what today's sessions
-/// recorded as paid, so it misses a car that drove in yesterday and settled
-/// this morning. The screen says which it is showing rather than passing off an
-/// estimate as the till.
-enum ManagerRevenueSource { payments, sessions }
+// ManagerRevenueSource and the report types live in report_metrics.dart, which
+// is pure. Re-exported so everything reading this state keeps one import.
+export 'report_metrics.dart';
 
 class ManagerState extends Equatable {
   /// First load only — a background refresh must never flip this, or the screen
@@ -31,6 +26,22 @@ class ManagerState extends Equatable {
 
   /// Today's payments at the selected location, settled and unsettled.
   final List<PaymentTransaction> todayPayments;
+
+  /// Every session the location has on record, not just today's. The endpoint
+  /// takes no date filter, so this is what the reports and the property
+  /// sessions list slice their periods out of.
+  final List<ParkingSession> historySessions;
+
+  /// Every payment the location has on record, settled and unsettled.
+  final List<PaymentTransaction> historyPayments;
+
+  /// The period the reports screen is showing.
+  final ReportRange range;
+
+  /// Bounds of the picked range. Only read when [range] is
+  /// [ReportRange.custom].
+  final DateTime? customStart;
+  final DateTime? customEnd;
 
   final ManagerRevenueSource revenueSource;
   final DateTime? lastUpdated;
@@ -52,6 +63,11 @@ class ManagerState extends Equatable {
     this.todaySessions = const [],
     this.activeSessions = const [],
     this.todayPayments = const [],
+    this.historySessions = const [],
+    this.historyPayments = const [],
+    this.range = ReportRange.today,
+    this.customStart,
+    this.customEnd,
     this.revenueSource = ManagerRevenueSource.payments,
     this.lastUpdated,
     this.hasNoAssignments = false,
@@ -154,6 +170,39 @@ class ManagerState extends Equatable {
 
   bool get hasData => lastUpdated != null;
 
+  // ── Reports ──────────────────────────────────────────────────────────────
+
+  /// The full session record, newest first.
+  ///
+  /// Falls back to today's list so a state built from a single day — which is
+  /// all the older screens and their tests populate — still reports something
+  /// rather than an empty period.
+  List<ParkingSession> get reportSessions =>
+      historySessions.isNotEmpty ? historySessions : todaySessions;
+
+  List<PaymentTransaction> get reportPayments =>
+      historyPayments.isNotEmpty ? historyPayments : todayPayments;
+
+  ReportWindow get window => ReportWindow.of(
+        range,
+        customStart: customStart,
+        customEnd: customEnd,
+      );
+
+  /// Every figure the reports screen shows, for the selected period.
+  ///
+  /// Recomputed per read rather than cached: the state has a const constructor
+  /// so it cannot hold a memo, and one pass over the site's sessions costs far
+  /// less than the rebuild that asked for it. Screens read it once per build.
+  ReportSummary get report => buildReport(
+        window: window,
+        sessions: reportSessions,
+        payments: reportPayments,
+        activeSessions: activeSessions,
+        revenueSource: revenueSource,
+        capacity: capacity,
+      );
+
   ManagerState copyWith({
     bool? isLoading,
     List<ParkingLocation>? locations,
@@ -161,6 +210,11 @@ class ManagerState extends Equatable {
     List<ParkingSession>? todaySessions,
     List<ParkingSession>? activeSessions,
     List<PaymentTransaction>? todayPayments,
+    List<ParkingSession>? historySessions,
+    List<PaymentTransaction>? historyPayments,
+    ReportRange? range,
+    DateTime? customStart,
+    DateTime? customEnd,
     ManagerRevenueSource? revenueSource,
     DateTime? lastUpdated,
     bool? hasNoAssignments,
@@ -168,6 +222,7 @@ class ManagerState extends Equatable {
     bool? isSample,
     bool clearError = false,
   }) {
+    final nextRange = range ?? this.range;
     return ManagerState(
       isLoading: isLoading ?? this.isLoading,
       locations: locations ?? this.locations,
@@ -175,6 +230,17 @@ class ManagerState extends Equatable {
       todaySessions: todaySessions ?? this.todaySessions,
       activeSessions: activeSessions ?? this.activeSessions,
       todayPayments: todayPayments ?? this.todayPayments,
+      historySessions: historySessions ?? this.historySessions,
+      historyPayments: historyPayments ?? this.historyPayments,
+      range: nextRange,
+      // Bounds belong to the picked range alone. Carrying them into a preset
+      // would leave a stale pair behind to be read the next time the user
+      // picks "Custom" without choosing dates.
+      customStart: nextRange == ReportRange.custom
+          ? (customStart ?? this.customStart)
+          : null,
+      customEnd:
+          nextRange == ReportRange.custom ? (customEnd ?? this.customEnd) : null,
       revenueSource: revenueSource ?? this.revenueSource,
       lastUpdated: lastUpdated ?? this.lastUpdated,
       hasNoAssignments: hasNoAssignments ?? this.hasNoAssignments,
@@ -194,6 +260,14 @@ class ManagerState extends Equatable {
         _sessionsSignature(todaySessions),
         _sessionsSignature(activeSessions),
         _paymentsSignature(todayPayments),
+        // The history lists run to thousands of rows, so they are compared by
+        // size rather than by a signature built row by row — every refresh that
+        // changes them also moves `lastUpdated`, which is in this list already.
+        historySessions.length,
+        historyPayments.length,
+        range,
+        customStart,
+        customEnd,
         revenueSource,
         lastUpdated,
         hasNoAssignments,

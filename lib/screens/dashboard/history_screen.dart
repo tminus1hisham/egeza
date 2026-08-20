@@ -11,7 +11,11 @@ import '../../models/parking_session.dart';
 import '../../widgets/app_widgets.dart';
 
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key});
+  /// Set when this is a pushed route rather than a tab — an owner reaches their
+  /// own activity from the property sessions screen, and needs a way back.
+  final bool showBackButton;
+
+  const HistoryScreen({super.key, this.showBackButton = false});
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -168,6 +172,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return PageHero(
       eyebrow: 'Total parking spend',
       value: 'KES ${_formatAmount(totalSpend)}',
+      onBack: widget.showBackButton ? () => Navigator.pop(context) : null,
       pill: const PageHeroPill(
         icon: Icons.calendar_today_rounded,
         label: 'This month',

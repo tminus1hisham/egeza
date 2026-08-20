@@ -142,6 +142,56 @@ void main() {
     });
   });
 
+  group('sample history', () {
+    test('fills the days behind today and none of today', () {
+      final at = DateTime(2026, 8, 16, 13);
+      final past = ManagerSampleData.historyFor(
+        ManagerSampleData.saritId,
+        now: at,
+        days: 10,
+      );
+
+      expect(past.sessions, isNotEmpty);
+      expect(past.payments, isNotEmpty);
+      // Yesterday's cars have all gone home.
+      expect(past.activeSessions, isEmpty);
+
+      final midnight = DateTime(at.year, at.month, at.day);
+      for (final session in past.sessions) {
+        expect(session.startTime.isBefore(midnight), isTrue);
+        expect(
+          session.startTime.isAfter(midnight.subtract(const Duration(days: 11))),
+          isTrue,
+        );
+        expect(session.isActive, isFalse);
+        expect(session.endTime, isNotNull);
+      }
+    });
+
+    test('is generated once and held, so a poll cannot move the past', () {
+      final at = DateTime(2026, 8, 16, 13);
+      final first =
+          ManagerSampleData.historyFor(ManagerSampleData.saritId, now: at);
+      final second =
+          ManagerSampleData.historyFor(ManagerSampleData.saritId, now: at);
+
+      expect(identical(first, second), isTrue);
+    });
+
+    test('gives the AutoPay filter and the payment mix something to show', () {
+      final past = ManagerSampleData.historyFor(
+        ManagerSampleData.saritId,
+        now: DateTime(2026, 8, 16, 13),
+        days: 7,
+      );
+
+      final autoPay =
+          past.sessions.where((session) => session.autoPayEnabled).length;
+      expect(autoPay, greaterThan(0));
+      expect(autoPay, lessThan(past.sessions.length));
+    });
+  });
+
   group('ManagerCubit in sample mode', () {
     test('never calls the API and flags every reading as sample', () async {
       final cubit = ManagerCubit(api: _ForbiddenApi(), useSampleData: true);
