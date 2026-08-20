@@ -71,14 +71,14 @@ class _WalletScreenState extends State<WalletScreen> {
                 onRefresh: _onRefresh,
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 30),
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _balanceCard(state),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
                       _topUpPanel(context),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 18),
                       _recentActivity(state),
                     ],
                   ),
@@ -129,7 +129,7 @@ class _WalletScreenState extends State<WalletScreen> {
   Widget _topUpPanel(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
       decoration: _panelDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -139,24 +139,24 @@ class _WalletScreenState extends State<WalletScreen> {
               Icon(
                 Icons.add_card_rounded,
                 color: context.colors.primary,
-                size: 20,
+                size: 18,
               ),
               const SizedBox(width: 8),
               Text(
                 'Top up wallet',
                 style: GoogleFonts.poppins(
                   color: context.colors.textPrimary,
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: 12),
           // One row rather than a 2x2 grid — four short amounts fit across the
           // panel and it keeps the top-up button above the fold.
           SizedBox(
-            height: 46,
+            height: 40,
             child: Row(
               children: [
                 for (var i = 0; i < _amountOptions.length; i++) ...[
@@ -166,7 +166,7 @@ class _WalletScreenState extends State<WalletScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           TextField(
             controller: _customAmountController,
             keyboardType: TextInputType.number,
@@ -180,12 +180,12 @@ class _WalletScreenState extends State<WalletScreen> {
                 }
               });
             },
-            style: GoogleFonts.poppins(fontSize: 14, color: context.colors.textPrimary, fontWeight: FontWeight.w600),
+            style: GoogleFonts.poppins(fontSize: 13, color: context.colors.textPrimary, fontWeight: FontWeight.w600),
             decoration: InputDecoration(
               hintText: 'Custom amount (min KES 100)',
-              hintStyle: GoogleFonts.poppins(color: context.colors.textMuted, fontSize: 14, fontWeight: FontWeight.w400),
+              hintStyle: GoogleFonts.poppins(color: context.colors.textMuted, fontSize: 13, fontWeight: FontWeight.w400),
               prefixIcon: Padding(
-                padding: const EdgeInsets.only(left: 16, right: 10),
+                padding: const EdgeInsets.only(left: 14, right: 8),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -194,7 +194,7 @@ class _WalletScreenState extends State<WalletScreen> {
                       style: GoogleFonts.poppins(
                         color: context.colors.textSecondary,
                         fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                        fontSize: 13,
                       ),
                     ),
                   ],
@@ -203,34 +203,34 @@ class _WalletScreenState extends State<WalletScreen> {
               prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
               filled: true,
               fillColor: context.colors.inputFill,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: context.colors.primary, width: 1.5),
               ),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   color: context.colors.successLight,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   Icons.phone_android_rounded,
                   color: context.colors.success,
-                  size: 21,
+                  size: 19,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -257,25 +257,25 @@ class _WalletScreenState extends State<WalletScreen> {
               Icon(
                 Icons.check_circle_rounded,
                 color: context.colors.success,
-                size: 22,
+                size: 20,
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
-            height: 54,
+            height: 46,
             child: ElevatedButton.icon(
               onPressed: _selectedAmount == null
                   ? null
                   : () => _topUpWallet(context, _selectedAmount!),
-              icon: const Icon(Icons.bolt_outlined, size: 19),
+              icon: const Icon(Icons.bolt_outlined, size: 17),
               label: Text(
                 _selectedAmount == null
                     ? 'Select an Amount'
                     : 'Top Up KES ${_formatAmount(_selectedAmount!)}',
                 style: GoogleFonts.poppins(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -286,7 +286,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 disabledForegroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
             ),
@@ -309,7 +309,7 @@ class _WalletScreenState extends State<WalletScreen> {
               'Recent activity',
               style: GoogleFonts.poppins(
                 color: context.colors.textPrimary,
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -328,7 +328,7 @@ class _WalletScreenState extends State<WalletScreen> {
               ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         Container(
           width: double.infinity,
           clipBehavior: Clip.antiAlias,
@@ -336,27 +336,27 @@ class _WalletScreenState extends State<WalletScreen> {
           child: sessions.isEmpty
               ? Padding(
                   padding: const EdgeInsets.symmetric(
-                    vertical: 48,
-                    horizontal: 32,
+                    vertical: 34,
+                    horizontal: 24,
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
                         Icons.receipt_long_outlined,
-                        size: 64,
+                        size: 46,
                         color: context.colors.textMuted,
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 14),
                       Text(
                         'No transactions',
                         style: GoogleFonts.poppins(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.w600,
                           color: context.colors.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 8),
                       Text(
                         'Top-up or park to see activity here',
                         textAlign: TextAlign.center,
@@ -376,7 +376,7 @@ class _WalletScreenState extends State<WalletScreen> {
                         Divider(
                           color: context.colors.divider,
                           height: 1,
-                          indent: 74,
+                          indent: 64,
                         ),
                     ],
                   ],
@@ -392,23 +392,23 @@ class _WalletScreenState extends State<WalletScreen> {
         amount > 0 ? '- KES ${_formatAmount(amount)}' : 'Free';
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
+      padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
               color: context.colors.accentLight,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               Icons.local_parking_rounded,
               color: context.colors.primary,
-              size: 21,
+              size: 19,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -478,7 +478,7 @@ class _WalletScreenState extends State<WalletScreen> {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected ? context.colors.accentLight : context.colors.cardSurface,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: selected ? context.colors.primary : context.colors.border,
             width: selected ? 1.6 : 1,
@@ -501,7 +501,7 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  BoxDecoration _panelDecoration({double radius = 20}) {
+  BoxDecoration _panelDecoration({double radius = 16}) {
     return BoxDecoration(
       color: context.colors.surface,
       borderRadius: BorderRadius.circular(radius),

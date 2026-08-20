@@ -11,6 +11,7 @@ import '../core/payment/payment_validation.dart';
 import '../core/user_prefs.dart';
 import '../models/api_models.dart';
 import '../models/parking_session.dart';
+import '../models/session_promo_hold.dart';
 import '../models/vehicle.dart';
 import 'app_event.dart';
 import 'app_state.dart';
@@ -34,12 +35,16 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     String? initialPhoneNumber,
     String? initialAuthToken,
     ThemeMode initialThemeMode = ThemeMode.system,
+    bool? initialDebugManagerMode,
+    bool initialDebugSampleData = false,
   })  : _api = api ?? ParkingIqApi(),
         super(AppState(
           userName: initialUserName ?? '',
           phoneNumber: initialPhoneNumber,
           authToken: initialAuthToken,
           themeMode: initialThemeMode,
+          debugManagerMode: initialDebugManagerMode,
+          debugSampleData: initialDebugSampleData,
         )) {
     if (initialAuthToken != null && initialAuthToken.isNotEmpty) {
       _api.setToken(initialAuthToken);
@@ -59,13 +64,23 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     on<EndParkingSession>(_onEndParkingSession);
     on<FindParkingSession>(_onFindParkingSession);
     on<PayParkingSession>(_onPayParkingSession);
+    on<ApplySessionPromo>(_onApplySessionPromo);
     on<SetVehicleAutoPay>(_onSetVehicleAutoPay);
     on<RemoveVehicle>(_onRemoveVehicle);
     on<ChangeThemeMode>(_onChangeThemeMode);
+    on<SetDebugManagerMode>(_onSetDebugManagerMode);
+    on<SetDebugSampleData>(_onSetDebugSampleData);
     on<ClearAppMessages>(_onClearAppMessages);
     on<ClearParkingSelection>(_onClearParkingSelection);
     on<SignOut>(_onSignOut);
   }
+
+  /// The authenticated API client this bloc drives.
+  ///
+  /// Exposed so a screen-scoped controller — currently [ManagerCubit] — can
+  /// share the same token and base URL instead of standing up a second client
+  /// that would know nothing about sign-in or session expiry.
+  ParkingIqApi get api => _api;
 
   Future<void> _onChangeThemeMode(
     ChangeThemeMode event,
@@ -79,6 +94,27 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     if (event.themeMode == ThemeMode.dark) themeString = 'dark';
     
     await UserPrefs.saveTheme(themeString);
+  }
+
+  Future<void> _onSetDebugManagerMode(
+    SetDebugManagerMode event,
+    Emitter<AppState> emit,
+  ) async {
+    _log('SetDebugManagerMode: ${event.enabled ?? 'follow account role'}');
+    emit(state.copyWith(
+      debugManagerMode: event.enabled,
+      clearDebugManagerMode: event.enabled == null,
+    ));
+    await UserPrefs.saveDebugManagerMode(event.enabled);
+  }
+
+  Future<void> _onSetDebugSampleData(
+    SetDebugSampleData event,
+    Emitter<AppState> emit,
+  ) async {
+    _log('SetDebugSampleData: ${event.enabled}');
+    emit(state.copyWith(debugSampleData: event.enabled));
+    await UserPrefs.saveDebugSampleData(event.enabled);
   }
 
   void _log(String msg) {
@@ -1122,6 +1158,230 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     }
   }
 
+  /// Redeems a promo code against a session AutoPay is going to settle.
+  ///
+  /// Two outcomes, and they are the whole feature:
+  ///
+  /// * the promo covers the bill — it is spent on the spot, the session is
+  ///   closed with nothing to collect, and the code does not hold;
+  /// * the promo covers part of it — the discount stands, AutoPay picks up the
+  ///   remainder at the gate, and the hold runs for
+  ///   [SessionPromoHold.holdDuration].
+  ///
+  /// No M-Pesa prompt is ever raised here: a driver on AutoPay asked not to be
+  /// prompted.
+  Future<void> _onApplySessionPromo(
+    ApplySessionPromo event,
+    Emitter<AppState> emit,
+  ) async {
+    final code = event.code.trim();
+    if (code.isEmpty) {
+      emit(state.copyWith(errorMessage: 'Enter a promo code to continue'));
+      return;
+    }
+    if (state.isApplyingPromo) {
+      _log('ApplySessionPromo: ignored - already redeeming a code');
+      return;
+    }
+
+    emit(state.copyWith(isApplyingPromo: true, clearMessages: true));
+    _log('ApplySessionPromo: sessionId=${event.sessionId} code=$code');
+
+    try {
+      if (!_api.hasToken) {
+        throw const ApiException('Please sign in before using a promo code');
+      }
+
+      PaymentValidation.validateSessionId(event.sessionId);
+
+      final existingSession = _sessionFromState(event.sessionId);
+      if (existingSession != null) {
+        PaymentValidation.validateSessionCanBePaid(existingSession);
+      }
+
+      final calculated = await _api.calculateParkingSession(event.sessionId);
+
+      // Same trap as the pay flow: calculate returns billing data whose
+      // status/isActive cannot be trusted, so the lifecycle check runs against
+      // the real session.
+      final sessionForValidation = existingSession ??
+          await _api.parkingSession(event.sessionId).catchError((e, st) {
+            _logError('ApplySessionPromo/sessionForValidation', e, st);
+            throw const ApiException(
+              'Could not verify this parking session. Please try again.',
+            );
+          });
+      PaymentValidation.validateSessionCanBePaid(sessionForValidation);
+
+      final redemption = await _api.applyDiscount(
+        sessionId: event.sessionId,
+        code: code,
+      );
+      _logSuccess(
+        'ApplySessionPromo/applyDiscount',
+        'discount=${redemption.discountAmount} final=${redemption.finalAmount}',
+      );
+
+      // `/tenancy/discounts/apply` is the tenancy service answering for the
+      // code. Whether the *parking* service — the one AutoPay bills against —
+      // recorded anything is a separate question, and the only endpoint that
+      // answers it is the session itself: ParkingSessionDto carries
+      // `discountAmount`, while the `calculate` endpoint the live bill refreshes
+      // from (ParkingDetailsDto) carries no discount field at all.
+      //
+      // So read the session back. Its discount wins when it has one, and a
+      // redemption the session does not echo is logged rather than trusted
+      // silently.
+      final confirmed = await _confirmedSession(event.sessionId);
+      final serverDiscount = confirmed?.discountAmount ?? 0;
+      if (confirmed != null && serverDiscount <= 0) {
+        _log(
+          'ApplySessionPromo: redemption ${redemption.id} reports '
+          '${redemption.discountAmount} off, but the session echoes no '
+          'discount. The gate may still bill the full amount.',
+        );
+      }
+
+      final appliedAt = DateTime.now();
+      final originalAmount =
+          redemption.originalAmount > 0 ? redemption.originalAmount : calculated.cost;
+      final discountAmount =
+          serverDiscount > 0 ? serverDiscount : redemption.discountAmount;
+      final remainingDue =
+          redemption.finalAmount > 0 ? redemption.finalAmount : 0.0;
+
+      final basis = calculated.copyWith(
+        status: sessionForValidation.status,
+        isActive: sessionForValidation.isActive,
+        autoPayEnabled:
+            calculated.autoPayEnabled || sessionForValidation.autoPayEnabled,
+      );
+
+      if (redemption.finalAmount <= 0) {
+        // The promo outruns the bill, so close the session out. How much comes
+        // out of the wallet is the server's to decide — /pay takes no figure
+        // from us — which makes its response the only honest account of what
+        // was actually charged. A failure here is a real failure: nothing is
+        // settled, so nothing may be reported as settled.
+        final completed = await _api.payParkingSession(
+          sessionId: event.sessionId,
+          useWallet: true,
+        );
+
+        final settled = _hydrateSessionVehicle(
+          completed.copyWith(
+            status: 'COMPLETED',
+            isActive: false,
+            endTime: completed.endTime ?? DateTime.now(),
+            discountAmount: completed.discountAmount > 0
+                ? completed.discountAmount
+                : discountAmount,
+            autoPayEnabled: basis.autoPayEnabled,
+          ),
+        );
+
+        // Normally zero. If the server disagreed with the redemption and took
+        // money anyway, say so rather than reporting a free exit that never
+        // happened.
+        final charged = settled.amountPaid;
+
+        emit(
+          state.copyWith(
+            recentSessions: _withSession(settled),
+            selectedSession: settled,
+            promoHolds: _withPromoHold(
+              SessionPromoHold.spent(
+                sessionId: event.sessionId,
+                code: code,
+                discountAmount: settled.discountAmount > 0
+                    ? settled.discountAmount
+                    : discountAmount,
+                originalAmount: originalAmount,
+                appliedAt: appliedAt,
+              ),
+            ),
+            isApplyingPromo: false,
+            statusMessage: charged > 0
+                ? 'Promo applied. ${_money(charged)} was still due and came out '
+                    'of your wallet.'
+                : 'Promo covered the ${_money(originalAmount)} bill. '
+                    'The code is now used up.',
+          ),
+        );
+        return;
+      }
+
+      // Part-paid: the discount stands against the session and AutoPay takes
+      // what is left when the car leaves.
+      final discounted = _hydrateSessionVehicle(
+        basis.copyWith(
+          cost: remainingDue,
+          discountAmount: discountAmount,
+        ),
+      );
+
+      emit(
+        state.copyWith(
+          recentSessions: _withSession(discounted),
+          selectedSession: discounted,
+          promoHolds: _withPromoHold(
+            SessionPromoHold.holding(
+              sessionId: event.sessionId,
+              code: code,
+              discountAmount: discountAmount,
+              originalAmount: originalAmount,
+              remainingDue: remainingDue,
+              appliedAt: appliedAt,
+            ),
+          ),
+          isApplyingPromo: false,
+          statusMessage: 'Promo took ${_money(discountAmount)} off. '
+              'AutoPay settles the remaining ${_money(remainingDue)} at exit.',
+        ),
+      );
+    } catch (error, st) {
+      _logError('ApplySessionPromo', error, st);
+      emit(
+        state.copyWith(
+          isApplyingPromo: false,
+          errorMessage: _friendlyError(error),
+        ),
+      );
+    }
+  }
+
+  /// The session as the parking API currently holds it, or null when it cannot
+  /// be read.
+  ///
+  /// Used to check that a write landed, so a failure here is not fatal — it
+  /// only means falling back to what the write itself claimed.
+  Future<ParkingSession?> _confirmedSession(String sessionId) async {
+    try {
+      return await _api.parkingSession(sessionId);
+    } catch (error, st) {
+      _logError('ApplySessionPromo/confirmRedemption', error, st);
+      return null;
+    }
+  }
+
+  /// [session] replacing the stored copy of itself, or prepended when the list
+  /// has never seen it.
+  List<ParkingSession> _withSession(ParkingSession session) {
+    final sessions = state.recentSessions;
+    final index = sessions.indexWhere((item) => item.id == session.id);
+    if (index < 0) return [session, ...sessions];
+
+    final updated = [...sessions];
+    updated[index] = session;
+    return updated;
+  }
+
+  Map<String, SessionPromoHold> _withPromoHold(SessionPromoHold hold) {
+    return {...state.promoHolds, hold.sessionId: hold};
+  }
+
+  String _money(double amount) => 'KES ${amount.toStringAsFixed(0)}';
+
   Future<PaymentStatusSnapshot> _pollPaymentUntilTerminal({
     required String sessionId,
     String? paymentId,
@@ -1305,7 +1565,14 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     _sessionWatchTimer = null;
     _api.setToken(null);
     await UserPrefs.clearToken();
-    emit(const AppState());
+    // Device preferences outlive the account: both are stored in prefs, so
+    // resetting them here would only make state disagree with disk until the
+    // next restart.
+    emit(AppState(
+      themeMode: state.themeMode,
+      debugManagerMode: state.debugManagerMode,
+      debugSampleData: state.debugSampleData,
+    ));
   }
 
   @override

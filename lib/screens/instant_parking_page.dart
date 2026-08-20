@@ -7,7 +7,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../core/api/parking_iq_api.dart';
 import '../core/theme/app_colors.dart';
-import '../models/api_models.dart';
 import '../models/parking_session.dart';
 import 'auth/sign_in_screen.dart';
 import 'dashboard/promo_qr_scanner_screen.dart';
@@ -19,15 +18,24 @@ class InstantParkingPage extends StatefulWidget {
   State<InstantParkingPage> createState() => _InstantParkingPageState();
 }
 
+
 class _InstantParkingPageState extends State<InstantParkingPage> {
   final _api = ParkingIqApi();
   final _plateController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _promoController = TextEditingController();
 
-  bool _loadingSessions = false;
+  bool _paying = false;
+  bool _showPromo = false;
+  String? _plateError;
+  String? _phoneError;
+  String? _promoError;
 
   @override
   void dispose() {
     _plateController.dispose();
+    _phoneController.dispose();
+    _promoController.dispose();
     super.dispose();
   }
 
@@ -64,11 +72,19 @@ class _InstantParkingPageState extends State<InstantParkingPage> {
                               _title(compact: compact),
                               const SizedBox(height: 8),
                               _subtitle(),
-                              SizedBox(height: compact ? 30 : 40),
+                              SizedBox(height: compact ? 24 : 34),
                               _label('Enter Your Number Plate'),
                               const SizedBox(height: 9),
                               _plateField(),
-                              const SizedBox(height: 10),
+                              _fieldError(_plateError),
+                              const SizedBox(height: 16),
+                              _label('M-Pesa Number'),
+                              const SizedBox(height: 9),
+                              _phoneField(),
+                              _fieldError(_phoneError),
+                              const SizedBox(height: 14),
+                              _promoSection(),
+                              const SizedBox(height: 12),
                               _helperText(),
                               const SizedBox(height: 18),
                               _premiumNote(),
@@ -134,7 +150,8 @@ class _InstantParkingPageState extends State<InstantParkingPage> {
 
   Widget _subtitle() {
     return Text(
-      'Enter your plate and we\'ll find your parking session.',
+      'Enter your plate and M-Pesa number — one tap finds your session and '
+      'sends the payment request.',
       style: GoogleFonts.poppins(
         color: Colors.white.withValues(alpha: 0.6),
         fontSize: 12.5,
@@ -156,34 +173,56 @@ class _InstantParkingPageState extends State<InstantParkingPage> {
     );
   }
 
-  Widget _plateField() {
+  Widget _fieldError(String? message) {
+    if (message == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 7, left: 4),
+      child: Text(
+        message,
+        style: GoogleFonts.poppins(
+          color: AppColors.accent,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _glassInput({
+    required TextEditingController controller,
+    required IconData icon,
+    required String hint,
+    required TextInputType keyboardType,
+    required TextInputAction textInputAction,
+    required List<TextInputFormatter> inputFormatters,
+    TextCapitalization textCapitalization = TextCapitalization.none,
+    double letterSpacing = 0,
+    VoidCallback? onSubmitted,
+    Widget? trailing,
+  }) {
     return _GlassField(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(
-            Icons.directions_car_rounded,
+            icon,
             size: 20,
             color: Colors.white.withValues(alpha: 0.6),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: TextField(
-              controller: _plateController,
-              textCapitalization: TextCapitalization.characters,
-              keyboardType: TextInputType.text,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _continueToPayment(),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]')),
-                TextInputFormatter.withFunction((oldValue, newValue) {
-                  return newValue.copyWith(text: newValue.text.toUpperCase());
-                }),
-              ],
+              controller: controller,
+              enabled: !_paying,
+              textCapitalization: textCapitalization,
+              keyboardType: keyboardType,
+              textInputAction: textInputAction,
+              onSubmitted: (_) => onSubmitted?.call(),
+              inputFormatters: inputFormatters,
               style: GoogleFonts.poppins(
                 color: Colors.white,
                 fontSize: 16,
-                letterSpacing: 1.5,
+                letterSpacing: letterSpacing,
                 fontWeight: FontWeight.w600,
               ),
               cursorColor: AppColors.accent,
@@ -196,18 +235,110 @@ class _InstantParkingPageState extends State<InstantParkingPage> {
                 disabledBorder: InputBorder.none,
                 isCollapsed: true,
                 contentPadding: EdgeInsets.zero,
-                hintText: 'e.g. KXX 123X',
+                hintText: hint,
                 hintStyle: GoogleFonts.poppins(
                   color: Colors.white.withValues(alpha: 0.4),
                   fontSize: 16,
-                  letterSpacing: 1.5,
+                  letterSpacing: letterSpacing,
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ),
           ),
+          ?trailing,
         ],
       ),
+    );
+  }
+
+  Widget _plateField() {
+    return _glassInput(
+      controller: _plateController,
+      icon: Icons.directions_car_rounded,
+      hint: 'e.g. KXX 123X',
+      keyboardType: TextInputType.text,
+      textInputAction: TextInputAction.next,
+      textCapitalization: TextCapitalization.characters,
+      letterSpacing: 1.5,
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]')),
+        TextInputFormatter.withFunction((oldValue, newValue) {
+          return newValue.copyWith(text: newValue.text.toUpperCase());
+        }),
+      ],
+    );
+  }
+
+  Widget _phoneField() {
+    return _glassInput(
+      controller: _phoneController,
+      icon: Icons.phone_iphone_rounded,
+      hint: '07XX XXX XXX',
+      keyboardType: TextInputType.phone,
+      textInputAction: TextInputAction.done,
+      letterSpacing: 0.6,
+      onSubmitted: _payNow,
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'[0-9+ ]')),
+      ],
+    );
+  }
+
+  Widget _promoSection() {
+    if (!_showPromo) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: _paying ? null : () => setState(() => _showPromo = true),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.accent,
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            textStyle: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          icon: const Icon(Icons.local_offer_outlined, size: 15),
+          label: const Text('Have a promo code?'),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _label('Promo Code'),
+        const SizedBox(height: 9),
+        _glassInput(
+          controller: _promoController,
+          icon: Icons.confirmation_number_outlined,
+          hint: 'Enter promo code',
+          keyboardType: TextInputType.text,
+          textInputAction: TextInputAction.done,
+          textCapitalization: TextCapitalization.characters,
+          letterSpacing: 0.8,
+          onSubmitted: _payNow,
+          inputFormatters: [
+            TextInputFormatter.withFunction((oldValue, newValue) {
+              return newValue.copyWith(text: newValue.text.toUpperCase());
+            }),
+          ],
+          trailing: IconButton(
+            onPressed: _paying ? null : _scanPromoCode,
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+            icon: Icon(
+              Icons.qr_code_scanner_rounded,
+              size: 20,
+              color: Colors.white.withValues(alpha: 0.7),
+            ),
+          ),
+        ),
+        _fieldError(_promoError),
+      ],
     );
   }
 
@@ -222,7 +353,7 @@ class _InstantParkingPageState extends State<InstantParkingPage> {
         const SizedBox(width: 6),
         Expanded(
           child: Text(
-            'You\'ll pay via M-Pesa STK push on the next step.',
+            'Tapping Pay Now sends an M-Pesa STK push to the number above.',
             style: GoogleFonts.poppins(
               color: Colors.white.withValues(alpha: 0.4),
               fontSize: 11,
@@ -276,7 +407,7 @@ class _InstantParkingPageState extends State<InstantParkingPage> {
     return SizedBox(
       height: 54,
       child: ElevatedButton(
-        onPressed: _loadingSessions ? null : _continueToPayment,
+        onPressed: _paying ? null : _payNow,
         style: ElevatedButton.styleFrom(
           elevation: 0,
           shadowColor: Colors.transparent,
@@ -296,7 +427,7 @@ class _InstantParkingPageState extends State<InstantParkingPage> {
             AppColors.accent.withValues(alpha: 0.12),
           ),
         ),
-        child: _loadingSessions
+        child: _paying
             ? const SizedBox(
                 width: 22,
                 height: 22,
@@ -317,175 +448,14 @@ class _InstantParkingPageState extends State<InstantParkingPage> {
     );
   }
 
-  Future<void> _continueToPayment() async {
-    FocusScope.of(context).unfocus();
-    final plate = _plateController.text.replaceAll(' ', '').trim();
-    if (plate.isEmpty) {
-      _showMessage('Enter your number plate to continue.');
-      return;
-    }
-
-    setState(() => _loadingSessions = true);
-    try {
-      final session = await _api.instantPaySession(plate);
-      if (!mounted) return;
-
-      if (session == null) {
-        _showMessage('No parking session found for $plate.');
-        return;
-      }
-      if (_amountDue(session) <= 0) {
-        _showMessage('No outstanding balance for $plate.');
-        return;
-      }
-
-      _showPaymentSheet(session, plate);
-    } on ApiException catch (e) {
-      if (mounted) _showMessage(e.message);
-    } catch (_) {
-      if (mounted) {
-        _showMessage('Could not look up your parking session. Try again.');
-      }
-    } finally {
-      if (mounted) setState(() => _loadingSessions = false);
-    }
-  }
-
-  double _amountDue(ParkingSession session) {
-    final due = session.cost - session.amountPaid;
-    return due > 0 ? due : 0;
-  }
-
-  void _showPaymentSheet(ParkingSession session, String plate) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: context.colors.surface,
-      isScrollControlled: true,
-      showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => _MpesaPaymentSheet(
-        api: _api,
-        session: session,
-        plate: plate,
-        amountDue: _amountDue(session),
-      ),
-    );
-  }
-
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppColors.primaryDark,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
-      ),
-    );
-  }
-
-  void _openLogin() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const SignInScreen()),
-    );
-  }
-}
-
-class _MpesaPaymentSheet extends StatefulWidget {
-  final ParkingIqApi api;
-  final ParkingSession session;
-  final String plate;
-  final double amountDue;
-
-  const _MpesaPaymentSheet({
-    required this.api,
-    required this.session,
-    required this.plate,
-    required this.amountDue,
-  });
-
-  @override
-  State<_MpesaPaymentSheet> createState() => _MpesaPaymentSheetState();
-}
-
-class _MpesaPaymentSheetState extends State<_MpesaPaymentSheet> {
-  final _phoneController = TextEditingController();
-  final _promoController = TextEditingController();
-  bool _sending = false;
-  String? _error;
-
-  bool _applyingPromo = false;
-  String? _promoError;
-  DiscountRedemption? _appliedDiscount;
-
-  /// Outstanding balance after any applied promo discount.
-  double get _effectiveAmount =>
-      _appliedDiscount?.finalAmount ?? widget.amountDue;
-
-  @override
-  void dispose() {
-    _phoneController.dispose();
-    _promoController.dispose();
-    super.dispose();
-  }
-
   Future<void> _scanPromoCode() async {
     final result = await Navigator.of(context).push<String>(
       MaterialPageRoute(builder: (_) => const PromoQrScannerScreen()),
     );
     if (result == null || result.trim().isEmpty || !mounted) return;
-    _promoController.text = result.trim();
-    await _applyPromo();
-  }
-
-  Future<void> _applyPromo() async {
-    final code = _promoController.text.trim();
-    if (code.isEmpty) {
-      setState(() => _promoError = 'Enter a promo code first.');
-      return;
-    }
-
     setState(() {
-      _applyingPromo = true;
+      _promoController.text = result.trim().toUpperCase();
       _promoError = null;
-    });
-
-    try {
-      final redemption = await widget.api.applyDiscount(
-        sessionId: widget.session.id,
-        code: code,
-      );
-      if (!mounted) return;
-      setState(() {
-        _appliedDiscount = redemption;
-        _applyingPromo = false;
-      });
-    } on ApiException catch (e) {
-      if (mounted) {
-        setState(() {
-          _applyingPromo = false;
-          _promoError = e.message;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _applyingPromo = false;
-          _promoError = 'Could not apply this promo code. Try again.';
-        });
-      }
-    }
-  }
-
-  void _removePromo() {
-    setState(() {
-      _appliedDiscount = null;
-      _promoError = null;
-      _promoController.clear();
     });
   }
 
@@ -504,413 +474,99 @@ class _MpesaPaymentSheetState extends State<_MpesaPaymentSheet> {
     return digits.length == 12 ? digits : null;
   }
 
-  Future<void> _sendStkPush() async {
-    final phone = _normalisePhone(_phoneController.text);
-    if (phone == null) {
-      setState(() => _error = 'Enter a valid Safaricom number.');
-      return;
-    }
+  double _amountDue(ParkingSession session) {
+    final due = session.cost - session.amountPaid;
+    return due > 0 ? due : 0;
+  }
 
-    // Apply a typed-but-not-yet-applied promo code before charging.
-    if (_appliedDiscount == null && _promoController.text.trim().isNotEmpty) {
-      await _applyPromo();
-      if (!mounted || _appliedDiscount == null) return;
-    }
+  /// Looks up the session, applies any promo code and fires the STK push —
+  /// the whole flow runs from the single form on one tap.
+  Future<void> _payNow() async {
+    FocusScope.of(context).unfocus();
+
+    final plate = _plateController.text.replaceAll(' ', '').trim();
+    final phone = _normalisePhone(_phoneController.text);
+    final promoCode = _showPromo ? _promoController.text.trim() : '';
 
     setState(() {
-      _sending = true;
-      _error = null;
+      _plateError = plate.isEmpty ? 'Enter your number plate.' : null;
+      _phoneError = phone == null ? 'Enter a valid Safaricom number.' : null;
+      _promoError = null;
     });
+    if (plate.isEmpty || phone == null) return;
 
+    setState(() => _paying = true);
     try {
-      final response = await widget.api.instantPay(
-        plateNumber: widget.plate,
+      final session = await _api.instantPaySession(plate);
+      if (!mounted) return;
+
+      if (session == null) {
+        _showMessage('No parking session found for $plate.');
+        return;
+      }
+      if (_amountDue(session) <= 0) {
+        _showMessage('No outstanding balance for $plate.');
+        return;
+      }
+
+      if (promoCode.isNotEmpty) {
+        try {
+          await _api.applyDiscount(sessionId: session.id, code: promoCode);
+        } on ApiException catch (e) {
+          if (mounted) setState(() => _promoError = e.message);
+          return;
+        } catch (_) {
+          if (mounted) {
+            setState(() =>
+                _promoError = 'Could not apply this promo code. Try again.');
+          }
+          return;
+        }
+        if (!mounted) return;
+      }
+
+      final response = await _api.instantPay(
+        plateNumber: plate,
         phoneNumber: phone,
       );
       if (!mounted) return;
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            response.customerMessage ??
-                'STK push sent. Check your phone to authorise the payment.',
-          ),
-          backgroundColor: AppColors.primary,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
+      _showMessage(
+        response.customerMessage ??
+            'STK push sent. Check your phone to authorise the payment.',
+        success: true,
       );
     } on ApiException catch (e) {
-      if (mounted) {
-        setState(() {
-          _sending = false;
-          _error = e.message;
-        });
-      }
+      if (mounted) _showMessage(e.message);
     } catch (_) {
       if (mounted) {
-        setState(() {
-          _sending = false;
-          _error = 'Could not send the payment request. Try again.';
-        });
+        _showMessage('Could not complete the payment request. Try again.');
       }
+    } finally {
+      if (mounted) setState(() => _paying = false);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        22,
-        4,
-        22,
-        MediaQuery.of(context).viewInsets.bottom + 22,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Pay with M-Pesa',
-            style: GoogleFonts.poppins(
-              color: colors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'An STK push will be sent to authorise the payment.',
-            style: GoogleFonts.poppins(
-              color: colors.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _summary(colors),
-          const SizedBox(height: 16),
-          _promoSection(colors),
-          const SizedBox(height: 16),
-          Text(
-            'M-PESA NUMBER',
-            style: GoogleFonts.poppins(
-              color: colors.textSecondary,
-              fontSize: 10.5,
-              letterSpacing: 0.8,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _phoneController,
-            keyboardType: TextInputType.phone,
-            enabled: !_sending,
-            style: GoogleFonts.poppins(
-              color: colors.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9+ ]')),
-            ],
-            decoration: InputDecoration(
-              hintText: '07XX XXX XXX',
-              hintStyle: GoogleFonts.poppins(
-                color: colors.textSecondary.withValues(alpha: 0.6),
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-              ),
-              prefixIcon: Icon(Icons.phone_iphone_rounded,
-                  size: 19, color: colors.textSecondary),
-              isDense: true,
-              filled: true,
-              fillColor: colors.textPrimary.withValues(alpha: 0.04),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              errorText: _error,
-              errorStyle: GoogleFonts.poppins(fontSize: 11),
-            ),
-          ),
-          const SizedBox(height: 18),
-          SizedBox(
-            height: 52,
-            child: ElevatedButton(
-              onPressed: _sending ? null : _sendStkPush,
-              style: ElevatedButton.styleFrom(
-                elevation: 0,
-                backgroundColor: colors.primary,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: colors.primary.withValues(alpha: 0.5),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                textStyle: GoogleFonts.poppins(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              child: _sending
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.4,
-                        valueColor: AlwaysStoppedAnimation(Colors.white),
-                      ),
-                    )
-                  : Text('Pay KES ${_effectiveAmount.toStringAsFixed(0)}'),
-            ),
-          ),
-        ],
+  void _showMessage(String message, {bool success = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: success ? AppColors.primary : AppColors.primaryDark,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
       ),
     );
   }
 
-  Widget _summary(dynamic colors) {
-    final discount = _appliedDiscount;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.textPrimary.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        children: [
-          _summaryRow(colors, 'Plate', widget.plate),
-          const SizedBox(height: 8),
-          _summaryRow(colors, 'Location', widget.session.locationName),
-          if (discount != null) ...[
-            const SizedBox(height: 8),
-            _summaryRow(
-              colors,
-              'Subtotal',
-              'KES ${widget.amountDue.toStringAsFixed(0)}',
-            ),
-            const SizedBox(height: 8),
-            _summaryRow(
-              colors,
-              'Promo discount',
-              '- KES ${discount.discountAmount.toStringAsFixed(0)}',
-            ),
-          ],
-          const Divider(height: 22),
-          _summaryRow(
-            colors,
-            'Amount due',
-            'KES ${_effectiveAmount.toStringAsFixed(0)}',
-            emphasise: true,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _promoSection(dynamic colors) {
-    final discount = _appliedDiscount;
-    if (discount != null) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppColors.primary.withValues(alpha: 0.3),
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.local_offer_rounded,
-                size: 16, color: colors.primary),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Promo applied',
-                    style: GoogleFonts.poppins(
-                      color: colors.textPrimary,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    discount.tenantName.isEmpty
-                        ? 'You saved KES ${discount.discountAmount.toStringAsFixed(0)}'
-                        : '${discount.tenantName} · saved KES ${discount.discountAmount.toStringAsFixed(0)}',
-                    style: GoogleFonts.poppins(
-                      color: colors.textSecondary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            TextButton(
-              onPressed: _sending ? null : _removePromo,
-              style: TextButton.styleFrom(
-                foregroundColor: colors.textSecondary,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(
-                'Remove',
-                style: GoogleFonts.poppins(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'PROMO CODE',
-          style: GoogleFonts.poppins(
-            color: colors.textSecondary,
-            fontSize: 10.5,
-            letterSpacing: 0.8,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _promoController,
-                enabled: !_sending && !_applyingPromo,
-                textCapitalization: TextCapitalization.characters,
-                onSubmitted: (_) => _applyPromo(),
-                style: GoogleFonts.poppins(
-                  color: colors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'Enter promo code',
-                  hintStyle: GoogleFonts.poppins(
-                    color: colors.textSecondary.withValues(alpha: 0.6),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  prefixIcon: Icon(Icons.confirmation_number_outlined,
-                      size: 19, color: colors.textSecondary),
-                  isDense: true,
-                  filled: true,
-                  fillColor: colors.textPrimary.withValues(alpha: 0.04),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  errorText: _promoError,
-                  errorStyle: GoogleFonts.poppins(fontSize: 11),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            SizedBox(
-              height: 50,
-              width: 50,
-              child: OutlinedButton(
-                onPressed: _sending || _applyingPromo ? null : _scanPromoCode,
-                style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  foregroundColor: colors.primary,
-                  side: BorderSide(
-                    color: colors.textPrimary.withValues(alpha: 0.12),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Icon(Icons.qr_code_scanner_rounded, size: 21),
-              ),
-            ),
-            const SizedBox(width: 8),
-            SizedBox(
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _sending || _applyingPromo ? null : _applyPromo,
-                style: ElevatedButton.styleFrom(
-                  elevation: 0,
-                  backgroundColor: colors.primary,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor:
-                      colors.primary.withValues(alpha: 0.5),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  textStyle: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                child: _applyingPromo
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.2,
-                          valueColor: AlwaysStoppedAnimation(Colors.white),
-                        ),
-                      )
-                    : const Text('Apply'),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _summaryRow(dynamic colors, String label, String value,
-      {bool emphasise = false}) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.poppins(
-            color: colors.textSecondary,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            value,
-            textAlign: TextAlign.right,
-            style: GoogleFonts.poppins(
-              color: emphasise ? colors.primary : colors.textPrimary,
-              fontSize: emphasise ? 15 : 12.5,
-              fontWeight: emphasise ? FontWeight.w800 : FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
+  void _openLogin() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const SignInScreen()),
     );
   }
 }
+
 
 class _GlassField extends StatelessWidget {
   final Widget child;

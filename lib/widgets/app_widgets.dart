@@ -295,24 +295,24 @@ class PageHero extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: AppColors.primaryDeep.withValues(alpha: 0.3),
-            blurRadius: 22,
-            offset: const Offset(0, 12),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
           splashColor: Colors.white.withValues(alpha: 0.1),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
             child: _content(),
           ),
         ),
@@ -346,14 +346,14 @@ class PageHero extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
                     color: Colors.white.withValues(alpha: 0.68),
-                    fontSize: 13,
+                    fontSize: 12.5,
                   ),
                 ),
               ),
               if (pill != null) ...[const SizedBox(width: 10), pill!],
             ],
           ),
-          SizedBox(height: onBack == null ? 10 : 6),
+          SizedBox(height: onBack == null ? 8 : 4),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -363,7 +363,7 @@ class PageHero extends StatelessWidget {
                   children: [
                     if (valueLeading != null) ...[
                       valueLeading!,
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                     ],
                     Flexible(
                       child: Text(
@@ -372,7 +372,7 @@ class PageHero extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
                           color: Colors.white,
-                          fontSize: 32,
+                          fontSize: 27,
                           height: 1.1,
                           fontWeight: FontWeight.w700,
                           letterSpacing: valueLetterSpacing,
@@ -388,7 +388,7 @@ class PageHero extends StatelessWidget {
           if (metrics.isNotEmpty) ...[
             Container(
               height: 1,
-              margin: const EdgeInsets.only(top: 20, bottom: 14),
+              margin: const EdgeInsets.only(top: 14, bottom: 11),
               color: Colors.white.withValues(alpha: 0.14),
             ),
             Row(
@@ -397,7 +397,7 @@ class PageHero extends StatelessWidget {
                   if (i != 0)
                     Container(
                       width: 1,
-                      height: 34,
+                      height: 30,
                       color: Colors.white.withValues(alpha: 0.14),
                     ),
                   Expanded(child: _metric(metrics[i])),
@@ -419,17 +419,17 @@ class PageHero extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: GoogleFonts.poppins(
             color: Colors.white.withValues(alpha: 0.56),
-            fontSize: 11,
+            fontSize: 10.5,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 3),
         Text(
           metric.value,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: GoogleFonts.poppins(
             color: Colors.white,
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -448,7 +448,7 @@ class PageHeroPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
@@ -456,13 +456,13 @@ class PageHeroPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: Colors.white.withValues(alpha: 0.76), size: 13),
-          const SizedBox(width: 5),
+          Icon(icon, color: Colors.white.withValues(alpha: 0.76), size: 12),
+          const SizedBox(width: 4),
           Text(
             label,
             style: GoogleFonts.poppins(
               color: Colors.white.withValues(alpha: 0.82),
-              fontSize: 11,
+              fontSize: 10.5,
               fontWeight: FontWeight.w500,
             ),
           ),

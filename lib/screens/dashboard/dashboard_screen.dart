@@ -11,7 +11,12 @@ import '../../blocs/app_state.dart';
 import '../../models/api_models.dart';
 import '../../models/vehicle.dart';
 import '../../models/parking_session.dart';
+import '../../models/session_promo_hold.dart';
+import '../../core/error_handler.dart';
 import '../../widgets/add_vehicle_sheet.dart';
+import '../../widgets/promo_code_sheet.dart';
+import '../../widgets/stk_confirmation_sheet.dart';
+import 'manager_screen.dart';
 import 'wallet_screen.dart';
 import 'active_session_screen.dart';
 import 'pay_parking_screen.dart';
@@ -41,10 +46,140 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  static const Duration _routeSettleDelay = Duration(milliseconds: 300);
+
+  bool _waitingDialogVisible = false;
+  bool _wasWaitingForPayment = false;
+  bool _wasApplyingPromo = false;
+
   @override
   void initState() {
     super.initState();
     context.read<AppBloc>().add(LoadDashboardData());
+  }
+
+  /// The session the driver is currently parked in, if any. Exited-but-unpaid
+  /// sessions stay in [ParkingSession.isAwaitingPayment] and are handled by the
+  /// vehicle screens, so only a running session earns the home-page slot.
+  ParkingSession? _liveSession(AppState state) {
+    for (final session in state.recentSessions) {
+      if (session.isActive) return session;
+    }
+    return null;
+  }
+
+  Future<void> _waitForRouteToSettle() async {
+    await WidgetsBinding.instance.endOfFrame;
+    await Future<void>.delayed(_routeSettleDelay);
+  }
+
+  /// Surfaces the outcome of a checkout or a promo redemption.
+  Future<void> _handlePaymentState(AppState state) async {
+    // A promo raises no M-Pesa prompt, so it never opens the waiting dialog
+    // and never reaches the payment branch below — it only needs its result
+    // said out loud.
+    if (state.isApplyingPromo) {
+      _wasApplyingPromo = true;
+      return;
+    }
+    if (_wasApplyingPromo) {
+      _wasApplyingPromo = false;
+      if (!mounted) return;
+
+      final promoError = state.errorMessage;
+      if (promoError != null && promoError.isNotEmpty) {
+        ErrorHandler.showErrorMessage(context, promoError);
+        return;
+      }
+      final promoStatus = state.statusMessage;
+      if (promoStatus != null && promoStatus.isNotEmpty) {
+        ErrorHandler.showSuccess(context, promoStatus);
+      }
+      // Deliberately no reload: the bloc already holds the discounted figures,
+      // and refetching would overwrite them with a bill the server has not
+      // finished discounting yet.
+      return;
+    }
+
+    if (state.isWaitingForPayment) {
+      _wasWaitingForPayment = true;
+      _showWaitingDialog();
+      return;
+    }
+
+    await _hideWaitingDialog();
+    if (!mounted) return;
+    if (!_wasWaitingForPayment) return;
+    _wasWaitingForPayment = false;
+
+    final error = state.errorMessage;
+    if (error != null && error.isNotEmpty) {
+      ErrorHandler.showErrorMessage(context, error);
+      return;
+    }
+
+    final status = state.statusMessage;
+    if (status != null && status.isNotEmpty) {
+      ErrorHandler.showSuccess(context, status);
+    }
+    context.read<AppBloc>().add(LoadDashboardData());
+  }
+
+  void _showWaitingDialog() {
+    if (_waitingDialogVisible || !mounted) return;
+    _waitingDialogVisible = true;
+    final colors = context.colors;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: Dialog(
+          backgroundColor: colors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 26, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(color: colors.primary),
+                const SizedBox(height: 20),
+                Text(
+                  'Waiting for M-Pesa confirmation...',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Complete the prompt on your phone.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: colors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ).then((_) {
+      _waitingDialogVisible = false;
+    });
+  }
+
+  Future<void> _hideWaitingDialog() async {
+    if (!_waitingDialogVisible || !mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
+    _waitingDialogVisible = false;
+    await _waitForRouteToSettle();
   }
 
   Future<void> _onRefresh() {
@@ -56,7 +191,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
-      child: Scaffold(
+      child: BlocListener<AppBloc, AppState>(
+        listenWhen: (prev, curr) =>
+            prev.isWaitingForPayment != curr.isWaitingForPayment ||
+            prev.isApplyingPromo != curr.isApplyingPromo ||
+            prev.errorMessage != curr.errorMessage ||
+            prev.statusMessage != curr.statusMessage,
+        listener: (context, state) {
+          unawaited(_handlePaymentState(state));
+        },
+        child: Scaffold(
         backgroundColor: context.colors.background,
         body: BlocBuilder<AppBloc, AppState>(
           builder: (context, state) {
@@ -89,17 +233,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: SingleChildScrollView(
                       child: Column(
                         children: [
-                          const SizedBox(height: 22),
+                          const SizedBox(height: 14),
+                          if (_liveSession(state) case final live?) ...[
+                            _buildLiveSessionCard(context, state, live),
+                            const SizedBox(height: 14),
+                          ],
                           _buildQuickActions(context, state),
+                          if (state.isManager) ...[
+                            const SizedBox(height: 14),
+                            _buildManagerEntry(context, state),
+                          ],
                           if (state.shouldShowTenancy) ...[
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 14),
                             _buildTenancySnapshot(context, state),
                           ],
-                          const SizedBox(height: 24),
-                          _buildVehicles(context, state),
-                          const SizedBox(height: 24),
+                          // const SizedBox(height: 14),
+                          // _buildVehicles(context, state),
+                          const SizedBox(height: 14),
                           _buildRecentSessions(context, state),
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 24),
                         ],
                       ),
                     ),
@@ -108,6 +260,130 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             );
           },
+        ),
+        ),
+      ),
+    );
+  }
+
+  // ── LIVE SESSION ─────────────────────────────────────────────────────────
+  /// Compact card that sits just above Quick Actions while a session is
+  /// running, so paying never requires digging into the session list.
+  ///
+  /// What the card offers depends on the parked vehicle: AutoPay is going to
+  /// settle at the gate on its own, so those drivers get a promo code instead
+  /// of a payment button they would never need to press.
+  Widget _buildLiveSessionCard(
+    BuildContext context,
+    AppState state,
+    ParkingSession session,
+  ) {
+    final colors = context.colors;
+    final autoPay = _sessionAutoPay(state, session);
+    final cost = session.cost;
+    final costLabel = cost > 0 ? 'KES ${cost.toStringAsFixed(0)}' : 'Free';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Material(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (ctx) => ActiveSessionScreen(session: session),
+            ),
+          ),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: colors.success.withValues(alpha: 0.35)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.025),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const _LivePill(count: 1),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        session.locationName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      costLabel,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 5,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          _platePill(session.vehicle.plateNumber),
+                          Icon(
+                            Icons.access_time_rounded,
+                            size: 12,
+                            color: colors.textMuted,
+                          ),
+                          _SessionDuration(
+                            session: session,
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              color: colors.textSecondary,
+                            ),
+                          ),
+                          if (autoPay) _autoPayChip(context),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    _LiveSessionAction(
+                      autoPay: autoPay,
+                      hold: state.livePromoHold(session.id),
+                      onPayNow: () => showStkConfirmationSheet(
+                        context,
+                        session: session,
+                        routeSettleDelay: _routeSettleDelay,
+                      ),
+                      onUsePromo: () => showPromoCodeSheet(
+                        context,
+                        session: session,
+                        routeSettleDelay: _routeSettleDelay,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -156,7 +432,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 26),
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -172,7 +448,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           children: [
                             _darkHeaderChip(
                               Icons.local_parking_rounded,
-                              'egesha',
+                              'Egesha',
                             ),
                             const SizedBox(width: 8),
                             Flexible(
@@ -189,14 +465,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 7),
+                        const SizedBox(height: 4),
                         Text(
                           state.userName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.poppins(
                             color: Colors.white,
-                            fontSize: 24,
+                            fontSize: 20,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -256,13 +532,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 14),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(18, 17, 18, 18),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 13),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: Colors.white.withValues(alpha: 0.12),
                   ),
@@ -273,12 +549,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Wallet Balance',
-                          style: GoogleFonts.poppins(
-                            color: Colors.white.withValues(alpha: 0.75),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
+                        Flexible(
+                          child: Text(
+                            'Wallet Balance',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.poppins(
+                              color: Colors.white.withValues(alpha: 0.75),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                         Material(
@@ -320,10 +600,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     _AnimatedBalance(balance: state.walletBalance),
                     if (isLowBalance) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
@@ -345,19 +625,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               size: 13,
                             ),
                             const SizedBox(width: 5),
-                            Text(
-                              'Low balance - top up to avoid disruption',
-                              style: GoogleFonts.poppins(
-                                color: AppColors.warning,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
+                            Flexible(
+                              child: Text(
+                                'Low balance - top up to avoid disruption',
+                                style: GoogleFonts.poppins(
+                                  color: AppColors.warning,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
                     ],
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 10),
                     Row(
                       children: [
                         Expanded(
@@ -442,6 +724,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  /// Three equal tiles, no hero banner. The banner duplicated the Pay tile and
+  /// cost a whole card of height on a screen whose job is to show what is
+  /// happening now; topping up already has its own button on the wallet card.
   Widget _buildQuickActions(BuildContext context, AppState state) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -451,123 +736,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Text(
             'Quick Actions',
             style: GoogleFonts.poppins(
-              fontSize: 15,
+              fontSize: 13,
               fontWeight: FontWeight.w700,
               color: context.colors.textPrimary,
             ),
           ),
-          const SizedBox(height: 12),
-
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primaryDeep.withValues(alpha: 0.18),
-                  blurRadius: 20,
-                  offset: const Offset(0, 9),
-                ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(20),
-              clipBehavior: Clip.antiAlias,
-              child: Ink(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.primaryDark, AppColors.primaryDeep],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: InkWell(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const PayParkingScreen()),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 17,
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 46,
-                          height: 46,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.1),
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.credit_card_rounded,
-                            color: Colors.white,
-                            size: 22,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Pay Parking',
-                                style: GoogleFonts.poppins(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Find a session and pay with M-Pesa',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.poppins(
-                                  color: Colors.white.withValues(alpha: 0.64),
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.chevron_right_rounded,
-                            color: Colors.white,
-                            size: 22,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // 3 small action tiles
+          const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
                 child: _quickTile(
-                  Icons.account_balance_wallet_outlined,
-                  'Top Up',
-                  onTap: () => _openWallet(context),
+                  Icons.credit_card_rounded,
+                  'Pay',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PayParkingScreen(),
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: _quickTile(
                   Icons.directions_car_outlined,
@@ -577,7 +766,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   onTap: () => showAddVehicleSheet(context),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: _quickTile(
                   state.shouldShowTenancy
@@ -594,6 +783,101 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  /// Way in to the operator's view of a site. Sits on Home rather than only in
+  /// Settings because live takings are what a manager opens the app for.
+  Widget _buildManagerEntry(BuildContext context, AppState state) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Material(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ManagerScreen(
+                api: context.read<AppBloc>().api,
+                useSampleData: state.debugSampleData,
+              ),
+            ),
+          ),
+          borderRadius: BorderRadius.circular(22),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: context.colors.border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.025),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: context.colors.accentLight,
+                    borderRadius: BorderRadius.circular(13),
+                    border: Border.all(color: context.colors.mintBorder),
+                  ),
+                  child: Icon(
+                    Icons.insights_rounded,
+                    color: context.colors.primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Manager view',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          color: context.colors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        state.debugSampleData
+                            ? 'Sample data — generated figures for previewing '
+                                'the layout'
+                            : 'Live takings, vehicles in today and cars still '
+                                'parked',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          color: context.colors.textSecondary,
+                          fontSize: 11.5,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: context.colors.textMuted,
+                  size: 22,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -623,7 +907,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           onTap: () => _openTenancy(context),
           borderRadius: BorderRadius.circular(22),
           child: Container(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(22),
               border: Border.all(color: context.colors.border),
@@ -642,20 +926,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      width: 48,
-                      height: 48,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
                         color: context.colors.accentLight,
-                        borderRadius: BorderRadius.circular(15),
+                        borderRadius: BorderRadius.circular(13),
                         border: Border.all(color: context.colors.mintBorder),
                       ),
                       child: Icon(
                         Icons.domain_rounded,
                         color: context.colors.primary,
-                        size: 23,
+                        size: 20,
                       ),
                     ),
-                    const SizedBox(width: 13),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -669,7 +953,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.poppins(
                                     color: context.colors.textPrimary,
-                                    fontSize: 15,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -677,15 +961,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               _tenancyBadge(context, state, primaryProfile),
                             ],
                           ),
-                          const SizedBox(height: 5),
+                          const SizedBox(height: 3),
                           Text(
                             subtitle,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.poppins(
                               color: context.colors.textSecondary,
-                              fontSize: 12,
-                              height: 1.35,
+                              fontSize: 11.5,
+                              height: 1.3,
                             ),
                           ),
                         ],
@@ -693,7 +977,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
                 Row(
                   children: [
                     Expanded(
@@ -721,7 +1005,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -734,7 +1018,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     label: Text(actionLabel),
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 9),
                       minimumSize: const Size(0, 0),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       textStyle: GoogleFonts.poppins(
@@ -754,10 +1038,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _tenancyMetric(BuildContext context, String label, String value) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
       decoration: BoxDecoration(
         color: context.colors.pageGrey,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: context.colors.border),
       ),
       child: Column(
@@ -768,11 +1052,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
               color: context.colors.textPrimary,
-              fontSize: 15,
+              fontSize: 14,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 1),
           Text(
             label,
             maxLines: 1,
@@ -837,8 +1121,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
         child: Container(
-          height: 104,
-          padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 8),
+          constraints: const BoxConstraints(minHeight: 72),
+          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 6),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: context.colors.border),
@@ -854,21 +1138,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 42,
-                height: 42,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
                   color: context.colors.accentLight,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(11),
                 ),
-                child: Icon(icon, color: context.colors.primary, size: 20),
+                child: Icon(icon, color: context.colors.primary, size: 17),
               ),
-              const SizedBox(height: 9),
+              const SizedBox(height: 6),
               Text(
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.poppins(
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: context.colors.textPrimary,
                 ),
@@ -889,12 +1173,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'My Vehicles',
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: context.colors.textPrimary,
+              Flexible(
+                child: Text(
+                  'My Vehicles',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: context.colors.textPrimary,
+                  ),
                 ),
               ),
               TextButton.icon(
@@ -902,18 +1190,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 icon: const Icon(Icons.add_rounded, size: 16),
                 label: const Text('Add Vehicle'),
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  minimumSize: const Size(0, 36),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  minimumSize: const Size(0, 30),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   textStyle: GoogleFonts.poppins(
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           if (state.vehicles.isEmpty)
             _emptyVehicle()
           else
@@ -925,7 +1213,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _vehicleTile(Vehicle v) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: context.colors.surface,
         borderRadius: BorderRadius.circular(18),
@@ -936,7 +1224,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           borderRadius: BorderRadius.circular(18),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
               border: Border.all(color: context.colors.border),
@@ -951,19 +1239,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Row(
               children: [
                 Container(
-                  width: 46,
-                  height: 46,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
                     color: context.colors.accentLight,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     Icons.directions_car_rounded,
                     color: context.colors.primary,
-                    size: 22,
+                    size: 19,
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 11),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -971,12 +1259,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Wrap(
                         crossAxisAlignment: WrapCrossAlignment.center,
                         spacing: 8,
-                        runSpacing: 6,
+                        runSpacing: 4,
                         children: [
                           Text(
                             v.plateNumber,
                             style: GoogleFonts.poppins(
-                              fontSize: 15,
+                              fontSize: 14,
                               fontWeight: FontWeight.w700,
                               color: context.colors.textPrimary,
                             ),
@@ -984,7 +1272,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           _autoPayBadge(v.autoPayEnabled),
                         ],
                       ),
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 3),
                       Row(
                         children: [
                           Container(
@@ -1004,7 +1292,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.poppins(
-                                fontSize: 12,
+                                fontSize: 11.5,
                                 color: context.colors.textSecondary,
                               ),
                             ),
@@ -1066,7 +1354,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _emptyVehicle() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
       decoration: BoxDecoration(
         color: context.colors.surface,
         borderRadius: BorderRadius.circular(20),
@@ -1082,19 +1370,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         children: [
           Container(
-            width: 52,
-            height: 52,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
               color: context.colors.accentLight,
-              borderRadius: BorderRadius.circular(17),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(
               Icons.directions_car_outlined,
               color: context.colors.primary,
-              size: 26,
+              size: 21,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 9),
           Text(
             'No vehicles added yet',
             style: GoogleFonts.poppins(
@@ -1112,7 +1400,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               fontSize: 12,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           ElevatedButton.icon(
             onPressed: () => _openVehicles(context),
             icon: const Icon(Icons.add_rounded, size: 17),
@@ -1154,7 +1442,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
-                          fontSize: 15,
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: context.colors.textPrimary,
                         ),
@@ -1170,15 +1458,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
               TextButton(
                 onPressed: _openHistory,
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  minimumSize: const Size(0, 36),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  minimumSize: const Size(0, 30),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 child: const Text('View all'),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
               color: context.colors.surface,
@@ -1195,8 +1487,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: state.recentSessions.isEmpty
                 ? Padding(
                     padding: const EdgeInsets.symmetric(
-                      vertical: 28,
-                      horizontal: 24,
+                      vertical: 20,
+                      horizontal: 20,
                     ),
                     child: Column(
                       children: [
@@ -1227,12 +1519,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   )
                 : ListView.separated(
+                    padding: EdgeInsets.zero,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: state.recentSessions.length,
                     separatorBuilder: (_, idx) => Divider(
                       height: 1,
-                      indent: 64,
+                      indent: 54,
                       color: context.colors.divider,
                     ),
                     itemBuilder: (context, i) =>
@@ -1261,83 +1554,94 @@ class _DashboardScreenState extends State<DashboardScreen> {
             )
           : null,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: context.colors.accentLight,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                Icons.location_on_outlined,
-                color: context.colors.primary,
-                size: 18,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    session.locationName,
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: context.colors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 5,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      _platePill(session.vehicle.plateNumber),
-                      Icon(
-                        Icons.access_time_rounded,
-                        size: 12,
-                        color: context.colors.textMuted,
-                      ),
-                      _SessionDuration(
-                        session: session,
-                        style: GoogleFonts.poppins(
-                          fontSize: 11,
-                          color: context.colors.textSecondary,
-                        ),
-                      ),
-                      Text(
-                        dayStr,
-                        style: GoogleFonts.poppins(
-                          fontSize: 11,
-                          color: context.colors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  amountLabel,
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: context.colors.textPrimary,
-                  ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: LayoutBuilder(
+          builder: (context, constraints) => Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: context.colors.accentLight,
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 3),
-                _sessionStateLabel(context, session),
-              ],
-            ),
-          ],
+                child: Icon(
+                  Icons.location_on_outlined,
+                  color: context.colors.primary,
+                  size: 17,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      session.locationName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: context.colors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 5,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        _platePill(session.vehicle.plateNumber),
+                        Icon(
+                          Icons.access_time_rounded,
+                          size: 12,
+                          color: context.colors.textMuted,
+                        ),
+                        _SessionDuration(
+                          session: session,
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: context.colors.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          dayStr,
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: context.colors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              // Amount and state each size themselves to their text, so a big
+              // fee beside a two-word state runs off the tile on a narrow
+              // phone. Half the row is theirs; past that they wrap.
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: constraints.maxWidth / 2),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      amountLabel,
+                      textAlign: TextAlign.end,
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: context.colors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    _sessionStateLabel(context, session),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1375,6 +1679,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     bool dot = false,
   }) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         if (dot)
           Container(
@@ -1385,12 +1690,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
         else if (icon != null)
           Icon(icon, size: 13, color: color),
         SizedBox(width: dot ? 4 : 3),
+        // Inside the capped column above, the state label has to be able to
+        // wrap rather than push the row wider than it is allowed to be.
+        Flexible(
+          child: Text(
+            label,
+            textAlign: TextAlign.end,
+            style: GoogleFonts.poppins(
+              fontSize: 11,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Whether the car in [session] is on AutoPay.
+  ///
+  /// The registered vehicle is the authority — the driver flips the switch
+  /// there and the session payload can lag behind it — but an ANPR session for
+  /// a plate this account has not registered is not in [AppState.vehicles] at
+  /// all, so the session's own flag stands in.
+  bool _sessionAutoPay(AppState state, ParkingSession session) {
+    final plateKey = Vehicle.plateKey(session.vehicle.plateNumber);
+    for (final vehicle in state.vehicles) {
+      if (Vehicle.plateKey(vehicle.plateNumber) == plateKey) {
+        return vehicle.autoPayEnabled;
+      }
+    }
+    return session.autoPayEnabled || session.vehicle.autoPayEnabled;
+  }
+
+  /// Says why the card is not asking for money.
+  Widget _autoPayChip(BuildContext context) {
+    final colors = context.colors;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.bolt_rounded, size: 12, color: colors.success),
+        const SizedBox(width: 2),
         Text(
-          label,
+          'AutoPay',
           style: GoogleFonts.poppins(
             fontSize: 11,
-            color: color,
             fontWeight: FontWeight.w600,
+            color: colors.success,
           ),
         ),
       ],
@@ -1598,13 +1945,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(15),
         child: Container(
-          width: 42,
-          height: 42,
+          width: 38,
+          height: 38,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(13),
             border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
           ),
-          child: Icon(icon, color: Colors.white, size: 20),
+          child: Icon(icon, color: Colors.white, size: 19),
         ),
       ),
     );
@@ -1667,7 +2014,7 @@ class _AnimatedBalance extends StatelessWidget {
         _formatBalance(value),
         style: GoogleFonts.poppins(
           color: Colors.white,
-          fontSize: 34,
+          fontSize: 28,
           fontWeight: FontWeight.w700,
           height: 1.1,
         ),
@@ -1793,6 +2140,167 @@ class _LivePillState extends State<_LivePill>
               fontSize: 10,
               fontWeight: FontWeight.w700,
               color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The one action the live session card offers, which depends entirely on how
+/// the bill is going to be paid.
+///
+/// * AutoPay off — "Pay now", the M-Pesa prompt.
+/// * AutoPay on — "Use promo", because AutoPay already has the bill covered
+///   and the only thing left worth doing is knocking money off it.
+/// * AutoPay on with a promo already applied — the discount and what is left
+///   of its hold, counted down in place. The swap back to "Use promo" happens
+///   here rather than in the bloc: a hold lapses with the passage of time, not
+///   with anything the app does, so nothing else would fire a rebuild.
+class _LiveSessionAction extends StatefulWidget {
+  const _LiveSessionAction({
+    required this.autoPay,
+    required this.hold,
+    required this.onPayNow,
+    required this.onUsePromo,
+  });
+
+  final bool autoPay;
+  final SessionPromoHold? hold;
+  final VoidCallback onPayNow;
+  final VoidCallback onUsePromo;
+
+  @override
+  State<_LiveSessionAction> createState() => _LiveSessionActionState();
+}
+
+class _LiveSessionActionState extends State<_LiveSessionAction> {
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncTicker();
+  }
+
+  @override
+  void didUpdateWidget(covariant _LiveSessionAction oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncTicker();
+  }
+
+  void _syncTicker() {
+    final hold = widget.hold;
+    if (hold != null && hold.isLiveAt(DateTime.now())) {
+      _ticker ??= Timer.periodic(
+        const Duration(seconds: 1),
+        (_) => setState(() {}),
+      );
+      return;
+    }
+    _ticker?.cancel();
+    _ticker = null;
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.autoPay) {
+      return _button(
+        label: 'Pay now',
+        onPressed: widget.onPayNow,
+        background: context.colors.primary,
+      );
+    }
+
+    final hold = widget.hold;
+    final now = DateTime.now();
+    if (hold == null || hold.isExpiredAt(now)) {
+      // Cancel the ticker the moment the countdown runs out, without waiting
+      // for the next parent rebuild to notice.
+      _ticker?.cancel();
+      _ticker = null;
+      return _button(
+        label: 'Use promo',
+        onPressed: widget.onUsePromo,
+        background: context.colors.primary,
+      );
+    }
+
+    return _appliedPromo(hold, now);
+  }
+
+  Widget _button({
+    required String label,
+    required VoidCallback onPressed,
+    required Color background,
+  }) {
+    return SizedBox(
+      height: 34,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: background,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: GoogleFonts.poppins(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        child: Text(label),
+      ),
+    );
+  }
+
+  Widget _appliedPromo(SessionPromoHold hold, DateTime now) {
+    final colors = context.colors;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: colors.success.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colors.success.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.local_offer_rounded,
+                size: 12,
+                color: colors.success,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'KES ${hold.discountAmount.toStringAsFixed(0)} off',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: colors.success,
+                ),
+              ),
+            ],
+          ),
+          Text(
+            'ends in ${hold.countdownLabelAt(now)}',
+            style: GoogleFonts.poppins(
+              fontSize: 10,
+              color: colors.textSecondary,
             ),
           ),
         ],

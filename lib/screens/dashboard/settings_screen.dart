@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,9 +10,17 @@ import '../../core/theme/app_colors.dart';
 import '../../widgets/app_widgets.dart';
 import '../auth/sign_in_screen.dart';
 import 'help_center_screen.dart';
+import 'manager_screen.dart';
 import 'settings_detail_screen.dart';
 import 'tenancy_screen.dart';
 import 'vehicles_screen.dart';
+
+/// Whether the Developer section appears at all.
+///
+/// Debug and profile builds only, so a Play Store release never ships a control
+/// that changes which half of the app the user sees. Flip this to `true` if you
+/// need the switch in a release build you are testing by hand.
+const bool kShowDeveloperSettings = !kReleaseMode;
 
 class SettingsScreen extends StatefulWidget {
   final bool showBackButton;
@@ -47,7 +56,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onRefresh: _onRefresh,
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 30),
+                  padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -56,7 +65,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         const SizedBox(height: 8),
                       ],
                       _profileCard(state),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 16),
+                      if (state.isManager) ...[
+                        _settingsSection(
+                          title: 'Management',
+                          children: [
+                            _settingsRow(
+                              icon: Icons.insights_rounded,
+                              title: 'Manager view',
+                              subtitle: 'Live takings, vehicles and occupancy',
+                              onTap: () => _openPage(
+                                ManagerScreen(
+                                  api: context.read<AppBloc>().api,
+                                  useSampleData: state.debugSampleData,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                      ],
                       _settingsSection(
                         title: 'Account',
                         children: [
@@ -84,7 +112,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 14),
                       _settingsSection(
                         title: 'Parking',
                         children: [
@@ -150,7 +178,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 14),
                       _settingsSection(
                         title: 'Payments',
                         children: [
@@ -190,7 +218,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 14),
                       _settingsSection(
                         title: 'Support',
                         children: [
@@ -216,11 +244,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 14),
                       // Its own section rather than a row in Account: a
                       // three-way control crowds a row, and the row it sat on
                       // looked tappable while doing nothing.
                       _themeSection(state),
+                      if (kShowDeveloperSettings) ...[
+                        const SizedBox(height: 14),
+                        _developerSection(state),
+                      ],
                     ],
                   ),
                 ),
@@ -243,7 +275,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       title: 'Appearance',
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -251,15 +283,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   Icon(
                     Icons.brightness_6_outlined,
-                    size: 20,
+                    size: 18,
                     color: context.colors.primary,
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'App theme',
                       style: GoogleFonts.poppins(
-                        fontSize: 14.5,
+                        fontSize: 13.5,
                         fontWeight: FontWeight.w600,
                         color: context.colors.textPrimary,
                       ),
@@ -268,30 +300,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Text(
                     label,
                     style: GoogleFonts.poppins(
-                      fontSize: 12.5,
+                      fontSize: 12,
                       color: context.colors.textSecondary,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
               SizedBox(
                 width: double.infinity,
                 child: SegmentedButton<ThemeMode>(
                   segments: const [
                     ButtonSegment<ThemeMode>(
                       value: ThemeMode.light,
-                      icon: Icon(Icons.light_mode, size: 16),
+                      icon: Icon(Icons.light_mode, size: 15),
                       label: Text('Light'),
                     ),
                     ButtonSegment<ThemeMode>(
                       value: ThemeMode.system,
-                      icon: Icon(Icons.brightness_auto, size: 16),
+                      icon: Icon(Icons.brightness_auto, size: 15),
                       label: Text('Auto'),
                     ),
                     ButtonSegment<ThemeMode>(
                       value: ThemeMode.dark,
-                      icon: Icon(Icons.dark_mode, size: 16),
+                      icon: Icon(Icons.dark_mode, size: 15),
                       label: Text('Dark'),
                     ),
                   ],
@@ -308,7 +340,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     selectedForegroundColor: Colors.white,
                     visualDensity: VisualDensity.compact,
                     textStyle: GoogleFonts.poppins(
-                      fontSize: 12.5,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -319,6 +351,73 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ],
     );
+  }
+
+  /// Debug-only. Flips the app between the driver side and the manager side
+  /// without touching the account's role in the backend.
+  ///
+  /// The switch shows the *effective* mode, so it reads correctly whether that
+  /// came from the account role or from an override.
+  Widget _developerSection(AppState state) {
+    final roleLabel = state.hasManagerRole ? 'manager' : 'driver';
+
+    return _settingsSection(
+      title: 'Developer',
+      children: [
+        _settingsRow(
+          icon: Icons.science_outlined,
+          title: 'Manager mode',
+          subtitle: state.isManager
+              ? 'Showing the manager view'
+              : 'Showing the driver view',
+          onTap: () => _setDebugManagerMode(!state.isManager),
+          trailing: _switch(
+            value: state.isManager,
+            onChanged: _setDebugManagerMode,
+          ),
+        ),
+        if (state.isDebugModeOverridden)
+          _settingsRow(
+            icon: Icons.restart_alt_rounded,
+            title: 'Follow account role',
+            subtitle: 'Your account is a $roleLabel account',
+            onTap: () => _setDebugManagerMode(null),
+          ),
+        _settingsRow(
+          icon: Icons.dataset_outlined,
+          title: 'Sample data',
+          subtitle: state.debugSampleData
+              ? 'Manager view shows generated figures'
+              : 'Manager view reads your real sites',
+          onTap: () => _setDebugSampleData(!state.debugSampleData),
+          trailing: _switch(
+            value: state.debugSampleData,
+            onChanged: _setDebugSampleData,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 2, 14, 12),
+          child: Text(
+            'Debug builds only. Manager mode changes what the app offers, not '
+            'what the API allows — on a driver account the manager view finds '
+            'no sites assigned to it, which is what sample data is for.',
+            style: GoogleFonts.poppins(
+              color: context.colors.textMuted,
+              fontSize: 11,
+              height: 1.35,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _setDebugManagerMode(bool? enabled) {
+    context.read<AppBloc>().add(SetDebugManagerMode(enabled));
+  }
+
+  void _setDebugSampleData(bool enabled) {
+    context.read<AppBloc>().add(SetDebugSampleData(enabled));
   }
 
   Widget _profileCard(AppState state) {
@@ -473,12 +572,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 2, bottom: 10),
+          padding: const EdgeInsets.only(left: 2, bottom: 8),
           child: Text(
             title,
             style: GoogleFonts.poppins(
               color: context.colors.textPrimary,
-              fontSize: 15,
+              fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -487,13 +586,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: context.colors.surface,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: context.colors.border),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.025),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
@@ -502,7 +601,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               for (var i = 0; i < children.length; i++) ...[
                 children[i],
                 if (i != children.length - 1)
-                  Divider(height: 1, color: context.colors.divider, indent: 74),
+                  Divider(height: 1, color: context.colors.divider, indent: 64),
               ],
             ],
           ),
@@ -526,21 +625,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
+          padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
           child: Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   color: danger
                       ? const Color(0xFFFFECEB)
                       : context.colors.accentLight,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: color, size: 21),
+                child: Icon(icon, color: color, size: 19),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -553,11 +652,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         color: danger
                             ? context.colors.error
                             : context.colors.textPrimary,
-                        fontSize: 14,
+                        fontSize: 13.5,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     Text(
                       subtitle,
                       maxLines: 1,
@@ -570,12 +669,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               trailing ??
                   Icon(
                     Icons.chevron_right_rounded,
                     color: context.colors.textMuted,
-                    size: 22,
+                    size: 20,
                   ),
             ],
           ),
@@ -586,7 +685,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _switch({required bool value, required ValueChanged<bool> onChanged}) {
     return Transform.scale(
-      scale: 0.86,
+      scale: 0.78,
       child: Switch(
         value: value,
         activeThumbColor: Colors.white,

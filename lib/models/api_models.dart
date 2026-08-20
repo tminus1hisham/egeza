@@ -128,6 +128,67 @@ class WalletTransaction {
   }
 }
 
+/// One row of `/manager/locations/{id}/transactions/payments` — a payment the
+/// location actually took, as opposed to a fee a session merely accrued.
+///
+/// `createdAt` is when the money landed, which is why the manager view sums
+/// these rather than each session's `amountPaid`: a car that drove in yesterday
+/// and paid this morning belongs in today's takings, not yesterday's.
+class PaymentTransaction {
+  final String id;
+  final String? userName;
+  final String? phoneNumber;
+  final String? sessionId;
+  final String plateNumber;
+  final String? locationId;
+  final String? locationName;
+  final double amount;
+  final String paymentMethod;
+  final String status;
+  final String? mpesaReceiptNumber;
+  final DateTime? createdAt;
+
+  const PaymentTransaction({
+    required this.id,
+    this.userName,
+    this.phoneNumber,
+    this.sessionId,
+    this.plateNumber = '',
+    this.locationId,
+    this.locationName,
+    this.amount = 0,
+    this.paymentMethod = 'MPESA',
+    this.status = 'PENDING',
+    this.mpesaReceiptNumber,
+    this.createdAt,
+  });
+
+  factory PaymentTransaction.fromJson(Map<String, dynamic> json) {
+    return PaymentTransaction(
+      id: jsonString(json['id']) ?? jsonString(json['transactionId']) ?? '',
+      userName: jsonString(json['userName']),
+      phoneNumber: jsonString(json['phoneNumber']),
+      sessionId: jsonString(json['sessionId']),
+      plateNumber: (jsonString(json['plateNumber']) ?? '').toUpperCase(),
+      locationId: jsonString(json['locationId']),
+      locationName: jsonString(json['locationName']),
+      amount: jsonDouble(json['amount']),
+      paymentMethod: jsonString(json['paymentMethod']) ?? 'MPESA',
+      status: (jsonString(json['status']) ?? 'PENDING').toUpperCase(),
+      mpesaReceiptNumber: jsonString(json['mpesaReceiptNumber']),
+      createdAt: jsonDateTime(json['createdAt']),
+    );
+  }
+
+  /// Money that actually arrived. Anything still pending or failed is not
+  /// takings, and must never be added to a revenue figure.
+  bool get isSettled => const {
+        'SUCCESS',
+        'COMPLETED',
+        'PAID',
+      }.contains(status);
+}
+
 class ParkingLocation {
   final String id;
   final String name;

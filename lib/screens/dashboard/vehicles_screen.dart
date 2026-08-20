@@ -47,14 +47,14 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 onRefresh: _onRefresh,
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 30),
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _fleetCard(state),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 14),
                       _filterBar(),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 14),
                       _vehicleList(
                         context,
                         vehicles,
@@ -97,11 +97,11 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
 
   Widget _filterBar() {
     return Container(
-      height: 46,
-      padding: const EdgeInsets.all(4),
+      height: 40,
+      padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: context.colors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: context.colors.border),
       ),
       child: Row(
@@ -116,7 +116,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: selected ? context.colors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(11),
                 ),
                 child: Text(
                   _filters[index],
@@ -150,7 +150,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 'My vehicles',
                 style: GoogleFonts.poppins(
                   color: context.colors.textPrimary,
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -164,7 +164,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         if (vehicles.isEmpty)
           _emptyVehicles(noVehiclesAtAll: noVehiclesAtAll)
         else
@@ -175,7 +175,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                     Vehicle.plateKey(session.vehicle.plateNumber) == plateKey)
                 .toList();
             return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: 10),
               child: _vehicleCard(context, vehicle, vehicleSessions),
             );
           }),
@@ -193,18 +193,18 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            blurRadius: 14,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Material(
         color: context.colors.cardSurface,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         child: InkWell(
           onTap: () => Navigator.push(
             context,
@@ -212,12 +212,12 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
               builder: (_) => VehicleDetailScreen(vehicle: vehicle),
             ),
           ),
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 15),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(20),
             ),
             child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -225,8 +225,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
               Row(
                 children: [
                   Container(
-                    width: 58,
-                    height: 58,
+                    width: 46,
+                    height: 46,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
@@ -236,7 +236,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: context.colors.primary.withValues(alpha: 0.1),
                       ),
@@ -244,16 +244,16 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                     child: Icon(
                       Icons.directions_car_rounded,
                       color: context.colors.primary,
-                      size: 28,
+                      size: 23,
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _plateTag(vehicle.plateNumber),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Text(
                           '${vehicle.make} ${vehicle.model} - ${vehicle.type}',
                           maxLines: 1,
@@ -266,15 +266,15 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Icon(
                     Icons.chevron_right_rounded,
                     color: context.colors.textMuted,
-                    size: 22,
+                    size: 20,
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   _statusChip(
@@ -291,7 +291,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
@@ -301,7 +301,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                       Icons.history_rounded,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: _vehicleMetric(
                       'Last seen',
@@ -309,7 +309,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                       Icons.schedule_rounded,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: _vehicleMetric(
                       'Spend',
@@ -331,10 +331,10 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       // Filter returned no results, but user does have vehicles
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(26),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: context.colors.cardSurface,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           'No vehicles match this filter',
@@ -350,34 +350,34 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     // True empty state — no vehicles registered at all
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 32),
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             Icons.directions_car_outlined,
-            size: 64,
+            size: 46,
             color: context.colors.textMuted,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 14),
           Text(
             'No vehicles yet',
             style: GoogleFonts.poppins(
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w600,
               color: context.colors.textPrimary,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 8),
           Text(
             'Add your first vehicle to start parking',
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
-              fontSize: 14,
+              fontSize: 13,
               color: context.colors.textMuted,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
           PrimaryButton(
             text: 'Add Vehicle',
             onPressed: () => showAddVehicleSheet(context),
@@ -390,10 +390,10 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   Widget _plateTag(String plate) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: context.colors.plateBg,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: context.colors.plateYellow.withValues(alpha: 0.35)),
       ),
       child: Text(
@@ -402,7 +402,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
         overflow: TextOverflow.ellipsis,
         style: GoogleFonts.poppins(
           color: isDark ? context.colors.plateYellow : const Color(0xFF573A05),
-          fontSize: 14,
+          fontSize: 13,
           fontWeight: FontWeight.w700,
           letterSpacing: 1.2,
         ),
@@ -440,17 +440,17 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
 
   Widget _vehicleMetric(String label, String value, IconData icon) {
     return Container(
-      height: 76,
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 11),
+      height: 66,
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
       decoration: BoxDecoration(
         color: context.colors.surfaceRaised,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: context.colors.border.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: context.colors.textMuted, size: 15),
+          Icon(icon, color: context.colors.textMuted, size: 13),
           const Spacer(),
           Text(
             value,
@@ -458,7 +458,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
               color: context.colors.textPrimary,
-              fontSize: 12,
+              fontSize: 11.5,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -469,7 +469,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
               color: context.colors.textSecondary,
-              fontSize: 10,
+              fontSize: 9.5,
             ),
           ),
         ],
@@ -488,7 +488,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
         onTap: () => showAddVehicleSheet(context),
         borderRadius: BorderRadius.circular(999),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 8, 14, 8),
+          padding: const EdgeInsets.fromLTRB(10, 6, 12, 6),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
             border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
@@ -496,13 +496,13 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.add_rounded, color: Colors.white, size: 18),
-              const SizedBox(width: 5),
+              const Icon(Icons.add_rounded, color: Colors.white, size: 16),
+              const SizedBox(width: 4),
               Text(
                 'Add',
                 style: GoogleFonts.poppins(
                   color: Colors.white,
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
               ),

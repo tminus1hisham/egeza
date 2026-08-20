@@ -206,6 +206,24 @@ class PayParkingSession extends AppEvent {
       ];
 }
 
+/// Redeem a promo code against a session that AutoPay will settle.
+///
+/// Unlike [PayParkingSession] this never opens an M-Pesa prompt: the promo
+/// either clears the bill outright or shaves it down and leaves the remainder
+/// to AutoPay.
+class ApplySessionPromo extends AppEvent {
+  final String sessionId;
+  final String code;
+
+  const ApplySessionPromo({
+    required this.sessionId,
+    required this.code,
+  });
+
+  @override
+  List<Object?> get props => [sessionId, code];
+}
+
 class SetVehicleAutoPay extends AppEvent {
   final String? vehicleId;
   final String plateNumber;
@@ -232,6 +250,34 @@ class RemoveVehicle extends AppEvent {
 
   @override
   List<Object?> get props => [vehicleId, plateNumber];
+}
+
+/// Debug-only: forces the app to show the driver side or the manager side,
+/// regardless of the signed-in account's role. Pass null to drop the override
+/// and follow the real role again.
+///
+/// This moves what the *app* offers, never what the *API* allows — a forced
+/// manager view on a driver account still gets 403s from `/manager/*` and lands
+/// on the "no sites assigned" state.
+class SetDebugManagerMode extends AppEvent {
+  final bool? enabled;
+
+  const SetDebugManagerMode(this.enabled);
+
+  @override
+  List<Object?> get props => [enabled];
+}
+
+/// Debug-only: fills the manager view with generated figures instead of calling
+/// the API, so the layout can be looked at without a manager account or a live
+/// site behind it. The screen badges every sample reading as such.
+class SetDebugSampleData extends AppEvent {
+  final bool enabled;
+
+  const SetDebugSampleData(this.enabled);
+
+  @override
+  List<Object?> get props => [enabled];
 }
 
 class ChangeThemeMode extends AppEvent {

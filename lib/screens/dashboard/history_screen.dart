@@ -67,19 +67,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
               onRefresh: _onRefresh,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 22, 20, 30),
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _overviewCard(state.walletTransactions),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 14),
                     // The filter and search govern both lists below, so they
                     // sit above both rather than between them.
                     _filterBar(),
                     _searchField(),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 14),
                     _sessionsList(parkingSessions),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 14),
                     _historyList(transactions),
                   ],
                 ),
@@ -100,42 +100,42 @@ class _HistoryScreenState extends State<HistoryScreen> {
           alignment: Alignment.topCenter,
           child: _searchOpen
               ? Padding(
-                  padding: const EdgeInsets.only(top: 12),
+                  padding: const EdgeInsets.only(top: 10),
                   child: TextField(
                     controller: _searchController,
                     autofocus: true,
                     onChanged: (_) => setState(() {}),
                     style: GoogleFonts.poppins(
-                      fontSize: 14,
+                      fontSize: 13,
                       color: context.colors.textPrimary,
                     ),
                     decoration: InputDecoration(
                       hintText: 'Search by description or reference...',
                       hintStyle: GoogleFonts.poppins(
                         color: context.colors.textMuted,
-                        fontSize: 14,
+                        fontSize: 13,
                       ),
                       prefixIcon: Icon(
                         Icons.search_rounded,
                         color: context.colors.textMuted,
-                        size: 20,
+                        size: 18,
                       ),
                       filled: true,
                       fillColor: context.colors.surface,
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
+                        horizontal: 14,
+                        vertical: 10,
                       ),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(color: context.colors.inputBorder),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(color: context.colors.inputBorder),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(
                           color: context.colors.primary,
                           width: 1.5,
@@ -188,11 +188,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
       children: [
         Expanded(
           child: Container(
-            height: 46,
-            padding: const EdgeInsets.all(4),
+            height: 40,
+            padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
               color: context.colors.surface,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(color: context.colors.border),
             ),
             child: Row(
@@ -211,7 +211,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 ? const Color(0xFF7C3AED)
                                 : context.colors.primary)
                             : Colors.transparent,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(11),
                       ),
                       child: Text(
                         _filters[index],
@@ -250,7 +250,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader('Activity', '${transactions.length} records'),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         Container(
           width: double.infinity,
           clipBehavior: Clip.antiAlias,
@@ -268,7 +268,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         Divider(
                           color: context.colors.divider,
                           height: 1,
-                          indent: 74,
+                          indent: 64,
                         ),
                     ],
                   ],
@@ -290,14 +290,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ? const StatusBadge(label: 'Live', isActive: true)
               : null,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         Container(
           width: double.infinity,
           clipBehavior: Clip.antiAlias,
           decoration: _panelDecoration(),
           child: sessions.isEmpty
               ? Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
+                  padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 20),
                   child: Text(
                     _filterIndex != 0 || _searchController.text.isNotEmpty
                         ? 'No parking sessions match this filter'
@@ -317,7 +317,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         Divider(
                           color: context.colors.divider,
                           height: 1,
-                          indent: 74,
+                          indent: 64,
                         ),
                     ],
                   ],
@@ -338,75 +338,62 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ? '- KES ${_formatAmount(amount)}'
             : 'KES ${_formatAmount(amount)}';
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: context.colors.accentLight,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(
-              Icons.local_parking_rounded,
-              color: context.colors.primary,
-              size: 21,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  session.locationName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    color: context.colors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  '${session.vehicle.plateNumber} · ${session.vehicle.make}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    color: context.colors.textSecondary,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _sessionStatusChip(session.status),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                amountLabel,
-                style: GoogleFonts.poppins(
-                  color: context.colors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      child: LayoutBuilder(
+        builder: (context, constraints) => Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: context.colors.accentLight,
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(height: 5),
-              Text(
-                _dateTimeLabel(session.startTime),
-                style: GoogleFonts.poppins(
-                  color: context.colors.textMuted,
-                  fontSize: 11,
-                ),
+              child: Icon(
+                Icons.local_parking_rounded,
+                color: context.colors.primary,
+                size: 19,
               ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    session.locationName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                      color: context.colors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${session.vehicle.plateNumber} · ${session.vehicle.make}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                      color: context.colors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  _sessionStatusChip(session.status),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            _rowTrailing(
+              rowWidth: constraints.maxWidth,
+              amount: amountLabel,
+              amountColor: context.colors.textPrimary,
+              caption: _dateTimeLabel(session.startTime),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -414,7 +401,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget _emptyHistory({bool filterOnly = false}) {
     if (filterOnly) {
       return Padding(
-        padding: const EdgeInsets.all(26),
+        padding: const EdgeInsets.all(20),
         child: Text(
           'No transactions match this filter',
           textAlign: TextAlign.center,
@@ -426,30 +413,30 @@ class _HistoryScreenState extends State<HistoryScreen> {
       );
     }
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 32),
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             Icons.history_outlined,
-            size: 64,
+            size: 46,
             color: context.colors.textMuted,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 14),
           Text(
             'No parking history',
             style: GoogleFonts.poppins(
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w600,
               color: context.colors.textPrimary,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 8),
           Text(
             'Your completed sessions will appear here',
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
-              fontSize: 14,
+              fontSize: 13,
               color: context.colors.textMuted,
             ),
           ),
@@ -464,95 +451,124 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final isPending = tx.status.toUpperCase() == 'PENDING';
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: isDeposit
-                  ? context.colors.successLight
-                  : autoPay
-                      ? const Color(0xFF7C3AED).withValues(alpha: 0.1)
-                      : context.colors.accentLight,
-              borderRadius: BorderRadius.circular(14),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      child: LayoutBuilder(
+        builder: (context, constraints) => Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: isDeposit
+                    ? context.colors.successLight
+                    : autoPay
+                        ? const Color(0xFF7C3AED).withValues(alpha: 0.1)
+                        : context.colors.accentLight,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                isDeposit
+                    ? Icons.add_circle_outline_rounded
+                    : autoPay
+                        ? Icons.bolt_rounded
+                        : Icons.payments_outlined,
+                color: isDeposit
+                    ? context.colors.success
+                    : autoPay
+                        ? const Color(0xFF7C3AED)
+                        : context.colors.primary,
+                size: 19,
+              ),
             ),
-            child: Icon(
-              isDeposit
-                  ? Icons.add_circle_outline_rounded
-                  : autoPay
-                      ? Icons.bolt_rounded
-                      : Icons.payments_outlined,
-              color: isDeposit
-                  ? context.colors.success
-                  : autoPay
-                      ? const Color(0xFF7C3AED)
-                      : context.colors.primary,
-              size: 21,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  tx.description ?? _txTypeLabel(tx.type),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    color: context.colors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (tx.reference != null && tx.reference!.isNotEmpty) ...[
-                  const SizedBox(height: 3),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    tx.reference!,
+                    tx.description ?? _txTypeLabel(tx.type),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.poppins(
-                      color: context.colors.textSecondary,
-                      fontSize: 12,
+                      color: context.colors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ],
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    _statusChip(_txStatusLabel(tx.status), isPending),
-                    if (autoPay) ...[
-                      const SizedBox(width: 8),
-                      _autoPayPill(),
-                    ],
+                  if (tx.reference != null && tx.reference!.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      tx.reference!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        color: context.colors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
-                ),
-              ],
+                  const SizedBox(height: 6),
+                  // Two pills fit on one line only while the text is small; a
+                  // Wrap drops the second under the first rather than running
+                  // it off the edge of the card.
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      _statusChip(_txStatusLabel(tx.status), isPending),
+                      if (autoPay) _autoPayPill(),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            _rowTrailing(
+              rowWidth: constraints.maxWidth,
+              amount: '${isDeposit ? '+' : '-'} KES ${_formatAmount(tx.amount)}',
+              amountColor:
+                  isDeposit ? context.colors.success : context.colors.textPrimary,
+              caption: tx.createdAt != null ? _dateTimeLabel(tx.createdAt!) : '—',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// The amount and the timestamp are the only unbounded strings in these
+  /// rows: a five-figure fee at a large system text size outgrows what the row
+  /// can spare and paints the overflow stripes. Capping the column at half the
+  /// row makes both wrap onto a second line instead — an ellipsised amount
+  /// would be worse than a tall one.
+  Widget _rowTrailing({
+    required double rowWidth,
+    required String amount,
+    required Color amountColor,
+    required String caption,
+  }) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: rowWidth / 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            amount,
+            textAlign: TextAlign.end,
+            style: GoogleFonts.poppins(
+              color: amountColor,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '${isDeposit ? '+' : '-'} KES ${_formatAmount(tx.amount)}',
-                style: GoogleFonts.poppins(
-                  color: isDeposit ? context.colors.success : context.colors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                tx.createdAt != null ? _dateTimeLabel(tx.createdAt!) : '—',
-                style: GoogleFonts.poppins(
-                  color: context.colors.textMuted,
-                  fontSize: 11,
-                ),
-              ),
-            ],
+          const SizedBox(height: 4),
+          Text(
+            caption,
+            textAlign: TextAlign.end,
+            style: GoogleFonts.poppins(
+              color: context.colors.textMuted,
+              fontSize: 11,
+            ),
           ),
         ],
       ),
@@ -572,12 +588,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
         children: [
           const Icon(Icons.bolt_rounded, size: 10, color: Color(0xFF7C3AED)),
           const SizedBox(width: 3),
-          Text(
-            'AutoPay',
-            style: GoogleFonts.poppins(
-              color: const Color(0xFF7C3AED),
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
+          // The pill sits in the narrowest column on the row, so its own label
+          // has to be able to give way rather than push the badge past the
+          // width it was handed.
+          Flexible(
+            child: Text(
+              'AutoPay',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.poppins(
+                color: const Color(0xFF7C3AED),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -646,27 +669,42 @@ class _HistoryScreenState extends State<HistoryScreen> {
   /// one header shape — label, optional state chip, then the count.
   Widget _sectionHeader(String label, String count, {Widget? chip}) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      spacing: 12,
       children: [
+        // Label and chip travel together on the left, and the count is pushed
+        // right by spaceBetween rather than by a Spacer — so when the three of
+        // them stop fitting they shrink instead of overflowing.
         Flexible(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.poppins(
-              color: context.colors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    color: context.colors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (chip != null) ...[const SizedBox(width: 8), chip],
+            ],
           ),
         ),
-        if (chip != null) ...[const SizedBox(width: 8), chip],
-        const Spacer(),
-        const SizedBox(width: 8),
-        Text(
-          count,
-          style: GoogleFonts.poppins(
-            color: context.colors.textMuted,
-            fontSize: 12,
+        Flexible(
+          child: Text(
+            count,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
+            style: GoogleFonts.poppins(
+              color: context.colors.textMuted,
+              fontSize: 12,
+            ),
           ),
         ),
       ],
@@ -676,13 +714,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
   BoxDecoration _panelDecoration() {
     return BoxDecoration(
       color: context.colors.surface,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(16),
       border: Border.all(color: context.colors.border),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.025),
-          blurRadius: 12,
-          offset: const Offset(0, 6),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
         ),
       ],
     );

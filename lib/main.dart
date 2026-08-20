@@ -20,6 +20,8 @@ void main() async {
       initialPhoneNumber: saved.phone,
       initialAuthToken: saved.token,
       initialThemeMode: initialThemeMode,
+      initialDebugManagerMode: saved.debugManagerMode,
+      initialDebugSampleData: saved.debugSampleData ?? false,
     ),
   );
 }
@@ -29,6 +31,8 @@ class egeshaApp extends StatelessWidget {
   final String? initialPhoneNumber;
   final String? initialAuthToken;
   final ThemeMode initialThemeMode;
+  final bool? initialDebugManagerMode;
+  final bool initialDebugSampleData;
 
   const egeshaApp({
     super.key,
@@ -36,6 +40,8 @@ class egeshaApp extends StatelessWidget {
     this.initialPhoneNumber,
     this.initialAuthToken,
     this.initialThemeMode = ThemeMode.system,
+    this.initialDebugManagerMode,
+    this.initialDebugSampleData = false,
   });
 
   @override
@@ -48,6 +54,8 @@ class egeshaApp extends StatelessWidget {
             initialPhoneNumber: initialPhoneNumber,
             initialAuthToken: initialAuthToken,
             initialThemeMode: initialThemeMode,
+            initialDebugManagerMode: initialDebugManagerMode,
+            initialDebugSampleData: initialDebugSampleData,
           ),
         ),
       ],

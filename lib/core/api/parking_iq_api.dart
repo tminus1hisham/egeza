@@ -659,6 +659,45 @@ class ParkingIqApi {
     return _dataList(response).map(ParkingSession.fromJson).toList();
   }
 
+  // ── Manager (location-scoped) ────────────────────────────────────────────
+  //
+  // A location manager sees one site, not the whole estate, so these are the
+  // `/manager/*` endpoints rather than `/admin/*`. Every one of them 403s for a
+  // location the signed-in user is not assigned to — which is exactly how the
+  // manager view discovers which sites it may show.
+
+  /// Every session the location has ever recorded. There is no date filter on
+  /// the endpoint, so "today" is applied client-side.
+  Future<List<ParkingSession>> managerLocationSessions(String locationId) async {
+    final response = await _request(
+      'GET',
+      '/manager/locations/$locationId/sessions',
+    );
+    return _dataList(response).map(ParkingSession.fromJson).toList();
+  }
+
+  /// Cars on the ground right now. This is the authoritative "still parked"
+  /// list — do not re-derive it by filtering [managerLocationSessions].
+  Future<List<ParkingSession>> managerActiveLocationSessions(
+    String locationId,
+  ) async {
+    final response = await _request(
+      'GET',
+      '/manager/locations/$locationId/sessions/active',
+    );
+    return _dataList(response).map(ParkingSession.fromJson).toList();
+  }
+
+  Future<List<PaymentTransaction>> managerLocationPayments(
+    String locationId,
+  ) async {
+    final response = await _request(
+      'GET',
+      '/manager/locations/$locationId/transactions/payments',
+    );
+    return _dataList(response).map(PaymentTransaction.fromJson).toList();
+  }
+
   Future<DashboardStats> dashboardStats() async {
     final response = await _request('GET', '/admin/dashboard/stats');
     return DashboardStats.fromJson(_requiredDataMap(response));
@@ -997,6 +1036,7 @@ class ParkingIqApi {
         'results',
         'vehicles',
         'transactions',
+        'payments',
         'locations',
         'profiles',
         'tenants',
