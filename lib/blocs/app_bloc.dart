@@ -15,6 +15,7 @@ import '../models/session_promo_hold.dart';
 import '../models/vehicle.dart';
 import 'app_event.dart';
 import 'app_state.dart';
+import 'demo_session_data.dart';
 
 class AppBloc extends Bloc<AppEvent, AppState> {
   final ParkingIqApi _api;
@@ -70,6 +71,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     on<ChangeThemeMode>(_onChangeThemeMode);
     on<SetDebugManagerMode>(_onSetDebugManagerMode);
     on<SetDebugSampleData>(_onSetDebugSampleData);
+    on<StartDemoSession>(_onStartDemoSession);
     on<ClearAppMessages>(_onClearAppMessages);
     on<ClearParkingSelection>(_onClearParkingSelection);
     on<SignOut>(_onSignOut);
@@ -115,6 +117,56 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     _log('SetDebugSampleData: ${event.enabled}');
     emit(state.copyWith(debugSampleData: event.enabled));
     await UserPrefs.saveDebugSampleData(event.enabled);
+  }
+
+  /// Testing-only: enters the tenant or owner side of the app on seeded
+  /// figures, with no account and no access token behind it.
+  ///
+  /// The placeholder token is only ever put in state — [_api] is left without
+  /// one on purpose, which both keeps the demo off the backend and stops the
+  /// wallet and session watches, since they refuse to start untokened.
+  Future<void> _onStartDemoSession(
+    StartDemoSession event,
+    Emitter<AppState> emit,
+  ) async {
+    final isOwner = event.role == 'owner';
+    _log('StartDemoSession: ${event.role}');
+
+    _walletBalanceTimer?.cancel();
+    _walletBalanceTimer = null;
+    _sessionWatchTimer?.cancel();
+    _sessionWatchTimer = null;
+    _api.setToken(null);
+
+    final now = DateTime.now();
+    emit(AppState(
+      themeMode: state.themeMode,
+      demoRole: event.role,
+      authToken: 'demo-session',
+      userName: isOwner ? DemoSessionData.ownerName : DemoSessionData.tenantName,
+      phoneNumber: isOwner
+          ? DemoSessionData.ownerPhoneNumber
+          : DemoSessionData.tenantPhoneNumber,
+      userRole: isOwner ? 'CLIENT' : 'TENANT',
+      walletBalance: DemoSessionData.walletBalance,
+      vehicles: DemoSessionData.vehicles,
+      locations: DemoSessionData.locations,
+      recentSessions: DemoSessionData.recentSessions(now: now),
+      walletTransactions: DemoSessionData.walletTransactions(now: now),
+      tenantProfiles:
+          isOwner ? const [] : DemoSessionData.tenantProfiles(now: now),
+      tenancyRequests:
+          isOwner ? const [] : DemoSessionData.tenancyRequests(now: now),
+      // Set either way rather than left to the account role: a debug override
+      // saved from a previous run would otherwise decide which side opens.
+      debugManagerMode: isOwner,
+      // The manager view has its own generator, and with no token behind it the
+      // live path would only find "no sites assigned".
+      debugSampleData: isOwner,
+      statusMessage: isOwner
+          ? 'Demo owner session — figures are sample data'
+          : 'Demo tenancy session — figures are sample data',
+    ));
   }
 
   void _log(String msg) {
@@ -267,6 +319,13 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     final showInitialLoader = state.vehicles.isEmpty &&
         state.recentSessions.isEmpty &&
         state.locations.isEmpty;
+    if (state.isDemoSession) {
+      // Seeded state is all a demo session has; a refresh must not wipe it, and
+      // the untokened branch below would read it as an expired session.
+      _log('LoadDashboardData: demo session — keeping seeded data');
+      return;
+    }
+
     emit(state.copyWith(isLoading: showInitialLoader, clearMessages: true));
     _log('LoadDashboardData: hasToken=${_api.hasToken}');
 
@@ -1565,13 +1624,25 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     _sessionWatchTimer = null;
     _api.setToken(null);
     await UserPrefs.clearToken();
+
+    // A demo session forces both debug switches to suit the side it opened, and
+    // that override was never written to disk — take them back off prefs so
+    // signing out does not leave the app in a mode the user never chose.
+    var debugManagerMode = state.debugManagerMode;
+    var debugSampleData = state.debugSampleData;
+    if (state.isDemoSession) {
+      final saved = await UserPrefs.load();
+      debugManagerMode = saved.debugManagerMode;
+      debugSampleData = saved.debugSampleData ?? false;
+    }
+
     // Device preferences outlive the account: both are stored in prefs, so
     // resetting them here would only make state disagree with disk until the
     // next restart.
     emit(AppState(
       themeMode: state.themeMode,
-      debugManagerMode: state.debugManagerMode,
-      debugSampleData: state.debugSampleData,
+      debugManagerMode: debugManagerMode,
+      debugSampleData: debugSampleData,
     ));
   }
 

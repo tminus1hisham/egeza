@@ -288,3 +288,18 @@ class ChangeThemeMode extends AppEvent {
   @override
   List<Object?> get props => [themeMode];
 }
+
+/// Testing-only: signs in as a seeded tenant or property owner without an
+/// access token, so either side of the app can be walked through before the
+/// matching account exists in the backend.
+///
+/// [role] is `'tenant'` or `'owner'`. Nothing is written to prefs and no token
+/// reaches the API client — closing the app ends the demo session.
+class StartDemoSession extends AppEvent {
+  final String role;
+
+  const StartDemoSession(this.role);
+
+  @override
+  List<Object?> get props => [role];
+}

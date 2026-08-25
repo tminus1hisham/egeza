@@ -168,7 +168,7 @@ void main() {
   }
 
   for (final scale in <double>[1.0, 1.3, 1.6]) {
-    testWidgets('history activity + sessions survive text scale $scale',
+    testWidgets('history sessions survive text scale $scale',
         (tester) async {
       final bloc = _StaticAppBloc(appState);
       addTearDown(bloc.close);

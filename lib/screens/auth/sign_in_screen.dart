@@ -159,6 +159,8 @@ class _SignInScreenState extends State<SignInScreen> {
                       ),
                       const SizedBox(height: 24),
                       _createAccountLink(),
+                      // const SizedBox(height: 28),
+                      // _demoLoginSection(isBusy: isBusy),
                       const SizedBox(height: 40),
                     ],
                   ),
@@ -447,6 +449,63 @@ class _SignInScreenState extends State<SignInScreen> {
         ),
       ),
     );
+  }
+
+  /// Testing-only shortcut into either side of the app. No account, no OTP and
+  /// no access token — the app runs on seeded figures until sign-out.
+  // ignore: unused_element
+  Widget _demoLoginSection({required bool isBusy}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(child: Divider(color: context.colors.border)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                'For testing',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: context.colors.textMuted,
+                ),
+              ),
+            ),
+            Expanded(child: Divider(color: context.colors.border)),
+          ],
+        ),
+        const SizedBox(height: 16),
+        PrimaryButton(
+          text: 'Tenancy login',
+          icon: LucideIcons.building2,
+          isOutlined: true,
+          onPressed: isBusy ? null : () => _startDemoSession('tenant'),
+        ),
+        const SizedBox(height: 12),
+        PrimaryButton(
+          text: 'Owner login',
+          icon: LucideIcons.briefcase,
+          isOutlined: true,
+          onPressed: isBusy ? null : () => _startDemoSession('owner'),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Opens the app on sample data without signing in.',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.poppins(
+            fontSize: 11,
+            color: context.colors.textMuted,
+            height: 1.35,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _startDemoSession(String role) {
+    FocusScope.of(context).unfocus();
+    context.read<AppBloc>().add(StartDemoSession(role));
   }
 
   void _onAuthStateChanged(BuildContext context, AppState state) {

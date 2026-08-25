@@ -35,6 +35,11 @@ class AppColors {
   static const Color mintBorder = Color(0xFFA9ECD9);
   static const Color darkPanel = Color(0xFF111827);
 
+  // Disabled buttons: muted fill with text dark enough to stay readable
+  // (white-on-grey was failing contrast).
+  static const Color disabledFill = Color(0xFFCAD3D0);
+  static const Color disabledText = Color(0xFF3F4F4A);
+
   static const Color cardSurface = Color(0xFFFFFFFF);
   static const Color divider = Color(0xFFEAF0ED);
 
@@ -51,6 +56,9 @@ class AppColors {
   static const Color darkBorder = Color(0xFF223831);
   static const Color darkInputBorder = Color(0xFF2A423B);
   static const Color darkDivider = Color(0xFF182B25);
+
+  static const Color darkDisabledFill = Color(0xFF2E423C);
+  static const Color darkDisabledText = Color(0xFFBFD0C9);
 }
 
 class AppColorsData {
@@ -84,6 +92,8 @@ class AppColorsData {
   final Color divider;
   final Color surfaceRaised;
   final Color surfaceTint;
+  final Color disabledFill;
+  final Color disabledText;
 
   const AppColorsData({
     required this.primary,
@@ -116,6 +126,8 @@ class AppColorsData {
     required this.divider,
     required this.surfaceRaised,
     required this.surfaceTint,
+    required this.disabledFill,
+    required this.disabledText,
   });
 }
 
@@ -153,6 +165,8 @@ extension AppColorsExtension on BuildContext {
       divider: isDark ? AppColors.darkDivider : AppColors.divider,
       surfaceRaised: isDark ? const Color(0xFF172A24) : AppColors.surfaceRaised,
       surfaceTint: isDark ? const Color(0xFF10251F) : AppColors.surfaceTint,
+      disabledFill: isDark ? AppColors.darkDisabledFill : AppColors.disabledFill,
+      disabledText: isDark ? AppColors.darkDisabledText : AppColors.disabledText,
     );
   }
 }

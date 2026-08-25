@@ -178,26 +178,71 @@ class SectionHeading extends StatelessWidget {
   final String? actionLabel;
   final VoidCallback? onAction;
 
+  /// Tinted badge before the title. Gives a page of stacked cards something
+  /// to scan by other than the wording of each heading.
+  final IconData? icon;
+
+  /// Tint for [icon]. Defaults to the brand colour; a card about money left
+  /// on the table can set the alert colour instead.
+  final Color? iconColor;
+
+  /// A second line under the title, for the fact that will not fit beside it.
+  final String? subtitle;
+
   const SectionHeading(
     this.title, {
     super.key,
     this.trailing,
     this.actionLabel,
     this.onAction,
+    this.icon,
+    this.iconColor,
+    this.subtitle,
   });
 
   @override
   Widget build(BuildContext context) {
+    final tint = iconColor ?? context.colors.primary;
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Expanded(
-          child: Text(
-            title,
-            style: GoogleFonts.poppins(
-              color: context.colors.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
+        if (icon != null) ...[
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: tint.withValues(alpha: 0.11),
+              borderRadius: BorderRadius.circular(9),
             ),
+            child: Icon(icon, size: 15, color: tint),
+          ),
+          const SizedBox(width: 10),
+        ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.poppins(
+                  color: context.colors.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subtitle!,
+                  style: GoogleFonts.poppins(
+                    color: context.colors.textSecondary,
+                    fontSize: 11.5,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
         if (actionLabel != null && onAction != null)
@@ -253,12 +298,17 @@ class MetricTile extends StatelessWidget {
   /// the card is actually about.
   final bool emphasis;
 
+  /// Colours the figure itself, for a reading that is bad news on sight —
+  /// money left uncollected reads red whether or not it is the card's subject.
+  final Color? valueColor;
+
   const MetricTile({
     super.key,
     required this.label,
     required this.value,
     required this.icon,
     this.emphasis = false,
+    this.valueColor,
   });
 
   @override
@@ -266,8 +316,9 @@ class MetricTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 11),
       decoration: BoxDecoration(
-        color:
-            emphasis ? context.colors.accentLight : context.colors.surfaceRaised,
+        color: emphasis
+            ? context.colors.accentLight
+            : context.colors.surfaceRaised,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: emphasis
@@ -281,7 +332,9 @@ class MetricTile extends StatelessWidget {
           Icon(
             icon,
             size: 14,
-            color: emphasis ? context.colors.primary : context.colors.textMuted,
+            color:
+                valueColor ??
+                (emphasis ? context.colors.primary : context.colors.textMuted),
           ),
           const SizedBox(height: 8),
           FittedBox(
@@ -291,7 +344,7 @@ class MetricTile extends StatelessWidget {
               value,
               maxLines: 1,
               style: GoogleFonts.poppins(
-                color: context.colors.textPrimary,
+                color: valueColor ?? context.colors.textPrimary,
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
               ),
@@ -418,8 +471,8 @@ class FilterPills extends StatelessWidget {
                     color: selected
                         ? Colors.white
                         : highlighted.contains(index)
-                            ? context.colors.primary
-                            : context.colors.textSecondary,
+                        ? context.colors.primary
+                        : context.colors.textSecondary,
                     fontSize: 12.5,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                   ),
@@ -484,11 +537,17 @@ class StaleDataBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.colors.warning.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.colors.warning.withValues(alpha: 0.3)),
+        border: Border.all(
+          color: context.colors.warning.withValues(alpha: 0.3),
+        ),
       ),
       child: Row(
         children: [
-          Icon(Icons.cloud_off_rounded, size: 15, color: context.colors.warning),
+          Icon(
+            Icons.cloud_off_rounded,
+            size: 15,
+            color: context.colors.warning,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -501,6 +560,259 @@ class StaleDataBanner extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The explanatory line at the foot of a card.
+///
+/// Set below a hairline and behind an icon so it reads as an annotation on the
+/// figures above it rather than as another paragraph of them — these cards
+/// carry a lot of prose, and none of it should compete with the numbers.
+class CardNote extends StatelessWidget {
+  final String text;
+  final IconData icon;
+
+  const CardNote(
+    this.text, {
+    super.key,
+    this.icon = Icons.info_outline_rounded,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          height: 1,
+          margin: const EdgeInsets.only(top: 13, bottom: 10),
+          color: context.colors.divider,
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 13, color: context.colors.textMuted),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Text(
+                text,
+                style: GoogleFonts.poppins(
+                  color: context.colors.textMuted,
+                  fontSize: 11,
+                  height: 1.45,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// A filled bar that grows into place, used everywhere this side of the app
+/// shows a share of something.
+///
+/// Replaces `LinearProgressIndicator` so the track, the radius and the run-up
+/// animation are the same on every card instead of Material's defaults.
+class MeterBar extends StatelessWidget {
+  /// 0–1. Values outside that are clamped rather than overflowing the track.
+  final double value;
+  final Color color;
+  final double height;
+
+  /// Track behind the fill. Defaults to the page's border tone.
+  final Color? trackColor;
+
+  const MeterBar({
+    super.key,
+    required this.value,
+    required this.color,
+    this.height = 7,
+    this.trackColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final target = value.isFinite ? value.clamp(0.0, 1.0) : 0.0;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        height: height,
+        color: trackColor ?? context.colors.border,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: target),
+          duration: const Duration(milliseconds: 620),
+          curve: Curves.easeOutCubic,
+          builder: (context, drawn, _) => FractionallySizedBox(
+            alignment: Alignment.centerLeft,
+            widthFactor: drawn,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [color.withValues(alpha: 0.72), color],
+                ),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The occupancy dial: one figure that has to be readable from arm's length,
+/// drawn as a ring so it does not read as one more bar on a page of bars.
+class RingGauge extends StatelessWidget {
+  final double value;
+  final Color color;
+  final String centerLabel;
+  final String? caption;
+  final double size;
+
+  const RingGauge({
+    super.key,
+    required this.value,
+    required this.color,
+    required this.centerLabel,
+    this.caption,
+    this.size = 78,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final target = value.isFinite ? value.clamp(0.0, 1.0) : 0.0;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: target),
+        duration: const Duration(milliseconds: 700),
+        curve: Curves.easeOutCubic,
+        builder: (context, drawn, _) => CustomPaint(
+          painter: _RingPainter(
+            value: drawn,
+            color: color,
+            track: context.colors.border,
+          ),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  centerLabel,
+                  style: GoogleFonts.poppins(
+                    color: context.colors.textPrimary,
+                    fontSize: 19,
+                    height: 1.1,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (caption != null)
+                  Text(
+                    caption!,
+                    style: GoogleFonts.poppins(
+                      color: context.colors.textMuted,
+                      fontSize: 9.5,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RingPainter extends CustomPainter {
+  final double value;
+  final Color color;
+  final Color track;
+
+  _RingPainter({required this.value, required this.color, required this.track});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 8.0;
+    final rect = Offset.zero & size;
+    final circle = rect.deflate(stroke / 2);
+    final base = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round
+      ..color = track;
+    canvas.drawArc(circle, 0, 6.2831853, false, base);
+
+    if (value <= 0) return;
+    final fill = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round
+      ..shader = SweepGradient(
+        startAngle: 0,
+        endAngle: 6.2831853,
+        colors: [color.withValues(alpha: 0.55), color],
+        transform: const GradientRotation(-1.5707963),
+      ).createShader(circle);
+    canvas.drawArc(circle, -1.5707963, 6.2831853 * value, false, fill);
+  }
+
+  @override
+  bool shouldRepaint(_RingPainter old) =>
+      old.value != value || old.color != color || old.track != track;
+}
+
+/// A grey block that breathes, for the shape of a card that has not arrived.
+///
+/// A spinner on a screen this tall says only "wait"; the blocks say what is
+/// coming and stop the page jumping into place around the reader.
+class SkeletonBlock extends StatefulWidget {
+  final double height;
+  final double? width;
+  final double radius;
+
+  const SkeletonBlock({
+    super.key,
+    required this.height,
+    this.width,
+    this.radius = 10,
+  });
+
+  @override
+  State<SkeletonBlock> createState() => _SkeletonBlockState();
+}
+
+class _SkeletonBlockState extends State<SkeletonBlock>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: Tween<double>(
+        begin: 0.45,
+        end: 1,
+      ).animate(CurvedAnimation(parent: _pulse, curve: Curves.easeInOut)),
+      child: Container(
+        width: widget.width ?? double.infinity,
+        height: widget.height,
+        decoration: BoxDecoration(
+          color: context.colors.border.withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(widget.radius),
+        ),
       ),
     );
   }

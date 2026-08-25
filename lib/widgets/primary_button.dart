@@ -8,6 +8,8 @@ class PrimaryButton extends StatelessWidget {
   final bool isLoading;
   final bool isOutlined;
   final double? width;
+  final double? height;
+  final double? fontSize;
   final IconData? icon;
 
   const PrimaryButton({
@@ -17,6 +19,8 @@ class PrimaryButton extends StatelessWidget {
     this.isLoading = false,
     this.isOutlined = false,
     this.width,
+    this.height,
+    this.fontSize,
     this.icon,
   });
 
@@ -24,13 +28,18 @@ class PrimaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDisabled = isLoading || onPressed == null;
     final radius = BorderRadius.circular(16);
+    // A floor, not a fixed height: the button grows past it when the device
+    // text scale makes the label taller than the box.
+    final minHeight = height ?? 52;
 
     if (isOutlined) {
       return SizedBox(
         width: width ?? double.infinity,
-        height: 52,
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
+            minimumSize: Size(0, minHeight),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             backgroundColor: context.colors.surface,
             disabledBackgroundColor: context.colors.surface,
             foregroundColor: isDisabled
@@ -55,7 +64,6 @@ class PrimaryButton extends StatelessWidget {
 
     return SizedBox(
       width: width ?? double.infinity,
-      height: 52,
       child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -85,7 +93,9 @@ class PrimaryButton extends StatelessWidget {
             disabledForegroundColor: Colors.white,
             shadowColor: Colors.transparent,
             elevation: 0,
-            padding: const EdgeInsets.symmetric(horizontal: 18),
+            minimumSize: Size(0, minHeight),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             shape: RoundedRectangleBorder(borderRadius: radius),
           ).copyWith(
             overlayColor: WidgetStatePropertyAll(
@@ -122,17 +132,17 @@ class PrimaryButton extends StatelessWidget {
         if (icon != null) ...[
           Icon(
             icon,
-            size: 18,
+            size: (fontSize ?? 15) + 3,
             color: foreground,
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: (fontSize ?? 15) < 14 ? 5.0 : 8.0),
         ],
         Flexible(
           child: Text(
             text,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
-              fontSize: 15,
+              fontSize: fontSize ?? 15,
               fontWeight: FontWeight.w600,
               color: foreground,
             ),

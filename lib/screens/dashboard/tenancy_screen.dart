@@ -35,6 +35,9 @@ class _TenancyScreenState extends State<TenancyScreen> {
   String? _payingTenantId;
   bool _paymentDialogVisible = false;
 
+  /// Running on the sign-in screen's tenancy demo button — see [AppState.isDemoSession].
+  bool _isDemo = false;
+
   @override
   void initState() {
     super.initState();
@@ -48,10 +51,18 @@ class _TenancyScreenState extends State<TenancyScreen> {
         ? null
         : appState.tenancyRequests;
     _loading = _profiles == null && _requests == null;
-    _loadData();
+    _isDemo = appState.isDemoSession;
+    if (!_isDemo) _loadData();
   }
 
   Future<void> _loadData() async {
+    // A demo session has no account behind it — the seeded profiles taken from
+    // AppState above are the whole story, and the fetch would only 401.
+    if (_isDemo) {
+      setState(() => _loading = false);
+      return;
+    }
+
     setState(() {
       _loading = true;
       _loadError = null;
@@ -330,30 +341,30 @@ class _TenancyScreenState extends State<TenancyScreen> {
                 color: context.colors.primary,
                 onRefresh: _loadData,
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 110),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                   children: [
                     // Refresh dropped: the RefreshIndicator above already
                     // covers it with pull-to-refresh.
                     if (widget.showBackButton) ...[
                       const PageBackButton(),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                     ],
                     _TenancySummaryHeader(
                       profiles: profiles,
                       onRequest: _openRequestForm,
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 14),
                     _FilterBar(
                       selected: _filter,
                       onChanged: (value) => setState(() => _filter = value),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 14),
                     _SectionTitle(
                       title: 'My tenant profiles',
                       action: 'Apply',
                       onAction: _openRequestForm,
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     if (_loading && _profiles == null)
                       const _TenancyLoadingCard()
                     else if (_loadError != null && _profiles == null)
@@ -370,7 +381,7 @@ class _TenancyScreenState extends State<TenancyScreen> {
                               ? () => _payTenantSubscription(profile)
                               : null,
                         ),
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 18),
                     _SectionTitle(
                       title: 'Recent requests',
                       action: 'New',
@@ -628,7 +639,7 @@ class _TenancySummaryHeader extends StatelessWidget {
     final payable = profiles.where((item) => item.canPay).length;
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -640,12 +651,12 @@ class _TenancySummaryHeader extends StatelessWidget {
           end: Alignment.bottomRight,
           stops: const [0, 0.58, 1],
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: context.colors.primaryDeep.withValues(alpha: 0.18),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -655,11 +666,11 @@ class _TenancySummaryHeader extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 52,
-                height: 52,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.13),
-                  borderRadius: BorderRadius.circular(17),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: Colors.white.withValues(alpha: 0.12),
                   ),
@@ -667,10 +678,10 @@ class _TenancySummaryHeader extends StatelessWidget {
                 child: Icon(
                   Icons.apartment_rounded,
                   color: context.colors.accent,
-                  size: 26,
+                  size: 22,
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -681,18 +692,18 @@ class _TenancySummaryHeader extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.poppins(
                         color: Colors.white,
-                        fontSize: 18,
+                        fontSize: 15,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
                     Text(
                       '$active active, $payable need payment',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.poppins(
                         color: Colors.white.withValues(alpha: 0.72),
-                        fontSize: 12,
+                        fontSize: 11,
                       ),
                     ),
                   ],
@@ -700,7 +711,7 @@ class _TenancySummaryHeader extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -710,7 +721,7 @@ class _TenancySummaryHeader extends StatelessWidget {
                   value: '$active',
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: _SummaryMetric(
                   icon: Icons.payments_outlined,
@@ -718,19 +729,19 @@ class _TenancySummaryHeader extends StatelessWidget {
                   value: '$payable',
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Material(
                 color: Colors.white.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
                 child: InkWell(
                   onTap: onRequest,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   child: Container(
-                    width: 52,
-                    height: 52,
+                    width: 44,
+                    height: 44,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: Colors.white.withValues(alpha: 0.18),
                       ),
@@ -738,7 +749,7 @@ class _TenancySummaryHeader extends StatelessWidget {
                     child: const Icon(
                       Icons.add_rounded,
                       color: Colors.white,
-                      size: 24,
+                      size: 20,
                     ),
                   ),
                 ),
@@ -765,16 +776,16 @@ class _SummaryMetric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(13),
         border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
       ),
       child: Row(
         children: [
-          Icon(icon, color: context.colors.accent, size: 18),
-          const SizedBox(width: 8),
+          Icon(icon, color: context.colors.accent, size: 15),
+          const SizedBox(width: 6),
           Expanded(
             child: Text(
               label,
@@ -782,7 +793,7 @@ class _SummaryMetric extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
                 color: Colors.white.withValues(alpha: 0.74),
-                fontSize: 11,
+                fontSize: 10,
               ),
             ),
           ),
@@ -790,7 +801,7 @@ class _SummaryMetric extends StatelessWidget {
             value,
             style: GoogleFonts.poppins(
               color: Colors.white,
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -829,7 +840,7 @@ class _FilterBar extends StatelessWidget {
               selected: selected == filter.$1,
               onTap: () => onChanged(filter.$1),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
           ],
         ],
       ),
@@ -857,7 +868,7 @@ class _FilterPill extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(999),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
@@ -868,7 +879,7 @@ class _FilterPill extends StatelessWidget {
             label,
             style: GoogleFonts.poppins(
               color: selected ? Colors.white : context.colors.textSecondary,
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -897,28 +908,28 @@ class _TenantProfileCard extends StatelessWidget {
     final secondary = _profileSecondaryText(profile);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Container(
         decoration: BoxDecoration(
           color: context.colors.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: context.colors.border),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.025),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
+              blurRadius: 12,
+              offset: const Offset(0, 5),
             ),
           ],
         ),
         child: Material(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           child: InkWell(
             onTap: onView,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(13),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -926,15 +937,15 @@ class _TenantProfileCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        width: 46,
-                        height: 46,
+                        width: 38,
+                        height: 38,
                         decoration: BoxDecoration(
                           color: tone.color.withValues(alpha: 0.10),
-                          borderRadius: BorderRadius.circular(15),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Icon(tone.icon, color: tone.color, size: 22),
+                        child: Icon(tone.icon, color: tone.color, size: 19),
                       ),
-                      const SizedBox(width: 13),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -945,11 +956,11 @@ class _TenantProfileCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.poppins(
                                 color: context.colors.textPrimary,
-                                fontSize: 15,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 3),
                             Text(
                               profile.locationName.isNotEmpty
                                   ? profile.locationName
@@ -958,20 +969,20 @@ class _TenantProfileCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.poppins(
                                 color: context.colors.textSecondary,
-                                fontSize: 12,
+                                fontSize: 11,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       _StatusBadge(tone: tone),
                     ],
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 10),
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                    spacing: 6,
+                    runSpacing: 6,
                     children: [
                       _InfoChip(
                         icon: Icons.payments_outlined,
@@ -988,32 +999,37 @@ class _TenantProfileCard extends StatelessWidget {
                     ],
                   ),
                   if (profile.plateNumbers.isNotEmpty) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 9),
                     Wrap(
-                      spacing: 7,
-                      runSpacing: 7,
+                      spacing: 6,
+                      runSpacing: 6,
                       children: [
                         for (final plate in profile.plateNumbers)
                           _PlatePill(plate: plate),
                       ],
                     ),
                   ],
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
                         child: PrimaryButton(
-                          text: 'View Details',
+                          text: onPay != null ? 'View' : 'View Details',
+                          height: 42,
+                          fontSize: 13,
                           icon: Icons.chevron_right_rounded,
                           isOutlined: true,
                           onPressed: onView,
                         ),
                       ),
                       if (onPay != null) ...[
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 8),
                         Expanded(
+                          flex: 2,
                           child: PrimaryButton(
-                            text: _payCta(profile),
+                            text: _payCtaShort(profile),
+                            height: 42,
+                            fontSize: 13,
                             icon: Icons.phone_android_rounded,
                             isLoading: isPaying,
                             onPressed: isPaying ? null : onPay,
@@ -1390,7 +1406,7 @@ class _SectionTitle extends StatelessWidget {
             title,
             style: GoogleFonts.poppins(
               color: context.colors.textPrimary,
-              fontSize: 15,
+              fontSize: 14,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1402,10 +1418,10 @@ class _SectionTitle extends StatelessWidget {
             label: Text(action!),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              minimumSize: const Size(0, 34),
+              minimumSize: const Size(0, 30),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               textStyle: GoogleFonts.poppins(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -1427,14 +1443,14 @@ class _RequestList extends StatelessWidget {
     }
     if (requests!.isEmpty) {
       return Container(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(14),
         decoration: _surfaceDecoration(context),
         child: Text(
           'Make your request today to enjoy tenant privileges.',
           textAlign: TextAlign.center,
           style: GoogleFonts.poppins(
             color: context.colors.textSecondary,
-            fontSize: 13,
+            fontSize: 12,
           ),
         ),
       );
@@ -1447,7 +1463,7 @@ class _RequestList extends StatelessWidget {
           for (var i = 0; i < requests!.length; i++) ...[
             _RequestRow(request: requests![i]),
             if (i != requests!.length - 1)
-              Divider(height: 1, color: context.colors.divider, indent: 72),
+              Divider(height: 1, color: context.colors.divider, indent: 60),
           ],
         ],
       ),
@@ -1486,19 +1502,19 @@ class _RequestRow extends StatelessWidget {
     };
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
       child: Row(
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: color, size: 21),
+            child: Icon(icon, color: color, size: 18),
           ),
-          const SizedBox(width: 13),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1511,29 +1527,29 @@ class _RequestRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
                     color: context.colors.textPrimary,
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(
                   '${request.locationName} - ${request.plateNumber}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
                     color: context.colors.textSecondary,
-                    fontSize: 12,
+                    fontSize: 11,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Text(
             _humanizeCode(status),
             style: GoogleFonts.poppins(
               color: color,
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -2283,7 +2299,7 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: tone.color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(999),
@@ -2295,7 +2311,7 @@ class _StatusBadge extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: GoogleFonts.poppins(
           color: tone.color,
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -2312,22 +2328,22 @@ class _InfoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: context.colors.pageGrey,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(9),
         border: Border.all(color: context.colors.border),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: context.colors.primary, size: 14),
-          const SizedBox(width: 5),
+          Icon(icon, color: context.colors.primary, size: 13),
+          const SizedBox(width: 4),
           Text(
             text,
             style: GoogleFonts.poppins(
               color: context.colors.textSecondary,
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -2345,7 +2361,7 @@ class _PlatePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: context.colors.accentLight,
         borderRadius: BorderRadius.circular(8),
@@ -2355,7 +2371,7 @@ class _PlatePill extends StatelessWidget {
         plate,
         style: GoogleFonts.poppins(
           color: context.colors.primary,
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: FontWeight.w800,
           letterSpacing: 0.4,
         ),
@@ -2425,25 +2441,25 @@ class _TenancyEmptyCard extends StatelessWidget {
     final filtered = filter != 'ALL';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 28),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
       decoration: _surfaceDecoration(context),
       child: Column(
         children: [
           Icon(
             Icons.domain_disabled_outlined,
             color: context.colors.textMuted,
-            size: 32,
+            size: 28,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             filtered ? 'No profiles in this filter' : 'No tenant profiles yet',
             style: GoogleFonts.poppins(
               color: context.colors.textPrimary,
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Text(
             filtered
                 ? 'Switch filters to see other tenant profiles.'
@@ -2451,7 +2467,7 @@ class _TenancyEmptyCard extends StatelessWidget {
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
               color: context.colors.textSecondary,
-              fontSize: 12,
+              fontSize: 11,
             ),
           ),
         ],
@@ -2585,6 +2601,15 @@ String _payCta(TenantProfile profile) {
     return 'Pay To Reactivate';
   }
   return 'Pay Subscription';
+}
+
+/// Card variant of [_payCta] — the list card splits its row between two
+/// buttons, so the label has to survive a much narrower box.
+String _payCtaShort(TenantProfile profile) {
+  if (profile.paymentStatus == 'OVERDUE' || profile.status == 'OVERDUE') {
+    return 'Reactivate';
+  }
+  return 'Pay Now';
 }
 
 String _subscriptionDateText(TenantSubscription subscription) {

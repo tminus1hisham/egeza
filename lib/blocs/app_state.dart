@@ -44,6 +44,15 @@ class AppState extends Equatable {
   /// shows invented data.
   final bool debugSampleData;
 
+  /// Testing-only: the app was entered through one of the sign-in screen's
+  /// demo buttons rather than a real account. `'tenant'` or `'owner'`; null
+  /// for a normal session.
+  ///
+  /// A demo session holds a placeholder token so the app counts as signed in,
+  /// but that token is never given to [ParkingIqApi] — every screen therefore
+  /// runs on the seeded figures instead of talking to the backend.
+  final String? demoRole;
+
   const AppState({
     this.userName = '',
     this.phoneNumber,
@@ -70,9 +79,17 @@ class AppState extends Equatable {
     this.themeMode = ThemeMode.system,
     this.debugManagerMode,
     this.debugSampleData = false,
+    this.demoRole,
   });
 
   bool get isAuthenticated => authToken != null && authToken!.isNotEmpty;
+
+  /// True while the app is running on demo credentials — see [demoRole].
+  bool get isDemoSession => demoRole != null;
+
+  bool get isDemoOwner => demoRole == 'owner';
+
+  bool get isDemoTenant => demoRole == 'tenant';
 
   String get normalizedUserRole => userRole.trim().toUpperCase();
 
@@ -170,9 +187,11 @@ class AppState extends Equatable {
     ThemeMode? themeMode,
     bool? debugManagerMode,
     bool? debugSampleData,
+    String? demoRole,
     // Null is a meaningful value for the override — "follow the account role" —
     // so clearing it needs its own flag rather than passing null.
     bool clearDebugManagerMode = false,
+    bool clearDemoRole = false,
     bool clearAuthToken = false,
     bool clearSelectedSession = false,
     bool clearActivePayment = false,
@@ -209,6 +228,7 @@ class AppState extends Equatable {
           ? null
           : debugManagerMode ?? this.debugManagerMode,
       debugSampleData: debugSampleData ?? this.debugSampleData,
+      demoRole: clearDemoRole ? null : demoRole ?? this.demoRole,
     );
   }
 
@@ -239,6 +259,7 @@ class AppState extends Equatable {
         themeMode,
         debugManagerMode,
         debugSampleData,
+        demoRole,
       ];
 }
 

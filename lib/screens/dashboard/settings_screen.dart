@@ -20,6 +20,7 @@ import 'vehicles_screen.dart';
 /// Debug and profile builds only, so a Play Store release never ships a control
 /// that changes which half of the app the user sees. Flip this to `true` if you
 /// need the switch in a release build you are testing by hand.
+// ignore: unused_element
 const bool kShowDeveloperSettings = !kReleaseMode;
 
 class SettingsScreen extends StatefulWidget {
@@ -249,10 +250,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       // three-way control crowds a row, and the row it sat on
                       // looked tappable while doing nothing.
                       _themeSection(state),
-                      if (kShowDeveloperSettings) ...[
-                        const SizedBox(height: 14),
-                        _developerSection(state),
-                      ],
+                      // if (kShowDeveloperSettings) ...[
+                      //   const SizedBox(height: 14),
+                      //   _developerSection(state),
+                      // ],
                     ],
                   ),
                 ),
@@ -358,6 +359,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ///
   /// The switch shows the *effective* mode, so it reads correctly whether that
   /// came from the account role or from an override.
+  // ignore: unused_element
   Widget _developerSection(AppState state) {
     final roleLabel = state.hasManagerRole ? 'manager' : 'driver';
 

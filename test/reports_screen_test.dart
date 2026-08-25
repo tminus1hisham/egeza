@@ -214,6 +214,107 @@ void main() {
     await cubit.close();
   });
 
+  testWidgets('reads back the bar the owner taps, and clears on a second tap', (
+    tester,
+  ) async {
+    // Tall enough that the chart is on screen without scrolling, so a tap
+    // lands on the bar rather than on whatever is pinned over it.
+    await pump(tester, loaded, size: const Size(320, 1800));
+    // The bars run up from nothing, and a bar of no height is nothing to tap.
+    await tester.pumpAndSettle();
+
+    // Nothing selected: the chart names its own best hour.
+    expect(find.textContaining('Best hour:'), findsOneWidget);
+
+    // The busiest-times card writes hours the same way, so count the label
+    // rather than expecting it to be unique on the page.
+    final hourLabel = find.text('08:00 – 09:00');
+    final elsewhere = hourLabel.evaluate().length;
+
+    // 08:00 is the ninth bar of the day.
+    final bar = find.byType(FractionallySizedBox).at(8);
+    expect(tester.getSize(bar).height, greaterThan(0));
+    await tester.tap(bar);
+    await tester.pumpAndSettle();
+
+    expect(hourLabel.evaluate(), hasLength(elsewhere + 1));
+    expect(find.textContaining('Best hour:'), findsNothing);
+
+    await tester.tap(find.byType(FractionallySizedBox).at(8));
+    await tester.pumpAndSettle();
+
+    expect(hourLabel.evaluate(), hasLength(elsewhere));
+    expect(find.textContaining('Best hour:'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('charts arrivals instead of money when asked', (tester) async {
+    await pump(tester, loaded, size: const Size(320, 1800));
+
+    expect(find.text('Money by hour'), findsOneWidget);
+
+    // "Vehicles" is also a hero metric; the toggle is the later of the two.
+    await tester.tap(find.text('Vehicles').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Arrivals by hour'), findsOneWidget);
+    expect(find.text('Money by hour'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('keeps the period pills in reach after the page scrolls', (
+    tester,
+  ) async {
+    await pump(tester, loaded, size: const Size(320, 640));
+
+    final pillsBefore = tester.getTopLeft(find.text('7 days')).dy;
+    expect(find.byType(PageHero), findsOneWidget);
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
+    await tester.pumpAndSettle();
+
+    // The hero has scrolled away entirely; the period switch stopped at the
+    // top of the viewport rather than leaving with it.
+    expect(find.byType(PageHero), findsNothing);
+    final pillsAfter = tester.getTopLeft(find.text('7 days')).dy;
+    expect(pillsAfter, lessThan(pillsBefore));
+    expect(pillsAfter, lessThan(60));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('renders in dark mode without borrowing light colours', (
+    tester,
+  ) async {
+    final cubit = _TestManagerCubit(loaded);
+    addTearDown(cubit.close);
+
+    tester.view.physicalSize = const Size(320, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      BlocProvider<ManagerCubit>.value(
+        value: cubit,
+        child: MaterialApp(
+          theme: ThemeData(brightness: Brightness.dark),
+          home: const ReportsScreen(),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Every card, meter track and rank badge on this page is painted from the
+    // theme; a literal white would be one that was hardcoded.
+    final surfaces = tester
+        .widgetList<Container>(find.byType(Container))
+        .map((container) => container.decoration)
+        .whereType<BoxDecoration>()
+        .map((decoration) => decoration.color)
+        .whereType<Color>();
+    expect(surfaces, isNot(contains(const Color(0xFFFFFFFF))));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('lays out on a narrow phone without overflowing', (tester) async {
     await pump(tester, loaded, size: const Size(320, 640));
 

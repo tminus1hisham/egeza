@@ -6,7 +6,6 @@ import '../../blocs/app_bloc.dart';
 import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
 import '../../core/theme/app_colors.dart';
-import '../../models/api_models.dart';
 import '../../models/parking_session.dart';
 import '../../widgets/app_widgets.dart';
 
@@ -55,7 +54,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
           bottom: false,
           child: BlocBuilder<AppBloc, AppState>(
           builder: (context, state) {
-            final transactions = _filteredTransactions(state.walletTransactions);
             // Ongoing sessions belong here too — they're the record of a car
             // that's parked right now. Pinned above the finished ones.
             final parkingSessions = _filteredSessions(
@@ -75,16 +73,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _overviewCard(state.walletTransactions),
+                    _overviewCard(state.recentSessions),
                     const SizedBox(height: 14),
-                    // The filter and search govern both lists below, so they
-                    // sit above both rather than between them.
                     _filterBar(),
                     _searchField(),
                     const SizedBox(height: 14),
                     _sessionsList(parkingSessions),
-                    const SizedBox(height: 14),
-                    _historyList(transactions),
                   ],
                 ),
               ),
@@ -152,22 +146,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
         );
   }
 
-  Widget _overviewCard(List<WalletTransaction> transactions) {
+  Widget _overviewCard(List<ParkingSession> sessions) {
     // Compute metrics only over the current calendar month (EAT).
     final now = DateTime.now();
-    final monthTx = transactions.where((t) {
-      if (t.createdAt == null) return false;
-      final eat = _toEat(t.createdAt!);
+    final monthSessions = sessions.where((s) {
+      final eat = _toEat(s.startTime);
       return eat.year == now.year && eat.month == now.month;
     }).toList();
 
-    final payments = monthTx.where((t) => t.type.toUpperCase() != 'DEPOSIT');
-    final totalSpend = payments.fold<double>(0, (sum, t) => sum + t.amount);
-    final completed = monthTx.where((t) {
-      final s = t.status.toUpperCase();
-      return s == 'COMPLETED' || s == 'SUCCESS';
-    }).length;
-    final autoPayCount = monthTx.where(_isAutoPay).length;
+    // Spend is money that actually left the wallet, so it counts what was
+    // paid — an ongoing or exited-unpaid session has accrued a fee, not spent
+    // one.
+    final totalSpend =
+        monthSessions.fold<double>(0, (sum, s) => sum + s.amountPaid);
+    final completed = monthSessions.where((s) => s.isSettled).length;
+    final autoPayCount = monthSessions.where((s) => s.autoPayEnabled).length;
 
     return PageHero(
       eyebrow: 'Total parking spend',
@@ -178,7 +171,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         label: 'This month',
       ),
       metrics: [
-        PageHeroMetric('Transactions', '${transactions.length}'),
+        PageHeroMetric('Sessions', '${sessions.length}'),
         PageHeroMetric('Completed', '$completed'),
         PageHeroMetric('AutoPay', '$autoPayCount'),
       ],
@@ -188,7 +181,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget _filterBar() {
     // Search lives on this row: with the page header gone it is the only
     // remaining entry point, and the filter bar is the control strip for
-    // exactly the list it searches.
+    // exactly the list below it.
     return Row(
       children: [
         Expanded(
@@ -250,39 +243,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _historyList(List<WalletTransaction> transactions) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _sectionHeader('Activity', '${transactions.length} records'),
-        const SizedBox(height: 10),
-        Container(
-          width: double.infinity,
-          clipBehavior: Clip.antiAlias,
-          decoration: _panelDecoration(),
-          child: transactions.isEmpty
-              ? _emptyHistory(
-                  filterOnly:
-                      _filterIndex != 0 || _searchController.text.isNotEmpty,
-                )
-              : Column(
-                  children: [
-                    for (var i = 0; i < transactions.length; i++) ...[
-                      _transactionRow(transactions[i]),
-                      if (i != transactions.length - 1)
-                        Divider(
-                          color: context.colors.divider,
-                          height: 1,
-                          indent: 64,
-                        ),
-                    ],
-                  ],
-                ),
-        ),
-      ],
-    );
-  }
-
   Widget _sessionsList(List<ParkingSession> sessions) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -301,18 +261,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
           clipBehavior: Clip.antiAlias,
           decoration: _panelDecoration(),
           child: sessions.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 20),
-                  child: Text(
-                    _filterIndex != 0 || _searchController.text.isNotEmpty
-                        ? 'No parking sessions match this filter'
-                        : 'No parking sessions yet',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(
-                      color: context.colors.textSecondary,
-                      fontSize: 13,
-                    ),
-                  ),
+              ? _emptyHistory(
+                  filterOnly:
+                      _filterIndex != 0 || _searchController.text.isNotEmpty,
                 )
               : Column(
                   children: [
@@ -386,7 +337,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  _sessionStatusChip(session.status),
+                  // Two pills fit on one line only while the text is small; a
+                  // Wrap drops the second under the first rather than running
+                  // it off the edge of the card.
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      _sessionStatusChip(session.status),
+                      if (session.autoPayEnabled) _autoPayPill(),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -408,7 +369,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       return Padding(
         padding: const EdgeInsets.all(20),
         child: Text(
-          'No transactions match this filter',
+          'No parking sessions match this filter',
           textAlign: TextAlign.center,
           style: GoogleFonts.poppins(
             color: context.colors.textSecondary,
@@ -446,97 +407,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _transactionRow(WalletTransaction tx) {
-    final autoPay = _isAutoPay(tx);
-    final isDeposit = tx.type.toUpperCase() == 'DEPOSIT';
-    final isPending = tx.status.toUpperCase() == 'PENDING';
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      child: LayoutBuilder(
-        builder: (context, constraints) => Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: isDeposit
-                    ? context.colors.successLight
-                    : autoPay
-                        ? const Color(0xFF7C3AED).withValues(alpha: 0.1)
-                        : context.colors.accentLight,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                isDeposit
-                    ? Icons.add_circle_outline_rounded
-                    : autoPay
-                        ? Icons.bolt_rounded
-                        : Icons.payments_outlined,
-                color: isDeposit
-                    ? context.colors.success
-                    : autoPay
-                        ? const Color(0xFF7C3AED)
-                        : context.colors.primary,
-                size: 19,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    tx.description ?? _txTypeLabel(tx.type),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.poppins(
-                      color: context.colors.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  if (tx.reference != null && tx.reference!.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      tx.reference!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(
-                        color: context.colors.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 6),
-                  // Two pills fit on one line only while the text is small; a
-                  // Wrap drops the second under the first rather than running
-                  // it off the edge of the card.
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: [
-                      _statusChip(_txStatusLabel(tx.status), isPending),
-                      if (autoPay) _autoPayPill(),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            _rowTrailing(
-              rowWidth: constraints.maxWidth,
-              amount: '${isDeposit ? '+' : '-'} KES ${_formatAmount(tx.amount)}',
-              amountColor:
-                  isDeposit ? context.colors.success : context.colors.textPrimary,
-              caption: tx.createdAt != null ? _dateTimeLabel(tx.createdAt!) : '—',
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -670,8 +540,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  /// Both lists on this page are records of the same activity, so they share
-  /// one header shape — label, optional state chip, then the count.
+  /// Label, optional state chip, then the count.
   Widget _sectionHeader(String label, String count, {Widget? chip}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -731,38 +600,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  bool _isAutoPay(WalletTransaction tx) {
-    final desc = (tx.description ?? '').toLowerCase();
-    final type = tx.type.toLowerCase();
-    return desc.contains('autopay') ||
-        desc.contains('auto pay') ||
-        desc.contains('auto-pay') ||
-        type.contains('autopay') ||
-        type.contains('auto_debit') ||
-        type == 'auto';
-  }
-
-  List<WalletTransaction> _filteredTransactions(List<WalletTransaction> transactions) {
-    var result = transactions;
-    if (_filterIndex == 1) {
-      result = result.where((t) {
-        final s = t.status.toUpperCase();
-        return s == 'COMPLETED' || s == 'SUCCESS';
-      }).toList();
-    }
-    if (_filterIndex == 2) result = result.where(_isAutoPay).toList();
-
-    final query = _searchController.text.trim().toLowerCase();
-    if (query.isNotEmpty) {
-      result = result
-          .where((t) =>
-              (t.description?.toLowerCase().contains(query) ?? false) ||
-              (t.reference?.toLowerCase().contains(query) ?? false))
-          .toList();
-    }
-    return result;
-  }
-
   List<ParkingSession> _filteredSessions(List<ParkingSession> sessions) {
     var result = sessions;
     // The filter bar sits above this list too, so it has to bite here — a
@@ -783,36 +620,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
             s.vehicle.plateNumber.toLowerCase().contains(query) ||
             s.vehicle.make.toLowerCase().contains(query))
         .toList();
-  }
-
-  String _txTypeLabel(String type) {
-    switch (type.toUpperCase()) {
-      case 'DEPOSIT':
-        return 'Wallet Top-up';
-      case 'PAYMENT':
-        return 'Parking Payment';
-      case 'WITHDRAWAL':
-        return 'Withdrawal';
-      default:
-        return type;
-    }
-  }
-
-  String _txStatusLabel(String status) {
-    switch (status.toUpperCase()) {
-      case 'COMPLETED':
-      case 'SUCCESS':
-        return 'Paid';
-      case 'PENDING':
-        return 'Pending';
-      case 'FAILED':
-        return 'Failed';
-      case 'CANCELLED':
-      case 'CANCELED':
-        return 'Cancelled';
-      default:
-        return status;
-    }
   }
 
   String _dateTimeLabel(DateTime dateTime) {

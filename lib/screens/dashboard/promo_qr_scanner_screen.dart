@@ -135,7 +135,13 @@ class _PromoQrScannerScreenState extends State<PromoQrScannerScreen> {
       shape: const CircleBorder(),
       child: IconButton(
         onPressed: onPressed,
-        icon: Icon(icon, color: Colors.white),
+        style: IconButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: Colors.transparent,
+          shape: const CircleBorder(),
+        ),
+        icon: Icon(icon),
       ),
     );
   }

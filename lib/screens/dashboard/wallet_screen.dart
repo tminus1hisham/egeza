@@ -78,8 +78,10 @@ class _WalletScreenState extends State<WalletScreen> {
                       _balanceCard(state),
                       const SizedBox(height: 16),
                       _topUpPanel(context),
-                      const SizedBox(height: 18),
-                      _recentActivity(state),
+                      // Recent activity is hidden on the wallet for now — the
+                      // full list lives on the History screen.
+                      // const SizedBox(height: 18),
+                      // _recentActivity(state),
                     ],
                   ),
                 ),
@@ -281,10 +283,13 @@ class _WalletScreenState extends State<WalletScreen> {
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: context.colors.primary,
-                disabledBackgroundColor: const Color(0xFFCAD3D0),
+                disabledBackgroundColor: context.colors.disabledFill,
                 foregroundColor: Colors.white,
-                disabledForegroundColor: Colors.white,
+                disabledForegroundColor: context.colors.disabledText,
                 elevation: 0,
+                // The 46px box already sets the height; the theme's vertical
+                // padding would squeeze the line box and clip descenders.
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -296,6 +301,7 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _recentActivity(AppState state) {
     final sessions = state.recentSessions.take(3).toList();
 
@@ -386,6 +392,7 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _activityRow(ParkingSession session) {
     final amount = session.amountPaid > 0 ? session.amountPaid : session.cost;
     final amountLabel =
