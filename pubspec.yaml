@@ -24,7 +24,6 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_bloc: ^9.1.1
   google_fonts: ^8.1.0
-  lucide_icons: ^0.257.0
   flutter_animate: ^4.5.2
   equatable: ^2.0.8
   http: ^1.6.0
@@ -33,6 +32,7 @@ dependencies:
   url_launcher: ^6.3.1
   geolocator: ^13.0.4
   in_app_update: ^4.2.3
+  lucide_icons_flutter: ^3.1.25
 
 dev_dependencies:
   flutter_test:
