@@ -230,7 +230,7 @@ void main() {
 
       expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
       expect(find.text('AutoPay on'), findsNothing);
-      expect(find.text('Manual pay'), findsOneWidget);
+      expect(find.text('AutoPay off'), findsOneWidget);
     });
 
     testWidgets('flipping dispatches and locks the switch until confirmed',

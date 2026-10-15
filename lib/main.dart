@@ -19,6 +19,7 @@ void main() async {
       initialUserName: saved.name,
       initialPhoneNumber: saved.phone,
       initialAuthToken: saved.token,
+      initialUserRole: saved.role,
       initialThemeMode: initialThemeMode,
       initialDebugManagerMode: saved.debugManagerMode,
       initialDebugSampleData: saved.debugSampleData ?? false,
@@ -30,6 +31,7 @@ class egeshaApp extends StatelessWidget {
   final String? initialUserName;
   final String? initialPhoneNumber;
   final String? initialAuthToken;
+  final String? initialUserRole;
   final ThemeMode initialThemeMode;
   final bool? initialDebugManagerMode;
   final bool initialDebugSampleData;
@@ -39,6 +41,7 @@ class egeshaApp extends StatelessWidget {
     this.initialUserName,
     this.initialPhoneNumber,
     this.initialAuthToken,
+    this.initialUserRole,
     this.initialThemeMode = ThemeMode.system,
     this.initialDebugManagerMode,
     this.initialDebugSampleData = false,
@@ -53,6 +56,7 @@ class egeshaApp extends StatelessWidget {
             initialUserName: initialUserName,
             initialPhoneNumber: initialPhoneNumber,
             initialAuthToken: initialAuthToken,
+            initialUserRole: initialUserRole,
             initialThemeMode: initialThemeMode,
             initialDebugManagerMode: initialDebugManagerMode,
             initialDebugSampleData: initialDebugSampleData,

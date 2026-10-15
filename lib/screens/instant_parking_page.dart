@@ -13,6 +13,7 @@ import '../models/vehicle.dart';
 import '../widgets/stk_confirmation_sheet.dart' show formatPlateDisplay;
 import 'auth/sign_in_screen.dart';
 import 'dashboard/promo_qr_scanner_screen.dart';
+import 'payment_success_screen.dart';
 
 class InstantParkingPage extends StatefulWidget {
   /// Injectable for widget tests; defaults to a live client.
@@ -51,6 +52,9 @@ class _InstantParkingPageState extends State<InstantParkingPage> {
   String? _lookupError;
 
   bool _paying = false;
+
+  /// True once the STK push is out and we are polling for M-Pesa to settle it.
+  bool _confirming = false;
   bool _showPromo = false;
   String? _phoneError;
   String? _promoError;
@@ -850,13 +854,22 @@ class _InstantParkingPageState extends State<InstantParkingPage> {
           ),
         ),
         child: _paying
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.4,
-                  valueColor: AlwaysStoppedAnimation(AppColors.primaryDeep),
-                ),
+            ? Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.4,
+                      valueColor: AlwaysStoppedAnimation(AppColors.primaryDeep),
+                    ),
+                  ),
+                  if (_confirming) ...[
+                    const SizedBox(width: 12),
+                    const Text('Waiting for M-Pesa...'),
+                  ],
+                ],
               )
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -994,6 +1007,7 @@ class _InstantParkingPageState extends State<InstantParkingPage> {
         }
       }
 
+      final amountCharged = _amountDue(_session ?? session);
       final response = await _api.instantPay(
         plateNumber: plate,
         phoneNumber: phone,
@@ -1004,6 +1018,23 @@ class _InstantParkingPageState extends State<InstantParkingPage> {
             'STK push sent. Check your phone to authorise the payment.',
         success: true,
       );
+
+      setState(() => _confirming = true);
+      final settled = await _awaitSettlement(plate);
+      if (!mounted) return;
+
+      if (settled) {
+        _openSuccess(
+          amountPaid: amountCharged,
+          transactionId: response.paymentId ?? response.checkoutRequestId,
+          session: _session ?? session,
+        );
+      } else {
+        _showMessage(
+          'We have not seen the M-Pesa confirmation yet. Re-enter your plate '
+          'in a moment to check.',
+        );
+      }
     } on ApiException catch (e) {
       if (mounted) _showMessage(e.message);
     } catch (_) {
@@ -1011,8 +1042,80 @@ class _InstantParkingPageState extends State<InstantParkingPage> {
         _showMessage('Could not complete the payment request. Try again.');
       }
     } finally {
-      if (mounted) setState(() => _paying = false);
+      if (mounted) {
+        setState(() {
+          _paying = false;
+          _confirming = false;
+        });
+      }
     }
+  }
+
+  /// Waits for M-Pesa to clear the STK push.
+  ///
+  /// Guests have no token, so the authenticated `/payments/status` endpoints
+  /// are out of reach — the public instant-pay lookup is the signal instead:
+  /// the session stops being outstanding once the callback lands.
+  Future<bool> _awaitSettlement(String plate) async {
+    for (var attempt = 0; attempt < 30; attempt++) {
+      await Future<void>.delayed(const Duration(seconds: 3));
+      if (!mounted) return false;
+
+      try {
+        final refreshed = await _api.instantPaySession(plate);
+        if (!mounted) return false;
+
+        // A cleared session drops off the public lookup entirely.
+        if (refreshed == null) return true;
+        setState(() => _session = refreshed);
+        if (refreshed.isSettled || _amountDue(refreshed) <= 0) return true;
+      } catch (_) {
+        // A single failed poll says nothing about the payment — keep waiting.
+      }
+    }
+    return false;
+  }
+
+  void _openSuccess({
+    required double amountPaid,
+    required String? transactionId,
+    required ParkingSession session,
+  }) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PaymentSuccessScreen(
+          details: PaymentSuccessDetails(
+            amountPaid: amountPaid,
+            paidAt: DateTime.now(),
+            transactionId: transactionId,
+            siteName: session.locationName,
+            plateNumber: formatPlateDisplay(session.vehicle.plateNumber),
+            discountAmount: session.discountAmount,
+            exitWindow: kExitGraceWindow,
+          ),
+          onDone: _resetAfterPayment,
+        ),
+      ),
+    );
+  }
+
+  /// Clears the form so the kiosk-style page is ready for the next driver
+  /// rather than still showing a session that has now been paid for.
+  void _resetAfterPayment() {
+    Navigator.of(context).pop();
+    if (!mounted) return;
+    setState(() {
+      _plateController.clear();
+      _phoneController.clear();
+      _promoController.clear();
+      _queryPlate = '';
+      _session = null;
+      _noSession = false;
+      _lookupError = null;
+      _showPromo = false;
+      _phoneError = null;
+      _promoError = null;
+    });
   }
 
   void _showMessage(String message, {bool success = false}) {

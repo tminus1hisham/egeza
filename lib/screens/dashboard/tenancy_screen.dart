@@ -118,11 +118,13 @@ class _TenancyScreenState extends State<TenancyScreen> {
   }
 
   Future<void> _openProfile(TenantProfile profile) async {
+    final registeredVehicles = context.read<AppBloc>().state.vehicles;
     await Navigator.push<void>(
       context,
       MaterialPageRoute(
         builder: (_) => TenantProfileDetailScreen(
           profile: profile,
+          registeredVehicles: registeredVehicles,
           api: _api,
           defaultPhoneNumber: context.read<AppBloc>().state.phoneNumber,
           onPay: _payTenantSubscription,
@@ -316,10 +318,10 @@ class _TenancyScreenState extends State<TenancyScreen> {
       final status = profile.status;
       final payment = profile.paymentStatus;
       return switch (_filter) {
-        'ACTIVE' => profile.isActivePaid,
+        'ACTIVE' => profile.isActivePaid && !profile.isExpired,
         'PENDING' => status == 'PENDING' || payment == 'PENDING',
         'OVERDUE' => status == 'OVERDUE' || payment == 'OVERDUE',
-        'EXPIRED' => status == 'EXPIRED',
+        'EXPIRED' => profile.isExpired,
         _ => true,
       };
     }).toList();
@@ -331,71 +333,74 @@ class _TenancyScreenState extends State<TenancyScreen> {
 
     return AdaptiveStatusBar(
       child: Scaffold(
-      backgroundColor: context.colors.pageGrey,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            Expanded(
-              child: RefreshIndicator(
-                color: context.colors.primary,
-                onRefresh: _loadData,
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                  children: [
-                    // Refresh dropped: the RefreshIndicator above already
-                    // covers it with pull-to-refresh.
-                    if (widget.showBackButton) ...[
-                      const PageBackButton(),
+        backgroundColor: context.colors.pageGrey,
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              Expanded(
+                child: RefreshIndicator(
+                  color: context.colors.primary,
+                  onRefresh: _loadData,
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                    children: [
+                      // Refresh dropped: the RefreshIndicator above already
+                      // covers it with pull-to-refresh.
+                      if (widget.showBackButton) ...[
+                        const PageBackButton(),
+                        const SizedBox(height: 8),
+                      ],
+                      _TenancySummaryHeader(
+                        profiles: profiles,
+                        onRequest: _openRequestForm,
+                      ),
+                      const SizedBox(height: 14),
+                      _FilterBar(
+                        selected: _filter,
+                        onChanged: (value) => setState(() => _filter = value),
+                      ),
+                      const SizedBox(height: 14),
+                      _SectionTitle(
+                        title: 'My tenant profiles',
+                        action: 'Apply',
+                        onAction: _openRequestForm,
+                      ),
                       const SizedBox(height: 8),
+                      if (_loading && _profiles == null)
+                        const _TenancyLoadingCard()
+                      else if (_loadError != null && _profiles == null)
+                        _TenancyErrorCard(
+                          message: _loadError!,
+                          onRetry: _loadData,
+                        )
+                      else if (_filteredProfiles.isEmpty)
+                        _TenancyEmptyCard(filter: _filter)
+                      else
+                        for (final profile in _filteredProfiles)
+                          _TenantProfileCard(
+                            profile: profile,
+                            isPaying: _payingTenantId == profile.id,
+                            onView: () => _openProfile(profile),
+                            onPay: profile.canPay
+                                ? () => _payTenantSubscription(profile)
+                                : null,
+                          ),
+                      const SizedBox(height: 18),
+                      _SectionTitle(
+                        title: 'Recent requests',
+                        action: 'New',
+                        onAction: _openRequestForm,
+                      ),
+                      const SizedBox(height: 10),
+                      _RequestList(requests: _requests),
                     ],
-                    _TenancySummaryHeader(
-                      profiles: profiles,
-                      onRequest: _openRequestForm,
-                    ),
-                    const SizedBox(height: 14),
-                    _FilterBar(
-                      selected: _filter,
-                      onChanged: (value) => setState(() => _filter = value),
-                    ),
-                    const SizedBox(height: 14),
-                    _SectionTitle(
-                      title: 'My tenant profiles',
-                      action: 'Apply',
-                      onAction: _openRequestForm,
-                    ),
-                    const SizedBox(height: 8),
-                    if (_loading && _profiles == null)
-                      const _TenancyLoadingCard()
-                    else if (_loadError != null && _profiles == null)
-                      _TenancyErrorCard(message: _loadError!, onRetry: _loadData)
-                    else if (_filteredProfiles.isEmpty)
-                      _TenancyEmptyCard(filter: _filter)
-                    else
-                      for (final profile in _filteredProfiles)
-                        _TenantProfileCard(
-                          profile: profile,
-                          isPaying: _payingTenantId == profile.id,
-                          onView: () => _openProfile(profile),
-                          onPay: profile.canPay
-                              ? () => _payTenantSubscription(profile)
-                              : null,
-                        ),
-                    const SizedBox(height: 18),
-                    _SectionTitle(
-                      title: 'Recent requests',
-                      action: 'New',
-                      onAction: _openRequestForm,
-                    ),
-                    const SizedBox(height: 10),
-                    _RequestList(requests: _requests),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -403,6 +408,7 @@ class _TenancyScreenState extends State<TenancyScreen> {
 
 class TenantProfileDetailScreen extends StatefulWidget {
   final TenantProfile profile;
+  final List<Vehicle> registeredVehicles;
   final ParkingIqApi api;
   final String? defaultPhoneNumber;
   final Future<void> Function(TenantProfile profile) onPay;
@@ -410,6 +416,7 @@ class TenantProfileDetailScreen extends StatefulWidget {
   const TenantProfileDetailScreen({
     super.key,
     required this.profile,
+    this.registeredVehicles = const [],
     required this.api,
     required this.defaultPhoneNumber,
     required this.onPay,
@@ -420,8 +427,8 @@ class TenantProfileDetailScreen extends StatefulWidget {
       _TenantProfileDetailScreenState();
 }
 
-class _TenantProfileDetailScreenState
-    extends State<TenantProfileDetailScreen> {
+class _TenantProfileDetailScreenState extends State<TenantProfileDetailScreen> {
+  late TenantProfile _profile;
   List<TenantSubscription>? _subscriptions;
   bool _loading = true;
   String? _error;
@@ -429,6 +436,7 @@ class _TenantProfileDetailScreenState
   @override
   void initState() {
     super.initState();
+    _profile = widget.profile;
     _loadSubscriptions();
   }
 
@@ -440,10 +448,17 @@ class _TenantProfileDetailScreenState
     });
 
     try {
-      final subscriptions =
-          await widget.api.fetchTenantSubscriptions(widget.profile.id);
+      final results = await Future.wait<Object?>([
+        widget.api.fetchTenantSubscriptions(_profile.id),
+        _fetchLatestProfile(),
+      ]);
+      final subscriptions = results[0] as List<TenantSubscription>;
+      final latestProfile = results[1] as TenantProfile?;
       if (!mounted) return;
-      setState(() => _subscriptions = subscriptions);
+      setState(() {
+        _subscriptions = subscriptions;
+        _profile = latestProfile ?? _profile;
+      });
     } on ApiException catch (e) {
       if (!mounted) return;
       if (isRefresh) {
@@ -472,6 +487,18 @@ class _TenantProfileDetailScreenState
     }
   }
 
+  Future<TenantProfile?> _fetchLatestProfile() async {
+    try {
+      final profiles = await widget.api.fetchMyTenantProfiles();
+      for (final profile in profiles) {
+        if (profile.id == _profile.id) return profile;
+      }
+    } catch (_) {
+      // Subscription history is still useful when the profile refresh fails.
+    }
+    return null;
+  }
+
   void _showRefreshError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -483,142 +510,112 @@ class _TenantProfileDetailScreenState
   }
 
   Future<void> _pay() async {
-    await widget.onPay(widget.profile);
+    await widget.onPay(_profile);
     if (mounted) _loadSubscriptions();
   }
 
   @override
   Widget build(BuildContext context) {
-    final profile = widget.profile;
-    final activeSubscription = _subscriptions == null
-        ? null
-        : _subscriptions!.where((item) => item.isActivePaid).firstOrNull;
+    final profile = _profile;
+    final currentSubscription = _currentSubscription(_subscriptions);
+    final vehicles = _tenantVehicles(profile, widget.registeredVehicles);
 
     return AdaptiveStatusBar(
       child: Scaffold(
-      backgroundColor: context.colors.pageGrey,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            Expanded(
-              child: RefreshIndicator(
-                color: context.colors.primary,
-                onRefresh: _loadSubscriptions,
-                child: ListView(
-                  padding: EdgeInsets.fromLTRB(
-                    20,
-                    22,
-                    20,
-                    profile.canPay ? 120 : 36,
+        backgroundColor: context.colors.pageGrey,
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              Expanded(
+                child: RefreshIndicator(
+                  color: context.colors.primary,
+                  onRefresh: _loadSubscriptions,
+                  child: ListView(
+                    padding: EdgeInsets.fromLTRB(
+                      20,
+                      22,
+                      20,
+                      profile.canPay ? 120 : 36,
+                    ),
+                    children: [
+                      // Refresh dropped: the RefreshIndicator above already
+                      // covers it with pull-to-refresh.
+                      const PageBackButton(label: 'Tenant profile'),
+                      const SizedBox(height: 12),
+                      _TenantDetailHeader(
+                        profile: profile,
+                        subscription: currentSubscription,
+                      ),
+                      const SizedBox(height: 12),
+                      _TenantMetricsRow(
+                        profile: profile,
+                        subscription: currentSubscription,
+                        vehicles: vehicles,
+                      ),
+                      const SizedBox(height: 18),
+                      _TenantVehiclePanel(
+                        vehicles: vehicles,
+                        allocatedSlots: profile.allocatedSlots,
+                      ),
+                      const SizedBox(height: 18),
+                      _DetailPanel(
+                        title: 'Tenancy details',
+                        rows: _tenancyDetailRows(profile, currentSubscription),
+                      ),
+                      const SizedBox(height: 18),
+                      _SectionTitle(
+                        title: 'Subscription history',
+                        action: null,
+                        onAction: null,
+                      ),
+                      const SizedBox(height: 10),
+                      if (_loading && _subscriptions == null)
+                        const _TenancyLoadingCard()
+                      else if (_error != null && _subscriptions == null)
+                        _TenancyErrorCard(
+                          message: _error!,
+                          onRetry: _loadSubscriptions,
+                        )
+                      else if (_subscriptions == null ||
+                          _subscriptions!.isEmpty)
+                        const _SubscriptionEmptyCard()
+                      else
+                        for (final subscription in _subscriptions!)
+                          _SubscriptionCard(subscription: subscription),
+                    ],
                   ),
-                  children: [
-                    // Refresh dropped: the RefreshIndicator above already
-                    // covers it with pull-to-refresh.
-                    const PageBackButton(label: 'Tenant profile'),
-                    const SizedBox(height: 12),
-                    _TenantDetailHeader(
-                      profile: profile,
-                      activeSubscription: activeSubscription,
-                    ),
-                    const SizedBox(height: 18),
-                    _DetailPanel(
-                      title: 'Parking privileges',
-                      rows: [
-                        _DetailRowData('Client', profile.clientName),
-                        _DetailRowData('Location', profile.locationName),
-                        _DetailRowData(
-                          'Slots',
-                          '${profile.allocatedSlots} allocated',
-                        ),
-                        _DetailRowData(
-                          'Enforcement',
-                          _humanizeCode(profile.slotEnforcement),
-                        ),
-                        _DetailRowData(
-                          'Plates',
-                          profile.plateNumbers.isEmpty
-                              ? 'No plates'
-                              : profile.plateNumbers.join(', '),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    _DetailPanel(
-                      title: 'Current subscription',
-                      rows: [
-                        _DetailRowData(
-                          'Plan',
-                          profile.pricingPlanName,
-                        ),
-                        _DetailRowData(
-                          'Amount',
-                          'KES ${_formatAmount(profile.subscriptionFee)}',
-                        ),
-                        _DetailRowData(
-                          'Status',
-                          _profileStatusLabel(profile),
-                        ),
-                        _DetailRowData(
-                          'Starts',
-                          _formatDate(profile.subscriptionStartDate),
-                        ),
-                        _DetailRowData(
-                          'Ends',
-                          _formatDate(profile.subscriptionEndDate),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    _SectionTitle(
-                      title: 'Subscription history',
-                      action: null,
-                      onAction: null,
-                    ),
-                    const SizedBox(height: 10),
-                    if (_loading && _subscriptions == null)
-                      const _TenancyLoadingCard()
-                    else if (_error != null && _subscriptions == null)
-                      _TenancyErrorCard(
-                        message: _error!,
-                        onRetry: _loadSubscriptions,
-                      )
-                    else if (_subscriptions == null || _subscriptions!.isEmpty)
-                      const _SubscriptionEmptyCard()
-                    else
-                      for (final subscription in _subscriptions!)
-                        _SubscriptionCard(subscription: subscription),
-                  ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-      bottomNavigationBar: profile.canPay
-          ? SafeArea(
-              top: false,
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
-                decoration: BoxDecoration(
-                  color: context.colors.surface,
-                  border: Border(top: BorderSide(color: context.colors.border)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 18,
-                      offset: const Offset(0, -6),
+        bottomNavigationBar: profile.canPay
+            ? SafeArea(
+                top: false,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
+                  decoration: BoxDecoration(
+                    color: context.colors.surface,
+                    border: Border(
+                      top: BorderSide(color: context.colors.border),
                     ),
-                  ],
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 18,
+                        offset: const Offset(0, -6),
+                      ),
+                    ],
+                  ),
+                  child: PrimaryButton(
+                    text: _payCta(profile),
+                    icon: _payCtaIcon(profile),
+                    onPressed: _pay,
+                  ),
                 ),
-                child: PrimaryButton(
-                  text: _payCta(profile),
-                  icon: Icons.phone_android_rounded,
-                  onPressed: _pay,
-                ),
-              ),
-            )
-          : null,
+              )
+            : null,
       ),
     );
   }
@@ -906,6 +903,7 @@ class _TenantProfileCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final tone = _statusTone(context, profile);
     final secondary = _profileSecondaryText(profile);
+    final border = _cycleBorder(context, profile);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -913,7 +911,7 @@ class _TenantProfileCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: context.colors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: context.colors.border),
+          border: border.toBorder(),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.025),
@@ -1030,7 +1028,7 @@ class _TenantProfileCard extends StatelessWidget {
                             text: _payCtaShort(profile),
                             height: 42,
                             fontSize: 13,
-                            icon: Icons.phone_android_rounded,
+                            icon: _payCtaIcon(profile),
                             isLoading: isPaying,
                             onPressed: isPaying ? null : onPay,
                           ),
@@ -1048,29 +1046,36 @@ class _TenantProfileCard extends StatelessWidget {
   }
 }
 
+/// The tenant profile header.
+///
+/// Everything here answers one question - "where does this tenancy stand right
+/// now?" - so the card carries the identity, a single plain-language headline
+/// (renewal, overdue, grace, activation) and the cycle it belongs to. The
+/// numbers behind it live in [_TenantMetricsRow] so nothing is stated twice.
 class _TenantDetailHeader extends StatelessWidget {
   final TenantProfile profile;
-  final TenantSubscription? activeSubscription;
+  final TenantSubscription? subscription;
 
   const _TenantDetailHeader({
     required this.profile,
-    required this.activeSubscription,
+    required this.subscription,
   });
 
   @override
   Widget build(BuildContext context) {
-    final tone = _statusTone(context, profile);
-    final subscription = activeSubscription;
-    final graceUntil = subscription?.endDate == null
-        ? null
-        : subscription!.endDate!.add(Duration(days: subscription.gracePeriodDays));
+    final end = subscription?.endDate ?? profile.subscriptionEndDate;
+    final tone = _statusTone(context, profile, cycleEnd: end);
+    final headline = _tenantHeadline(context, profile, subscription);
+    final start = subscription?.startDate ?? profile.subscriptionStartDate;
+    final progress = _cycleProgress(start, end);
+    final border = _cycleBorder(context, profile, cycleEnd: end);
 
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: context.colors.surface,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: context.colors.border),
+        border: border.toBorder(),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1103,8 +1108,8 @@ class _TenantDetailHeader extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      profile.locationName,
-                      maxLines: 1,
+                      _tenantSubtitle(profile),
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.poppins(
                         color: context.colors.textSecondary,
@@ -1115,34 +1120,45 @@ class _TenantDetailHeader extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              _StatusBadge(tone: tone),
+              // Flexible so a long label ('Pending Payment') gives way on a
+              // narrow phone instead of pushing the row over the edge.
+              Flexible(child: _StatusBadge(tone: tone)),
             ],
           ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: _DetailMetric(
-                  label: 'Amount',
-                  value: 'KES ${_formatAmount(profile.subscriptionFee)}',
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _DetailMetric(
-                  label: 'Valid until',
-                  value: _formatDateShort(
-                    subscription?.endDate ?? profile.subscriptionEndDate,
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            decoration: BoxDecoration(
+              color: headline.color.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: headline.color.withValues(alpha: 0.18)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(headline.icon, color: headline.color, size: 17),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    headline.text,
+                    style: GoogleFonts.poppins(
+                      color: context.colors.textPrimary,
+                      fontSize: 12,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          if (graceUntil != null) ...[
-            const SizedBox(height: 12),
-            _NoticeLine(
-              icon: Icons.schedule_outlined,
-              text: 'Grace until ${_formatDate(graceUntil)}',
+          if (progress != null) ...[
+            const SizedBox(height: 14),
+            _CycleBar(
+              start: start!,
+              end: end!,
+              progress: progress,
+              color: headline.color,
             ),
           ],
         ],
@@ -1151,42 +1167,117 @@ class _TenantDetailHeader extends StatelessWidget {
   }
 }
 
-class _DetailMetric extends StatelessWidget {
-  final String label;
-  final String value;
+/// How far the current billing cycle has run - the one thing a start and an
+/// end date say together that neither says alone.
+class _CycleBar extends StatelessWidget {
+  final DateTime start;
+  final DateTime end;
+  final double progress;
+  final Color color;
 
-  const _DetailMetric({required this.label, required this.value});
+  const _CycleBar({
+    required this.start,
+    required this.end,
+    required this.progress,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: context.colors.pageGrey,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: context.colors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final labelStyle = GoogleFonts.poppins(
+      color: context.colors.textSecondary,
+      fontSize: 10,
+      fontWeight: FontWeight.w600,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            value: progress,
+            minHeight: 6,
+            backgroundColor: context.colors.pageGrey,
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+        const SizedBox(height: 7),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Flexible(
+              child: Text(
+                _formatDateShort(start),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: labelStyle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                _formatDateShort(end),
+                maxLines: 1,
+                textAlign: TextAlign.end,
+                overflow: TextOverflow.ellipsis,
+                style: labelStyle,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// The three facts a tenant checks before parking: what the tenancy costs, how
+/// much of the cycle is left, and how many plates the allocation covers.
+class _TenantMetricsRow extends StatelessWidget {
+  final TenantProfile profile;
+  final TenantSubscription? subscription;
+  final List<_TenantVehicleData> vehicles;
+
+  const _TenantMetricsRow({
+    required this.profile,
+    required this.subscription,
+    required this.vehicles,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final time = _tenantTimeMetric(context, profile, subscription);
+    final onTenancy = vehicles.where((vehicle) => vehicle.onTenancy).length;
+    final slots = profile.allocatedSlots;
+
+    // The tiles carry captions of different lengths, so they are sized
+    // together to keep the row square.
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.poppins(
-              color: context.colors.textSecondary,
-              fontSize: 11,
+          Expanded(
+            child: _TenantMetric(
+              label: 'Subscription',
+              value: 'KES ${_formatAmount(profile.subscriptionFee)}',
+              caption: profile.pricingPlanName,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.poppins(
-              color: context.colors.textPrimary,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
+          const SizedBox(width: 9),
+          Expanded(
+            child: _TenantMetric(
+              label: time.label,
+              value: time.value,
+              caption: time.caption,
+              valueColor: time.color,
+            ),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: _TenantMetric(
+              label: 'Plates',
+              value: slots > 0 ? '$onTenancy of $slots' : '$onTenancy',
+              caption: slots > 0 ? 'slots allocated' : 'on this tenancy',
             ),
           ),
         ],
@@ -1195,30 +1286,235 @@ class _DetailMetric extends StatelessWidget {
   }
 }
 
-class _NoticeLine extends StatelessWidget {
-  final IconData icon;
-  final String text;
+class _TenantMetric extends StatelessWidget {
+  final String label;
+  final String value;
+  final String caption;
+  final Color? valueColor;
 
-  const _NoticeLine({required this.icon, required this.text});
+  const _TenantMetric({
+    required this.label,
+    required this.value,
+    required this.caption,
+    this.valueColor,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, color: context.colors.primary, size: 16),
-        const SizedBox(width: 7),
-        Expanded(
-          child: Text(
-            text,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 12),
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.colors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label.toUpperCase(),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
-              color: context.colors.textSecondary,
-              fontSize: 12,
+              color: context.colors.textMuted,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
             ),
           ),
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: GoogleFonts.poppins(
+                color: valueColor ?? context.colors.textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            caption,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.poppins(
+              color: context.colors.textSecondary,
+              fontSize: 10,
+              height: 1.25,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The plates this tenancy parks on, as vehicles rather than as label/value
+/// rows - the plate leads, and the line under it says what the app knows about
+/// the car and whether the tenancy actually covers it.
+class _TenantVehiclePanel extends StatelessWidget {
+  final List<_TenantVehicleData> vehicles;
+  final int allocatedSlots;
+
+  const _TenantVehiclePanel({
+    required this.vehicles,
+    required this.allocatedSlots,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final onTenancy = vehicles.where((vehicle) => vehicle.onTenancy).length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionTitle(
+          title: 'Vehicles',
+          action: null,
+          onAction: null,
+          trailing: allocatedSlots > 0
+              ? '$onTenancy of $allocatedSlots slots'
+              : null,
         ),
+        const SizedBox(height: 10),
+        if (vehicles.isEmpty)
+          const _TenantVehicleEmptyCard()
+        else
+          Container(
+            decoration: _surfaceDecoration(context),
+            child: Column(
+              children: [
+                for (var i = 0; i < vehicles.length; i++) ...[
+                  _TenantVehicleRow(vehicle: vehicles[i]),
+                  if (i != vehicles.length - 1)
+                    Divider(
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: context.colors.divider,
+                    ),
+                ],
+              ],
+            ),
+          ),
       ],
+    );
+  }
+}
+
+class _TenantVehicleRow extends StatelessWidget {
+  final _TenantVehicleData vehicle;
+
+  const _TenantVehicleRow({required this.vehicle});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = vehicle.onTenancy
+        ? context.colors.primary
+        : context.colors.textMuted;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              vehicle.onTenancy
+                  ? Icons.directions_car_filled_outlined
+                  : Icons.no_crash_outlined,
+              color: color,
+              size: 19,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  vehicle.plate,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    color: context.colors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  vehicle.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    color: context.colors.textSecondary,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TenantVehicleEmptyCard extends StatelessWidget {
+  const _TenantVehicleEmptyCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+      decoration: _surfaceDecoration(context),
+      child: Column(
+        children: [
+          Icon(
+            Icons.no_crash_outlined,
+            color: context.colors.textMuted,
+            size: 28,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'No vehicles',
+            style: GoogleFonts.poppins(
+              color: context.colors.textPrimary,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            'No plates on this tenancy yet',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              color: context.colors.textSecondary,
+              fontSize: 11,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            'Ask the site manager to add your plate so the cameras let it in.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              color: context.colors.textMuted,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1391,10 +1687,14 @@ class _SectionTitle extends StatelessWidget {
   final String? action;
   final VoidCallback? onAction;
 
+  /// A read-only counter shown at the end of the row (e.g. "2 of 3 slots").
+  final String? trailing;
+
   const _SectionTitle({
     required this.title,
     required this.action,
     required this.onAction,
+    this.trailing,
   });
 
   @override
@@ -1411,6 +1711,15 @@ class _SectionTitle extends StatelessWidget {
             ),
           ),
         ),
+        if (trailing != null)
+          Text(
+            trailing!,
+            style: GoogleFonts.poppins(
+              color: context.colors.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         if (action != null && onAction != null)
           TextButton.icon(
             onPressed: onAction,
@@ -2506,6 +2815,36 @@ class _SubscriptionEmptyCard extends StatelessWidget {
   }
 }
 
+/// The outline a tenant profile card and its detail header wear.
+///
+/// This is the whole point of the border: a tenancy reads its own deadline
+/// from across the screen - plain while there is nothing to chase, amber
+/// through the last week of the cycle, red once it has expired.
+class _CycleBorder {
+  final Color color;
+  final double width;
+
+  const _CycleBorder({required this.color, required this.width});
+
+  Border toBorder() => Border.all(color: color, width: width);
+}
+
+_CycleBorder _cycleBorder(
+  BuildContext context,
+  TenantProfile profile, {
+  DateTime? cycleEnd,
+}) {
+  switch (profile.cycleStatus(cycleEnd)) {
+    case TenantCycleStatus.expired:
+      return _CycleBorder(color: context.colors.error, width: 1.6);
+    case TenantCycleStatus.endingSoon:
+      return _CycleBorder(color: context.colors.warning, width: 1.6);
+    case TenantCycleStatus.onTrack:
+    case TenantCycleStatus.undated:
+      return _CycleBorder(color: context.colors.border, width: 1);
+  }
+}
+
 class _StatusTone {
   final Color color;
   final IconData icon;
@@ -2526,9 +2865,20 @@ BoxDecoration _surfaceDecoration(BuildContext context) {
   );
 }
 
-_StatusTone _statusTone(BuildContext context, TenantProfile profile) {
+/// The badge, icon and accent a tenant profile wears.
+///
+/// [cycleEnd] is the end date of the loaded subscription where the screen has
+/// one; without it the profile's own end date decides. Expiry is checked
+/// before the status field because a tenancy the service still calls
+/// ACTIVE/PAID is expired the moment the date it was paid through passes.
+_StatusTone _statusTone(
+  BuildContext context,
+  TenantProfile profile, {
+  DateTime? cycleEnd,
+}) {
   final status = profile.status;
   final payment = profile.paymentStatus;
+  final cycle = profile.cycleStatus(cycleEnd);
 
   if (status == 'SUSPENDED') {
     return _StatusTone(
@@ -2537,13 +2887,9 @@ _StatusTone _statusTone(BuildContext context, TenantProfile profile) {
       label: 'Suspended',
     );
   }
-  if (profile.isActivePaid) {
-    return _StatusTone(
-      color: context.colors.success,
-      icon: Icons.check_circle_outline_rounded,
-      label: 'Active',
-    );
-  }
+  // Overdue outranks expired: the cycle is over either way, but a tenancy
+  // inside its grace window still opens the barrier, and "overdue" is the
+  // word for that.
   if (status == 'OVERDUE' || payment == 'OVERDUE') {
     return _StatusTone(
       color: context.colors.warning,
@@ -2551,11 +2897,25 @@ _StatusTone _statusTone(BuildContext context, TenantProfile profile) {
       label: 'Overdue',
     );
   }
-  if (status == 'EXPIRED') {
+  if (cycle == TenantCycleStatus.expired) {
     return _StatusTone(
-      color: context.colors.textSecondary,
+      color: context.colors.error,
       icon: Icons.event_busy_outlined,
       label: 'Expired',
+    );
+  }
+  if (profile.isActivePaid) {
+    if (cycle == TenantCycleStatus.endingSoon) {
+      return _StatusTone(
+        color: context.colors.warning,
+        icon: Icons.schedule_outlined,
+        label: 'Ending soon',
+      );
+    }
+    return _StatusTone(
+      color: context.colors.success,
+      icon: Icons.check_circle_outline_rounded,
+      label: 'Active',
     );
   }
 
@@ -2566,32 +2926,25 @@ _StatusTone _statusTone(BuildContext context, TenantProfile profile) {
   );
 }
 
-String _profileStatusLabel(TenantProfile profile) {
-  return _statusLabelFromValues(profile.status, profile.paymentStatus);
-}
-
-String _statusLabelFromValues(String status, String paymentStatus) {
-  if (status == 'ACTIVE' && paymentStatus == 'PAID') return 'Active';
-  if (status == 'SUSPENDED') return 'Suspended';
-  if (status == 'OVERDUE' || paymentStatus == 'OVERDUE') return 'Overdue';
-  if (status == 'EXPIRED') return 'Expired';
-  if (status == 'PENDING' || paymentStatus == 'PENDING') {
-    return 'Pending Payment';
-  }
-  return _humanizeCode(status);
-}
-
 String _profileSecondaryText(TenantProfile profile) {
-  if (profile.isActivePaid) {
-    return profile.subscriptionEndDate == null
-        ? 'Active'
-        : 'Valid until ${_formatDateShort(profile.subscriptionEndDate)}';
-  }
+  final end = profile.subscriptionEndDate;
   if (profile.paymentStatus == 'OVERDUE' || profile.status == 'OVERDUE') {
     return 'Tenant benefits disabled';
   }
-  if (profile.status == 'EXPIRED') {
-    return 'Renew to continue';
+  switch (profile.cycleStatus()) {
+    case TenantCycleStatus.expired:
+      return end == null ? 'Expired' : 'Expired ${_formatDateShort(end)}';
+    case TenantCycleStatus.endingSoon:
+      final daysLeft = daysUntilDate(end) ?? 0;
+      return daysLeft == 0
+          ? 'Ends today'
+          : 'Ends in $daysLeft ${_plural(daysLeft, 'day')}';
+    case TenantCycleStatus.onTrack:
+    case TenantCycleStatus.undated:
+      break;
+  }
+  if (profile.isActivePaid) {
+    return end == null ? 'Active' : 'Valid until ${_formatDateShort(end)}';
   }
   return 'KES ${_formatAmount(profile.subscriptionFee)} required';
 }
@@ -2600,6 +2953,7 @@ String _payCta(TenantProfile profile) {
   if (profile.paymentStatus == 'OVERDUE' || profile.status == 'OVERDUE') {
     return 'Pay To Reactivate';
   }
+  if (profile.isExpired) return 'Renew Subscription';
   return 'Pay Subscription';
 }
 
@@ -2609,8 +2963,372 @@ String _payCtaShort(TenantProfile profile) {
   if (profile.paymentStatus == 'OVERDUE' || profile.status == 'OVERDUE') {
     return 'Reactivate';
   }
+  if (profile.isExpired) return 'Renew';
   return 'Pay Now';
 }
+
+/// An expired cycle is a renewal, not a first payment - the icon says so.
+IconData _payCtaIcon(TenantProfile profile) {
+  final overdue =
+      profile.paymentStatus == 'OVERDUE' || profile.status == 'OVERDUE';
+  return profile.isExpired && !overdue
+      ? Icons.autorenew_rounded
+      : Icons.phone_android_rounded;
+}
+
+/// One plate on the tenant profile.
+///
+/// [onTenancy] is the fact that actually decides whether the barrier opens:
+/// the tenancy covers the plate. A plate the account registered but the
+/// tenancy does not know about is listed too, flagged as not covered.
+class _TenantVehicleData {
+  final String plate;
+  final String description;
+  final bool onTenancy;
+
+  const _TenantVehicleData({
+    required this.plate,
+    required this.description,
+    required this.onTenancy,
+  });
+}
+
+/// The vehicles panel on a tenant profile.
+///
+/// A tenant's vehicles live on the tenancy itself (`TenantDto.plateNumbers`,
+/// written by `POST /.../tenants/{id}/vehicles`), NOT in the signed-in user's
+/// `GET /vehicles` collection — a plate an admin attaches to the tenancy never
+/// appears there. So the tenant's own plates lead, and the account's registered
+/// vehicles are folded in afterwards for the ones it also knows about.
+List<_TenantVehicleData> _tenantVehicles(
+  TenantProfile profile,
+  List<Vehicle> registeredVehicles,
+) {
+  final vehicles = <_TenantVehicleData>[];
+  final listedPlateKeys = <String>{};
+
+  for (final plate in profile.plateNumbers) {
+    final plateKey = Vehicle.plateKey(plate);
+    if (plateKey.isEmpty || !listedPlateKeys.add(plateKey)) continue;
+    final match = registeredVehicles
+        .where((vehicle) => Vehicle.plateKey(vehicle.plateNumber) == plateKey)
+        .firstOrNull;
+    vehicles.add(
+      _TenantVehicleData(
+        plate: plate,
+        description: _tenantPlateDescription(match),
+        onTenancy: true,
+      ),
+    );
+  }
+
+  for (final vehicle in registeredVehicles) {
+    final plateKey = Vehicle.plateKey(vehicle.plateNumber);
+    if (plateKey.isEmpty || !listedPlateKeys.add(plateKey)) continue;
+    vehicles.add(
+      _TenantVehicleData(
+        plate: vehicle.plateNumber,
+        description: _vehicleDescription(vehicle, 'Not linked to this tenancy'),
+        onTenancy: false,
+      ),
+    );
+  }
+
+  return vehicles;
+}
+
+String _tenantPlateDescription(Vehicle? registeredVehicle) {
+  const relationship = 'On this tenancy';
+  if (registeredVehicle == null) return relationship;
+  return _vehicleDescription(registeredVehicle, relationship);
+}
+
+/// `<make> <model> - <relationship>`, falling back to the vehicle type and
+/// then to the relationship alone when the account holds no descriptive fields.
+String _vehicleDescription(Vehicle vehicle, String relationship) {
+  final details = [
+    vehicle.make.trim(),
+    vehicle.model.trim(),
+  ].where((part) => part.isNotEmpty).join(' ');
+  final vehicleDetails = (details.isEmpty ? vehicle.type : details).trim();
+
+  return vehicleDetails.isEmpty
+      ? relationship
+      : '$vehicleDetails - $relationship';
+}
+
+/// `<client> · <location>` — the two names that place a tenancy, without
+/// spending a whole detail row on either.
+String _tenantSubtitle(TenantProfile profile) {
+  final parts = [
+    profile.clientName.trim(),
+    profile.locationName.trim(),
+  ].where((part) => part.isNotEmpty).toList();
+  if (parts.isEmpty) return profile.locationId;
+  return parts.join(' · ');
+}
+
+/// The rows left once the header and the metrics have said their part: the
+/// terms of the tenancy, not its status.
+List<_DetailRowData> _tenancyDetailRows(
+  TenantProfile profile,
+  TenantSubscription? subscription,
+) {
+  final start = subscription?.startDate ?? profile.subscriptionStartDate;
+  final end = subscription?.endDate ?? profile.subscriptionEndDate;
+  final grace = subscription?.gracePeriodDays ?? 0;
+
+  final rows = <_DetailRowData>[
+    _DetailRowData('Billing cycle', _cycleText(start, end)),
+    _DetailRowData('Plan', profile.pricingPlanName),
+    _DetailRowData('Where you park', _slotPolicyLabel(profile)),
+  ];
+
+  if (grace > 0) {
+    rows.add(
+      _DetailRowData(
+        'Grace period',
+        '$grace ${_plural(grace, 'day')} after the cycle ends',
+      ),
+    );
+  }
+  if (profile.ownerName.trim().isNotEmpty) {
+    rows.add(_DetailRowData('Account holder', profile.ownerName.trim()));
+  }
+
+  return rows;
+}
+
+String _cycleText(DateTime? start, DateTime? end) {
+  if (start == null && end == null) return 'Starts after payment';
+  if (start == null) return 'Ends ${_formatDate(end)}';
+  if (end == null) return 'From ${_formatDate(start)}';
+  return '${_formatDate(start)} - ${_formatDate(end)}';
+}
+
+/// Plain English for `slotEnforcement`, which otherwise reads as a raw enum.
+String _slotPolicyLabel(TenantProfile profile) {
+  switch (profile.slotEnforcement.toUpperCase()) {
+    case 'ALLOCATED_SLOTS':
+      final slots = profile.allocatedSlots;
+      return slots > 0
+          ? 'Your $slots allocated ${_plural(slots, 'slot')}'
+          : 'Your allocated slots';
+    case 'REGISTERED_PLATES':
+      return 'Any slot, registered plates only';
+    case 'ANY_SLOT':
+    case 'UNRESTRICTED':
+      return 'Any free slot on site';
+    default:
+      return _humanizeCode(profile.slotEnforcement);
+  }
+}
+
+/// The subscription the profile is standing on right now.
+///
+/// The paid, running cycle when there is one; otherwise the newest cycle on
+/// record, because for an overdue or expired tenancy that is the row whose end
+/// date and grace window decide whether the barrier still opens.
+TenantSubscription? _currentSubscription(
+  List<TenantSubscription>? subscriptions,
+) {
+  if (subscriptions == null || subscriptions.isEmpty) return null;
+
+  final active = subscriptions.where((item) => item.isActivePaid).firstOrNull;
+  if (active != null) return active;
+
+  final sorted = [...subscriptions]
+    ..sort((a, b) => _subscriptionAnchor(b).compareTo(_subscriptionAnchor(a)));
+  return sorted.first;
+}
+
+DateTime _subscriptionAnchor(TenantSubscription subscription) {
+  return subscription.endDate ??
+      subscription.startDate ??
+      subscription.createdAt ??
+      DateTime.fromMillisecondsSinceEpoch(0);
+}
+
+/// The headline on the profile header: the one sentence that says what this
+/// tenancy means for the driver today.
+class _TenantHeadline {
+  final IconData icon;
+  final Color color;
+  final String text;
+
+  const _TenantHeadline({
+    required this.icon,
+    required this.color,
+    required this.text,
+  });
+}
+
+_TenantHeadline _tenantHeadline(
+  BuildContext context,
+  TenantProfile profile,
+  TenantSubscription? subscription,
+) {
+  final colors = context.colors;
+  final fee = 'KES ${_formatAmount(profile.subscriptionFee)}';
+  final end = subscription?.endDate ?? profile.subscriptionEndDate;
+  final daysLeft = daysUntilDate(end);
+  final cycle = profile.cycleStatus(end);
+
+  if (profile.status == 'SUSPENDED') {
+    return _TenantHeadline(
+      icon: Icons.block_outlined,
+      color: colors.error,
+      text:
+          'Tenant parking is suspended. Talk to the site manager before '
+          'driving in.',
+    );
+  }
+
+  if (profile.status == 'OVERDUE' || profile.paymentStatus == 'OVERDUE') {
+    final graceLeft = _graceDaysLeft(subscription);
+    if (graceLeft != null && graceLeft > 0) {
+      return _TenantHeadline(
+        icon: Icons.schedule_outlined,
+        color: colors.warning,
+        text:
+            '$fee is overdue. You have $graceLeft ${_plural(graceLeft, 'day')} '
+            'of grace left before tenant parking stops.',
+      );
+    }
+    return _TenantHeadline(
+      icon: Icons.warning_amber_rounded,
+      color: colors.error,
+      text: '$fee is overdue and tenant parking is off. Pay to restore it.',
+    );
+  }
+
+  // From here the cycle end date has the last word, whatever the status field
+  // says: once the paid-through date is gone the tenancy buys nothing, and the
+  // word for that is "expired".
+  if (cycle == TenantCycleStatus.expired) {
+    return _TenantHeadline(
+      icon: Icons.event_busy_outlined,
+      color: colors.error,
+      text: end == null
+          ? 'This tenancy has EXPIRED. Renew for $fee to start a new cycle.'
+          : 'EXPIRED on ${_formatDate(end)}. Renew for $fee to start a new '
+                'cycle.',
+    );
+  }
+
+  if (profile.isActivePaid) {
+    if (end == null || daysLeft == null) {
+      return _TenantHeadline(
+        icon: Icons.check_circle_outline_rounded,
+        color: colors.success,
+        text:
+            'Tenant parking is active. The renewal date appears once the '
+            'cycle is dated.',
+      );
+    }
+    if (daysLeft == 0) {
+      return _TenantHeadline(
+        icon: Icons.event_available_outlined,
+        color: colors.warning,
+        text: 'Last day of this cycle. Renew today to keep parking here.',
+      );
+    }
+    if (daysLeft <= TenantProfile.expiringSoonDays) {
+      return _TenantHeadline(
+        icon: Icons.event_available_outlined,
+        color: colors.warning,
+        text:
+            'Renews in $daysLeft ${_plural(daysLeft, 'day')}, on '
+            '${_formatDate(end)}.',
+      );
+    }
+    return _TenantHeadline(
+      icon: Icons.check_circle_outline_rounded,
+      color: colors.success,
+      text:
+          'Tenant parking is active for $daysLeft more days, through '
+          '${_formatDate(end)}.',
+    );
+  }
+
+  return _TenantHeadline(
+    icon: Icons.pending_actions_outlined,
+    color: colors.primary,
+    text: 'Pay $fee to switch tenant parking on at this location.',
+  );
+}
+
+/// The middle metric tile — how much of the cycle is left, or how far past it
+/// the tenancy has slipped.
+class _TenantTimeMetric {
+  final String label;
+  final String value;
+  final String caption;
+  final Color? color;
+
+  const _TenantTimeMetric({
+    required this.label,
+    required this.value,
+    required this.caption,
+    this.color,
+  });
+}
+
+_TenantTimeMetric _tenantTimeMetric(
+  BuildContext context,
+  TenantProfile profile,
+  TenantSubscription? subscription,
+) {
+  final colors = context.colors;
+  final end = subscription?.endDate ?? profile.subscriptionEndDate;
+  final daysLeft = daysUntilDate(end);
+
+  if (end == null || daysLeft == null) {
+    return const _TenantTimeMetric(
+      label: 'Cycle',
+      value: 'Not set',
+      caption: 'starts after payment',
+    );
+  }
+
+  if (daysLeft < 0) {
+    final days = -daysLeft;
+    return _TenantTimeMetric(
+      label: 'Expired',
+      value: '$days ${_plural(days, 'day')}',
+      caption: 'ago, on ${_formatDate(end)}',
+      color: colors.error,
+    );
+  }
+
+  return _TenantTimeMetric(
+    label: 'Time left',
+    value: daysLeft == 0 ? 'Today' : '$daysLeft ${_plural(daysLeft, 'day')}',
+    caption: 'until ${_formatDate(end)}',
+    color: daysLeft <= TenantProfile.expiringSoonDays ? colors.warning : null,
+  );
+}
+
+/// Grace only means something while a payment is outstanding and the window is
+/// still open, so it is computed - and shown - only then.
+int? _graceDaysLeft(TenantSubscription? subscription) {
+  final end = subscription?.endDate;
+  if (subscription == null || end == null) return null;
+  if (subscription.gracePeriodDays <= 0) return null;
+  return daysUntilDate(end.add(Duration(days: subscription.gracePeriodDays)));
+}
+
+/// How far through the billing cycle today sits, or null when the cycle is not
+/// dated on both ends.
+double? _cycleProgress(DateTime? start, DateTime? end) {
+  if (start == null || end == null) return null;
+  final total = end.difference(start).inSeconds;
+  if (total <= 0) return null;
+  final elapsed = DateTime.now().difference(start).inSeconds;
+  return (elapsed / total).clamp(0.0, 1.0);
+}
+
+String _plural(int count, String word) => count == 1 ? word : '${word}s';
 
 String _subscriptionDateText(TenantSubscription subscription) {
   if (subscription.startDate == null || subscription.endDate == null) {

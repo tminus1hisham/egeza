@@ -10,11 +10,13 @@ import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
 import '../../core/error_handler.dart';
 import '../../core/theme/app_colors.dart';
+import '../../models/api_models.dart';
 import '../../models/parking_session.dart';
 import '../../models/vehicle.dart';
 import '../../widgets/app_widgets.dart';
 import '../../widgets/primary_button.dart';
 import '../../widgets/stk_confirmation_sheet.dart';
+import '../payment_success_screen.dart';
 
 class PayParkingScreen extends StatefulWidget {
   const PayParkingScreen({super.key});
@@ -69,7 +71,7 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
       _wasWaitingForPayment = false;
       final session = state.selectedSession!;
       await _waitForRouteToSettle();
-      if (mounted) _navigateToReceipt(session);
+      if (mounted) _navigateToSuccess(session, state.activePayment);
     } else {
       _wasWaitingForPayment = false;
     }
@@ -667,10 +669,37 @@ class _PayParkingScreenState extends State<PayParkingScreen> {
 
 
 
-  void _navigateToReceipt(ParkingSession session) {
+  /// Lands the driver on the confirmation moment, with the 30-minute exit
+  /// window ticking. The itemised receipt sits one tap behind it.
+  void _navigateToSuccess(
+    ParkingSession session,
+    PaymentStatusSnapshot? payment,
+  ) {
+    final amount = session.amountPaid > 0 ? session.amountPaid : session.cost;
+
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => _PaymentReceiptPage(session: session),
+        builder: (_) => PaymentSuccessScreen(
+          details: PaymentSuccessDetails(
+            amountPaid: amount,
+            // Anchored on now, not the session end the server reports:
+            // that timestamp arrives naive/UTC-skewed and would start the exit
+            // window in the past.
+            paidAt: DateTime.now(),
+            transactionId: payment?.paymentId ?? payment?.checkoutRequestId,
+            siteName: session.locationName,
+            plateNumber: session.vehicle.plateNumber.isEmpty
+                ? null
+                : formatPlateDisplay(session.vehicle.plateNumber),
+            discountAmount: session.discountAmount,
+            exitWindow: kExitGraceWindow,
+          ),
+          onViewReceipt: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => _PaymentReceiptPage(session: session),
+            ),
+          ),
+        ),
       ),
     );
   }

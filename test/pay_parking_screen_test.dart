@@ -111,9 +111,9 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // c. Session status becomes COMPLETED after waiting → receipt page pushed
+  // c. Session status becomes COMPLETED after waiting → success screen pushed
   // ---------------------------------------------------------------------------
-  testWidgets('receipt page shown after payment completes', (tester) async {
+  testWidgets('success screen shown after payment completes', (tester) async {
     final bloc = _TestAppBloc();
 
     await tester.pumpWidget(_buildScreen(bloc));
@@ -123,15 +123,28 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    // Transition to completed — dialog hides and receipt is pushed.
+    // Transition to completed — dialog hides and the success screen is pushed.
     bloc.testEmit(
       AppState(
         isWaitingForPayment: false,
         selectedSession: _completedSession(),
       ),
     );
+    // The screen waits for routes to settle between steps with plain delays,
+    // which schedule no frames — pumpAndSettle alone would return before them.
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
     await tester.pumpAndSettle();
 
     expect(find.text('Payment Successful'), findsOneWidget);
+    expect(find.text('KES 5'), findsOneWidget);
+
+    // The 30-minute exit window is counting down.
+    expect(find.text('PLEASE EXIT BY'), findsOneWidget);
+    expect(find.textContaining('left'), findsOneWidget);
+
+    // Dispose the tree so the countdown's periodic timer is cancelled.
+    await tester.pumpWidget(const SizedBox());
   });
 }

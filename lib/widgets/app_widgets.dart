@@ -11,6 +11,8 @@ class egeshaLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = dark || Theme.of(context).brightness == Brightness.dark;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -18,16 +20,8 @@ class egeshaLogo extends StatelessWidget {
           width: size,
           height: size,
           decoration: BoxDecoration(
-            gradient: dark
-                ? null
-                : const LinearGradient(
-                    colors: [AppColors.primary, AppColors.primaryDark],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-            color: dark ? Colors.white : null,
             borderRadius: BorderRadius.circular(size * 0.28),
-            boxShadow: dark
+            boxShadow: isDark
                 ? null
                 : [
                     BoxShadow(
@@ -37,21 +31,25 @@ class egeshaLogo extends StatelessWidget {
                     ),
                   ],
           ),
-          child: Icon(
-            Icons.local_parking_rounded,
-            color: dark ? context.colors.primary : Colors.white,
-            size: size * 0.56,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(size * 0.28),
+            child: Image.asset(
+              isDark ? 'assets/iconblack.png' : 'assets/iconwhite.png',
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+            ),
           ),
         ),
         const SizedBox(width: 10),
-        Text(
-          'egesha',
-          style: GoogleFonts.poppins(
-            color: dark ? Colors.white : context.colors.textPrimary,
-            fontWeight: FontWeight.w700,
-            fontSize: size * 0.52,
-          ),
-        ),
+        // Text(
+        //   'egesha',
+        //   style: GoogleFonts.poppins(
+        //     color: dark ? Colors.white : context.colors.textPrimary,
+        //     fontWeight: FontWeight.w700,
+        //     fontSize: size * 0.52,
+        //   ),
+        // ),
       ],
     );
   }

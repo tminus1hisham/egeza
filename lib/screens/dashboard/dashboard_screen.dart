@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_colors.dart';
 import '../../blocs/app_bloc.dart';
 import '../../blocs/app_event.dart';
@@ -16,7 +17,7 @@ import '../../core/error_handler.dart';
 import '../../widgets/add_vehicle_sheet.dart';
 import '../../widgets/promo_code_sheet.dart';
 import '../../widgets/stk_confirmation_sheet.dart';
-import 'manager_screen.dart';
+import '../payment_success_screen.dart';
 import 'wallet_screen.dart';
 import 'active_session_screen.dart';
 import 'pay_parking_screen.dart';
@@ -47,6 +48,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   static const Duration _routeSettleDelay = Duration(milliseconds: 300);
+  static const String _supportPhone = '+254719203040';
 
   bool _waitingDialogVisible = false;
   bool _wasWaitingForPayment = false;
@@ -118,11 +120,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
 
+    final paid = state.selectedSession;
+    if (paid != null && paid.status == 'COMPLETED') {
+      context.read<AppBloc>().add(LoadDashboardData());
+      _showSuccess(paid, state.activePayment);
+      return;
+    }
+
     final status = state.statusMessage;
     if (status != null && status.isNotEmpty) {
       ErrorHandler.showSuccess(context, status);
     }
     context.read<AppBloc>().add(LoadDashboardData());
+  }
+
+  void _showSuccess(ParkingSession session, PaymentStatusSnapshot? payment) {
+    final amount = session.amountPaid > 0 ? session.amountPaid : session.cost;
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PaymentSuccessScreen(
+          details: PaymentSuccessDetails(
+            amountPaid: amount,
+            // Anchored on now, not the session end the server reports:
+            // that timestamp arrives naive/UTC-skewed and would start the exit
+            // window in the past.
+            paidAt: DateTime.now(),
+            transactionId: payment?.paymentId ?? payment?.checkoutRequestId,
+            siteName: session.locationName,
+            plateNumber: session.vehicle.plateNumber.isEmpty
+                ? null
+                : session.vehicle.plateNumber,
+            discountAmount: session.discountAmount,
+            exitWindow: kExitGraceWindow,
+          ),
+          // The dashboard is what sits underneath — go back to it, not past it.
+          onDone: () => Navigator.of(context).pop(),
+        ),
+      ),
+    );
   }
 
   void _showWaitingDialog() {
@@ -239,10 +275,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             const SizedBox(height: 14),
                           ],
                           _buildQuickActions(context, state),
-                          if (state.isManager) ...[
-                            const SizedBox(height: 14),
-                            _buildManagerEntry(context, state),
-                          ],
                           if (state.shouldShowTenancy) ...[
                             const SizedBox(height: 14),
                             _buildTenancySnapshot(context, state),
@@ -446,10 +478,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            _darkHeaderChip(
-                              Icons.local_parking_rounded,
-                              'Egesha',
-                            ),
+                            _darkHeaderChip('Egesha'),
                             const SizedBox(width: 8),
                             Flexible(
                               child: Text(
@@ -482,6 +511,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      _headerRoundButton(
+                        Icons.call_outlined,
+                        () => _callSupport(context),
+                      ),
+                      const SizedBox(width: 8),
                       _headerRoundButton(
                         Icons.settings_outlined,
                         () => _openSettings(context),
@@ -689,7 +723,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _darkHeaderChip(IconData icon, String label) {
+  Widget _darkHeaderChip(String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
@@ -697,20 +731,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: context.colors.accent, size: 13),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: GoogleFonts.poppins(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        style: GoogleFonts.poppins(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -783,101 +810,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  /// Way in to the operator's view of a site. Sits on Home rather than only in
-  /// Settings because live takings are what a manager opens the app for.
-  Widget _buildManagerEntry(BuildContext context, AppState state) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Material(
-        color: context.colors.surface,
-        borderRadius: BorderRadius.circular(22),
-        child: InkWell(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ManagerScreen(
-                api: context.read<AppBloc>().api,
-                useSampleData: state.debugSampleData,
-              ),
-            ),
-          ),
-          borderRadius: BorderRadius.circular(22),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: context.colors.border),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.025),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: context.colors.accentLight,
-                    borderRadius: BorderRadius.circular(13),
-                    border: Border.all(color: context.colors.mintBorder),
-                  ),
-                  child: Icon(
-                    Icons.insights_rounded,
-                    color: context.colors.primary,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Manager view',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.poppins(
-                          color: context.colors.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        state.debugSampleData
-                            ? 'Sample data — generated figures for previewing '
-                                'the layout'
-                            : 'Live takings, vehicles in today and cars still '
-                                'parked',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.poppins(
-                          color: context.colors.textSecondary,
-                          fontSize: 11.5,
-                          height: 1.3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: context.colors.textMuted,
-                  size: 22,
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -1954,6 +1886,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Icon(icon, color: Colors.white, size: 19),
         ),
       ),
+    );
+  }
+
+  /// Hands the support line to the phone's dialler with the number prefilled,
+  /// so the driver still gets to see it before the call is placed. If no dialler
+  /// answers the intent, the number is copied instead of silently doing nothing.
+  Future<void> _callSupport(BuildContext context) async {
+    final uri = Uri(scheme: 'tel', path: _supportPhone);
+
+    try {
+      if (await launchUrl(uri, mode: LaunchMode.externalApplication)) return;
+    } catch (_) {
+      // The copy fallback below keeps the support line reachable.
+    }
+
+    await Clipboard.setData(const ClipboardData(text: _supportPhone));
+    if (!context.mounted) return;
+    ErrorHandler.showErrorMessage(
+      context,
+      'No dialler found. $_supportPhone was copied.',
     );
   }
 

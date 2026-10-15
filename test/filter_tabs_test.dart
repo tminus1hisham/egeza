@@ -26,7 +26,7 @@ class _StaticAppBloc extends AppBloc {
   void add(AppEvent event) {}
 }
 
-/// The All/AutoPay/Manual and All/Paid/AutoPay strips are the only way to
+/// The All/AutoPay/AutoPay off and All/Paid/AutoPay strips are the only way to
 /// narrow either list, so each tab has to actually remove rows — on *every*
 /// list it sits above.
 void main() {
@@ -138,7 +138,7 @@ void main() {
   }
 
   /// Taps a filter chip by its label and settles the selection animation.
-  /// Scoped to the chip's [AnimatedContainer] because 'AutoPay' and 'Manual'
+  /// Scoped to the chip's [AnimatedContainer] because 'AutoPay' and 'AutoPay off'
   /// also label hero metrics above the bar and row pills below it.
   Future<void> tapFilter(WidgetTester tester, String label) async {
     await tester.tap(
@@ -168,9 +168,9 @@ void main() {
       expect(find.text('1 shown'), findsOneWidget);
     });
 
-    testWidgets('Manual keeps only non-autopay vehicles', (tester) async {
+    testWidgets('AutoPay off keeps only non-autopay vehicles', (tester) async {
       await pumpScreen(tester, const VehiclesScreen());
-      await tapFilter(tester, 'Manual');
+      await tapFilter(tester, 'AutoPay off');
 
       expect(find.text('KDA123X'), findsOneWidget);
       expect(find.text('KBR656Z'), findsNothing);

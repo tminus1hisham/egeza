@@ -31,6 +31,33 @@ String? jsonString(Object? value) {
   return text.isEmpty ? null : text;
 }
 
+/// Whole days from today until [value]; negative once it is in the past, and
+/// null when there is no date to measure against.
+int? daysUntilDate(DateTime? value) {
+  if (value == null) return null;
+  final now = DateTime.now();
+  return DateTime(
+    value.year,
+    value.month,
+    value.day,
+  ).difference(DateTime(now.year, now.month, now.day)).inDays;
+}
+
+/// Where a tenancy sits against the date it is paid through.
+enum TenantCycleStatus {
+  /// No end date on the tenancy yet - a cycle that starts after payment.
+  undated,
+
+  /// Paid through a date comfortably ahead.
+  onTrack,
+
+  /// Inside the last [TenantProfile.expiringSoonDays] days of the cycle.
+  endingSoon,
+
+  /// The date it was paid through has passed.
+  expired,
+}
+
 class AuthResult {
   final String token;
   final UserProfile? user;
@@ -545,6 +572,44 @@ class QrCodeResponse {
   }
 }
 
+/// One site's totals for a reporting window, from
+/// `/client/reports/locations/performance` — the only per-location split the
+/// client API does server-side.
+class LocationPerformance {
+  final String locationId;
+  final String locationName;
+  final int maxCapacity;
+  final int currentOccupancy;
+  final int totalSessions;
+  final int activeSessions;
+  final int completedSessions;
+  final double revenue;
+
+  const LocationPerformance({
+    required this.locationId,
+    this.locationName = '',
+    this.maxCapacity = 0,
+    this.currentOccupancy = 0,
+    this.totalSessions = 0,
+    this.activeSessions = 0,
+    this.completedSessions = 0,
+    this.revenue = 0,
+  });
+
+  factory LocationPerformance.fromJson(Map<String, dynamic> json) {
+    return LocationPerformance(
+      locationId: jsonString(json['locationId']) ?? '',
+      locationName: jsonString(json['locationName']) ?? '',
+      maxCapacity: jsonInt(json['maxCapacity']),
+      currentOccupancy: jsonInt(json['currentOccupancy']),
+      totalSessions: jsonInt(json['totalSessions']),
+      activeSessions: jsonInt(json['activeSessions']),
+      completedSessions: jsonInt(json['completedSessions']),
+      revenue: jsonDouble(json['revenue']),
+    );
+  }
+}
+
 class DashboardStats {
   final int users;
   final int vehicles;
@@ -711,8 +776,6 @@ class TenantProfile {
   });
 
   factory TenantProfile.fromJson(Map<String, dynamic> json) {
-    final plates = json['plateNumbers'];
-
     return TenantProfile(
       id: jsonString(json['id']) ?? '',
       name: jsonString(json['name']) ??
@@ -733,9 +796,7 @@ class TenantProfile {
           jsonString(json['pricingPlanName']) ?? 'Tenant Parking',
       subscriptionStartDate: jsonDateTime(json['subscriptionStartDate']),
       subscriptionEndDate: jsonDateTime(json['subscriptionEndDate']),
-      plateNumbers: plates is List
-          ? plates.map((item) => item.toString()).where((v) => v.isNotEmpty).toList()
-          : const [],
+      plateNumbers: _tenantPlateNumbersFromJson(json),
       ownerId: jsonString(json['ownerId']) ?? '',
       ownerName: jsonString(json['ownerName']) ?? '',
       ownerPhoneNumber: jsonString(json['ownerPhoneNumber']) ?? '',
@@ -744,8 +805,32 @@ class TenantProfile {
 
   bool get isActivePaid => status == 'ACTIVE' && paymentStatus == 'PAID';
 
+  /// A tenancy inside this many days of its cycle end is close enough to the
+  /// edge to be worth flagging, but not yet a problem.
+  static const int expiringSoonDays = 7;
+
+  /// Where the tenancy sits against the date it is paid through.
+  ///
+  /// The status field alone cannot answer this: the service keeps reporting
+  /// ACTIVE/PAID after the date a tenancy was paid through, so the date is
+  /// what decides. Pass [endDate] to judge against a fresher cycle than the
+  /// profile snapshot carries - the detail screen loads the live subscription.
+  TenantCycleStatus cycleStatus([DateTime? endDate]) {
+    if (status == 'EXPIRED') return TenantCycleStatus.expired;
+    final daysLeft = daysUntilDate(endDate ?? subscriptionEndDate);
+    if (daysLeft == null) return TenantCycleStatus.undated;
+    if (daysLeft < 0) return TenantCycleStatus.expired;
+    if (daysLeft <= expiringSoonDays) return TenantCycleStatus.endingSoon;
+    return TenantCycleStatus.onTrack;
+  }
+
+  bool get isExpired => cycleStatus() == TenantCycleStatus.expired;
+
   bool get canPay {
     if (status == 'SUSPENDED') return false;
+    // An expired cycle is payable whatever the status says - it is the one
+    // case where the service can still be reporting ACTIVE/PAID.
+    if (isExpired) return true;
     if (isActivePaid) return false;
     return const {
       'PENDING',
@@ -760,6 +845,66 @@ class TenantProfile {
           'FAILED',
         }.contains(paymentStatus);
   }
+}
+
+/// Normalizes the vehicle shapes returned by the tenancy service.
+///
+/// The documented response is `plateNumbers: string[]`. Older/newer service
+/// builds have also returned vehicle objects, so accepting those shapes keeps
+/// real tenant vehicles visible without confusing them with the separate
+/// `/vehicles` collection owned by the signed-in user.
+List<String> _tenantPlateNumbersFromJson(Map<String, dynamic> json) {
+  final plates = <String>[];
+  final seen = <String>{};
+
+  void addPlate(Object? value) {
+    if (value == null) return;
+
+    if (value is Iterable) {
+      for (final item in value) {
+        addPlate(item);
+      }
+      return;
+    }
+
+    if (value is Map) {
+      final map = Map<String, dynamic>.from(value);
+      final directPlate = _firstMapValue(map, const [
+        'plateNumber',
+        'vehiclePlateNumber',
+        'registrationNumber',
+        'registration',
+        'plate',
+      ]);
+      if (directPlate != null) {
+        addPlate(directPlate);
+        return;
+      }
+
+      // Some responses wrap the vehicle facts one level deeper.
+      addPlate(_firstMapValue(map, const ['vehicle', 'vehicles', 'items']));
+      return;
+    }
+
+    final plate = jsonString(value)?.trim();
+    if (plate == null || plate.isEmpty) return;
+    final key = Vehicle.plateKey(plate);
+    if (key.isEmpty || !seen.add(key)) return;
+    plates.add(plate);
+  }
+
+  for (final key in const [
+    'plateNumbers',
+    'vehiclePlateNumbers',
+    'plates',
+    'vehicles',
+    'tenantVehicles',
+    'vehicle',
+  ]) {
+    addPlate(json[key]);
+  }
+
+  return List.unmodifiable(plates);
 }
 
 class TenantSubscription {

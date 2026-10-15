@@ -28,6 +28,17 @@ class ManagerCubit extends Cubit<ManagerState> {
   Timer? _timer;
   bool _pollInFlight = false;
 
+  /// Set once the sites were resolved from `/client/locations`: this account is
+  /// the property's OWNER, not one of its managers, and the `/manager/*` routes
+  /// 403 for it. Its figures have to come from the `/client/*` endpoints — see
+  /// [_refreshFromClientEndpoints].
+  bool _clientScoped = false;
+
+  /// The window `/client/reports/*` was last read for. Kept so switching back
+  /// to a period already in hand costs nothing, and so a 15s poll does not
+  /// refetch a month of history it already has.
+  String? _loadedPeriodKey;
+
   ManagerCubit({required ParkingIqApi api, this.useSampleData = false})
       : _api = api,
         super(ManagerState(isSample: useSampleData));
@@ -96,6 +107,8 @@ class ManagerCubit extends Cubit<ManagerState> {
   Future<void> selectLocation(String locationId) async {
     if (locationId == state.selectedLocationId) return;
 
+    _loadedPeriodKey = null;
+
     emit(state.copyWith(
       selectedLocationId: locationId,
       isLoading: true,
@@ -109,11 +122,16 @@ class ManagerCubit extends Cubit<ManagerState> {
     await refresh();
   }
 
-  /// Switches the period the reports read. No refetch — the endpoints hand back
-  /// the site's whole record, so every period is already in hand.
+  /// Switches the period the reports read.
+  ///
+  /// On the manager side nothing is refetched — those endpoints take no dates
+  /// and have already handed over the site's whole record. An owner's period
+  /// comes from `/client/reports/*`, which does filter by date, so the new
+  /// window is fetched — see [_loadClientPeriod].
   void selectRange(ReportRange range) {
     if (range == state.range && range != ReportRange.custom) return;
     emit(state.copyWith(range: range));
+    unawaited(_loadClientPeriod());
   }
 
   /// Applies a picked pair of dates. Order does not matter; the window sorts
@@ -124,6 +142,7 @@ class ManagerCubit extends Cubit<ManagerState> {
       customStart: start,
       customEnd: end,
     ));
+    unawaited(_loadClientPeriod());
   }
 
   /// One pass over the selected location's sessions and payments.
@@ -157,6 +176,11 @@ class ManagerCubit extends Cubit<ManagerState> {
     }
 
     if (!_api.hasToken) return;
+
+    if (_clientScoped) {
+      await _refreshFromClientEndpoints(locationId);
+      return;
+    }
 
     var failures = 0;
 
@@ -239,6 +263,200 @@ class ManagerCubit extends Cubit<ManagerState> {
     ));
   }
 
+  /// The owner's pass over the same three numbers.
+  ///
+  /// `/client/sessions` and `/client/transactions/payments` are estate-wide and
+  /// take no parameters, so both lists are filtered here to the selected site.
+  /// There is no client equivalent of the manager's active-sessions endpoint;
+  /// a car that has not left is one with no exit time, which — unlike
+  /// [ParkingSession.isActive] — stays true for a car that has already paid but
+  /// is still on the ground.
+  Future<void> _refreshFromClientEndpoints(String locationId) async {
+    final location = state.locations.where((l) => l.id == locationId).firstOrNull;
+
+    var failures = 0;
+    final sessionsFuture = _api
+        .clientSessions()
+        .then<Object?>((value) => value)
+        .catchError((Object error, StackTrace st) {
+      failures++;
+      _logError('refresh/clientSessions', error, st);
+      return null;
+    });
+    final paymentsFuture = _api
+        .clientPayments()
+        .then<Object?>((value) => value)
+        .catchError((Object error, StackTrace st) {
+      failures++;
+      _logError('refresh/clientPayments', error, st);
+      return null;
+    });
+
+    final results = await Future.wait([sessionsFuture, paymentsFuture]);
+    if (isClosed) return;
+
+    final allSessions = results[0] is List<ParkingSession>
+        ? _sessionsAt(results[0] as List<ParkingSession>, locationId, location)
+        : null;
+    final payments = results[1] is List<PaymentTransaction>
+        ? _paymentsAt(results[1] as List<PaymentTransaction>)
+        : null;
+
+    if (failures == 2) {
+      emit(state.copyWith(
+        isLoading: false,
+        errorMessage: state.hasData
+            ? 'Could not refresh — showing the last known figures'
+            : 'Could not load this location',
+      ));
+      return;
+    }
+
+    final activeSessions = allSessions == null
+        ? state.activeSessions
+        : allSessions.where((s) => s.endTime == null).toList(growable: false);
+
+    emit(state.copyWith(
+      isLoading: false,
+      todaySessions: allSessions == null
+          ? state.todaySessions
+          : _todaySessions(allSessions, activeSessions),
+      activeSessions: activeSessions,
+      todayPayments:
+          payments == null ? state.todayPayments : _todayPayments(payments),
+      // The live lists are all-time already; the ranged period rows are merged
+      // in rather than dropped, so a window that reaches further back than the
+      // list survives the next poll.
+      historySessions: allSessions == null
+          ? state.historySessions
+          : _dedupedSessions([
+              ..._mergedHistory(allSessions, activeSessions),
+              ...state.historySessions,
+            ]),
+      historyPayments: payments == null
+          ? state.historyPayments
+          : _dedupedPayments([...payments, ...state.historyPayments]),
+      revenueSource: payments == null
+          ? ManagerRevenueSource.sessions
+          : ManagerRevenueSource.payments,
+      lastUpdated: DateTime.now(),
+      clearError: true,
+    ));
+
+    await _loadClientPeriod();
+  }
+
+  /// Loads the selected period from the ranged report endpoints and folds it
+  /// into the record the screens slice.
+  ///
+  /// Covers the comparison period as well as the selected one, because every
+  /// reports figure is shown "vs previous". Only the owner path has this: no
+  /// `/manager/*` route takes a date, so a manager's history stays whatever the
+  /// unfiltered lists returned.
+  Future<void> _loadClientPeriod({bool force = false}) async {
+    if (!_clientScoped || useSampleData || isClosed) return;
+    if (!_api.hasToken || state.selectedLocationId == null) return;
+
+    final window = state.window;
+    final start = window.previous.start;
+    final end = window.end;
+    final key = '${start.toIso8601String()}|${end.toIso8601String()}';
+    if (!force && key == _loadedPeriodKey) return;
+
+    final results = await Future.wait([
+      _api
+          .clientSessionReport(start: start, end: end)
+          .then<Object?>((value) => value)
+          .catchError((Object error, StackTrace st) {
+        _logError('period/sessions', error, st);
+        return null;
+      }),
+      _api
+          .clientPaymentReport(start: start, end: end)
+          .then<Object?>((value) => value)
+          .catchError((Object error, StackTrace st) {
+        _logError('period/payments', error, st);
+        return null;
+      }),
+    ]);
+    if (isClosed) return;
+
+    final sessions = results[0] is List<ParkingSession>
+        ? _sessionsAt(
+            results[0] as List<ParkingSession>,
+            state.selectedLocationId!,
+            state.selectedLocation,
+          )
+        : null;
+    final payments = results[1] is List<PaymentTransaction>
+        ? _paymentsAt(results[1] as List<PaymentTransaction>)
+        : null;
+
+    if (sessions == null && payments == null) return;
+    _loadedPeriodKey = key;
+
+    emit(state.copyWith(
+      // Merged rather than replaced: the ranged calls filter sessions on entry
+      // time, so a car that drove in before this window and is still parked is
+      // not in them — and it is still one of this site's cars.
+      historySessions: sessions == null
+          ? state.historySessions
+          : _dedupedSessions([...sessions, ...state.historySessions]),
+      historyPayments: payments == null
+          ? state.historyPayments
+          : _dedupedPayments([...payments, ...state.historyPayments]),
+    ));
+  }
+
+  List<ParkingSession> _dedupedSessions(List<ParkingSession> sessions) {
+    final seen = <String>{};
+    return [
+      for (final session in sessions)
+        if (session.id.isEmpty || seen.add(session.id)) session,
+    ]..sort((a, b) => b.startTime.compareTo(a.startTime));
+  }
+
+  List<PaymentTransaction> _dedupedPayments(List<PaymentTransaction> payments) {
+    final seen = <String>{};
+    return [
+      for (final payment in payments)
+        if (payment.id.isEmpty || seen.add(payment.id)) payment,
+    ];
+  }
+
+  List<PaymentTransaction> _paymentsAt(List<PaymentTransaction> payments) {
+    final locationId = state.selectedLocationId;
+    if (state.locations.length < 2 || locationId == null) return payments;
+    return payments
+        .where((p) =>
+            p.locationId == null ||
+            p.locationId!.isEmpty ||
+            p.locationId == locationId)
+        .toList(growable: false);
+  }
+
+  /// The estate-wide list narrowed to one site. Sessions name their location by
+  /// id when a gate is attached and by name otherwise, so both are accepted; a
+  /// session that names neither is kept rather than dropped from the owner's
+  /// own figures.
+  List<ParkingSession> _sessionsAt(
+    List<ParkingSession> sessions,
+    String locationId,
+    ParkingLocation? location,
+  ) {
+    if (state.locations.length < 2) return sessions;
+    final name = location?.name.trim().toLowerCase();
+    return sessions.where((session) {
+      final id = session.locationId;
+      if (id != null && id.isNotEmpty) return id == locationId;
+      if (name == null || name.isEmpty) return true;
+      final sessionName = session.locationName.trim().toLowerCase();
+      return sessionName.isEmpty ||
+          sessionName == 'parking location' ||
+          sessionName == name;
+    }).toList(growable: false);
+  }
+
   Future<void> _poll() async {
     if (isClosed || _pollInFlight) return;
     _pollInFlight = true;
@@ -251,11 +469,26 @@ class ManagerCubit extends Cubit<ManagerState> {
 
   /// Which sites this user actually manages.
   ///
-  /// There is no "list my locations" endpoint for a manager, so the sites are
-  /// found by asking each public location for its active sessions: the
-  /// `/manager/*` routes 403 for anything the user is not assigned to, which
-  /// makes a successful call the assignment check.
+  /// Two kinds of account reach this screen and the backend treats them
+  /// differently. An OWNER (`CLIENT`/`PATNER`) owns the property and can list
+  /// their sites outright — and is *not* assigned as a manager of them, so every
+  /// `/manager/*` probe below 403s and would leave them with no property at all.
+  /// Ask `/client/locations` first for that reason; only a MANAGER, for whom it
+  /// 403s in turn, falls through to the probe.
   Future<List<ParkingLocation>> _resolveManagedLocations() async {
+    try {
+      final owned = await _api.clientLocations();
+      if (owned.isNotEmpty) {
+        _clientScoped = true;
+        _log('resolved ${owned.length} owned location(s) from /client/locations');
+        return owned;
+      }
+    } catch (error, st) {
+      // 403 here is the ordinary answer for a manager account; anything else is
+      // logged and still falls through to the probe, which may yet succeed.
+      _logError('resolveManagedLocations/clientLocations', error, st);
+    }
+
     final List<ParkingLocation> candidates;
     try {
       candidates = await _api.fetchParkingLocations();

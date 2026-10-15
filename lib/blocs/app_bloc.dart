@@ -35,6 +35,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     String? initialUserName,
     String? initialPhoneNumber,
     String? initialAuthToken,
+    String? initialUserRole,
     ThemeMode initialThemeMode = ThemeMode.system,
     bool? initialDebugManagerMode,
     bool initialDebugSampleData = false,
@@ -43,6 +44,12 @@ class AppBloc extends Bloc<AppEvent, AppState> {
           userName: initialUserName ?? '',
           phoneNumber: initialPhoneNumber,
           authToken: initialAuthToken,
+          // The role decides which app the tab bar builds, and it is needed
+          // before `/users/me` can answer — restore the last known one so an
+          // owner does not open the app on the driver side every launch.
+          userRole: (initialUserRole == null || initialUserRole.isEmpty)
+              ? 'USER'
+              : initialUserRole,
           themeMode: initialThemeMode,
           debugManagerMode: initialDebugManagerMode,
           debugSampleData: initialDebugSampleData,
@@ -395,10 +402,17 @@ class AppBloc extends Bloc<AppEvent, AppState> {
         return null;
       });
       // Chained off the vehicles call because it needs the registered plates.
+      // Tenancy plates are only whatever a previous load left in state — the
+      // tenancy fetch runs in the second pass below, which picks up the rest.
+      final firstPassPlateKeys = <String>{};
       final plateSessionsFuture = vehiclesFuture.then<Object?>((result) {
-        return _sessionsForRegisteredPlates(
-          result is List<Vehicle> ? result : state.vehicles,
+        firstPassPlateKeys.addAll(
+          _watchedPlateKeys(
+            vehicles: result is List<Vehicle> ? result : state.vehicles,
+            tenantProfiles: state.visibleTenantProfiles,
+          ),
         );
+        return _sessionsForPlates(firstPassPlateKeys);
       }).catchError((Object e, StackTrace st) {
         _logError('LoadDashboardData/plateSessions', e, st);
         return null;
@@ -531,6 +545,32 @@ class AppBloc extends Bloc<AppEvent, AppState> {
           isLoading: false,
         ),
       );
+
+      // On a cold start the tenancies were unknown when the pass above ran, so
+      // a tenant's only car would have been skipped. Fetch just the plates that
+      // pass missed and merge — never refetch what it already covered.
+      final missedPlateKeys = _watchedPlateKeys(
+        vehicles: const [],
+        tenantProfiles: state.visibleTenantProfiles,
+      )..removeAll(firstPassPlateKeys);
+      if (missedPlateKeys.isNotEmpty) {
+        final tenantPlateSessions = await _sessionsForPlates(missedPlateKeys);
+        _logSuccess(
+          'LoadDashboardData/tenantPlateSessions',
+          'plates=${missedPlateKeys.length} '
+          'sessions=${tenantPlateSessions.length}',
+        );
+        if (tenantPlateSessions.isNotEmpty) {
+          emit(
+            state.copyWith(
+              recentSessions: _mergeParkingSessions(
+                [...state.recentSessions, ...tenantPlateSessions],
+                vehicles: state.vehicles,
+              ),
+            ),
+          );
+        }
+      }
     } catch (error, st) {
       _logError('LoadDashboardData', error, st);
       emit(
@@ -790,6 +830,10 @@ class AppBloc extends Bloc<AppEvent, AppState> {
 
     try {
       final vehicles = state.vehicles;
+      final watchedPlateKeys = _watchedPlateKeys(
+        vehicles: vehicles,
+        tenantProfiles: state.visibleTenantProfiles,
+      );
       final results = await Future.wait([
         _api.recentParkingSessions().then<Object?>((v) => v).catchError(
           (Object e, StackTrace st) {
@@ -803,7 +847,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
             return null;
           },
         ),
-        _sessionsForRegisteredPlates(vehicles).then<Object?>((v) => v).catchError(
+        _sessionsForPlates(watchedPlateKeys).then<Object?>((v) => v).catchError(
           (Object e, StackTrace st) {
             _logError('SessionWatch/byPlate', e, st);
             return null;
@@ -1646,6 +1690,26 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     ));
   }
 
+  /// Mirrors the account's role to disk the moment it changes, so the next
+  /// launch builds the right side of the app before any request is made. A
+  /// demo session is deliberately excluded: its role belongs to the demo, not
+  /// to the account signed in on this device.
+  @override
+  void onChange(Change<AppState> change) {
+    super.onChange(change);
+    final role = change.nextState.userRole;
+    if (role == change.currentState.userRole) return;
+    if (change.nextState.demoRole != null) return;
+    unawaited(
+      (role.isEmpty || role.toUpperCase() == 'USER'
+              ? UserPrefs.clearRole()
+              : UserPrefs.saveRole(role))
+          .catchError((Object e, StackTrace st) {
+        _logError('persistUserRole', e, st);
+      }),
+    );
+  }
+
   @override
   Future<void> close() {
     _walletBalanceTimer?.cancel();
@@ -1717,17 +1781,32 @@ class AppBloc extends Bloc<AppEvent, AppState> {
   /// sessions keyed by plate alone, so an ongoing session can be missing from
   /// those lists while `/parking/sessions/by-plate` still has it. Query by
   /// plate as well and let the merge dedupe on session id.
-  Future<List<ParkingSession>> _sessionsForRegisteredPlates(
-    List<Vehicle> vehicles,
-  ) async {
-    // Query the canonical form the gates write, not the user's spacing.
-    final plates = <String>{
+  /// Every plate the app pulls sessions for: the account's own registered
+  /// vehicles plus the plates carried by the user's tenancies.
+  ///
+  /// A tenant's car lives only on `TenantDto.plateNumbers` and is never part of
+  /// `GET /vehicles`, and the auth-scoped session lists resolve to a user
+  /// through the stored plate — so without the tenancy plates a tenant who owns
+  /// no vehicle of their own would never see, or be able to pay for, the
+  /// parking their tenancy is entitled to.
+  ///
+  /// Always the canonical form the gates write, never the user's spacing.
+  Set<String> _watchedPlateKeys({
+    required List<Vehicle> vehicles,
+    required List<TenantProfile> tenantProfiles,
+  }) {
+    return <String>{
       for (final vehicle in vehicles) _plateKey(vehicle.plateNumber),
+      for (final profile in tenantProfiles)
+        for (final plate in profile.plateNumbers) _plateKey(plate),
     }..remove('');
-    if (plates.isEmpty) return const [];
+  }
+
+  Future<List<ParkingSession>> _sessionsForPlates(Set<String> plateKeys) async {
+    if (plateKeys.isEmpty) return const [];
 
     final results = await Future.wait(
-      plates.map(
+      plateKeys.map(
         (plate) => _api.parkingSessionsForPlate(plate).catchError(
           (Object e, StackTrace st) {
             _logError('LoadDashboardData/plateSessions[$plate]', e, st);

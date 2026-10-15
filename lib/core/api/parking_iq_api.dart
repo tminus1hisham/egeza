@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as dev;
 
@@ -25,6 +26,10 @@ class ApiException implements Exception {
 class ParkingIqApi {
   // static const defaultBaseUrl = 'https://api.egesha.net/api/v1';
   static const defaultBaseUrl = 'https://parking-api.transfa.org/api/v1';
+
+  /// Without this a request on a weak signal hangs until the OS gives up
+  /// (60s+). ErrorHandler already maps TimeoutException to a friendly message.
+  static const _timeout = Duration(seconds: 25);
 
   final http.Client _client;
   final Uri _baseUri;
@@ -698,6 +703,122 @@ class ParkingIqApi {
     return _dataList(response).map(PaymentTransaction.fromJson).toList();
   }
 
+  // ── Client (owner-scoped) ────────────────────────────────────────────────
+  //
+  // A site OWNER is a `CLIENT`, and a client is not a location manager: every
+  // `/manager/*` route 403s for them even on their own property. Their sites and
+  // figures come from `/client/*` instead, which is estate-wide — one call
+  // covers every location the client owns, so the site filter is applied here in
+  // the app rather than by the endpoint.
+
+  /// The locations this client owns. Unlike the manager side there is a real
+  /// "list mine" endpoint here, so no probing is needed.
+  Future<List<ParkingLocation>> clientLocations() async {
+    final response = await _request('GET', '/client/locations');
+    return _dataList(response).map(ParkingLocation.fromJson).toList();
+  }
+
+  /// Every session across the client's locations, past and present.
+  Future<List<ParkingSession>> clientSessions() async {
+    final response = await _request('GET', '/client/sessions');
+    return _dataList(response).map(ParkingSession.fromJson).toList();
+  }
+
+  /// Every payment taken across the client's locations.
+  Future<List<PaymentTransaction>> clientPayments() async {
+    final response = await _request('GET', '/client/transactions/payments');
+    return _dataList(response).map(PaymentTransaction.fromJson).toList();
+  }
+
+  /// The sessions that STARTED inside the window, with the report's own totals
+  /// dropped: every figure on screen is recomputed locally anyway, and two
+  /// sources for one number is how they end up disagreeing.
+  ///
+  /// Filtered on entry time, so this is the wrong call for "cars on the ground
+  /// now" — one that drove in last week is still parked but starts outside any
+  /// recent window. [clientSessions] stays the source for that.
+  Future<List<ParkingSession>> clientSessionReport({
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final response = await _request(
+      'GET',
+      '/client/reports/sessions',
+      query: _reportRange(start, end),
+    );
+    return _nestedList(response, 'sessions')
+        .map(ParkingSession.fromJson)
+        .toList();
+  }
+
+  /// The payments RECEIVED inside the window, dated by when the money landed —
+  /// which is the right question for a day's takings, and not the same as the
+  /// sessions that started in it.
+  Future<List<PaymentTransaction>> clientPaymentReport({
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final response = await _request(
+      'GET',
+      '/client/reports/payments',
+      query: _reportRange(start, end),
+    );
+    return _nestedList(response, 'payments')
+        .map(PaymentTransaction.fromJson)
+        .toList();
+  }
+
+  /// Per-site totals for the window — the only server-side split by location
+  /// the client API offers; every other `/client/*` call is estate-wide.
+  Future<List<LocationPerformance>> clientLocationPerformance({
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final response = await _request(
+      'GET',
+      '/client/reports/locations/performance',
+      query: _reportRange(start, end),
+    );
+    return _dataList(response).map(LocationPerformance.fromJson).toList();
+  }
+
+  /// Estate-wide live counters. Not split by site beyond each location's own
+  /// occupancy, so it cannot answer a per-site question on its own.
+  Future<DashboardStats> clientDashboardStats() async {
+    final response = await _request('GET', '/client/dashboard/stats');
+    return DashboardStats.fromJson(_requiredDataMap(response));
+  }
+
+  /// The window as the reports endpoints want it: naive local timestamps, both
+  /// ends inclusive. [end] is exclusive everywhere in this app, so it is pulled
+  /// back a second here rather than at every call site.
+  Map<String, dynamic> _reportRange(DateTime start, DateTime end) {
+    return {
+      'startDate': _reportStamp(start),
+      'endDate': _reportStamp(end.subtract(const Duration(seconds: 1))),
+    };
+  }
+
+  static String _reportStamp(DateTime moment) {
+    final local = moment.toLocal();
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '${local.year}-${two(local.month)}-${two(local.day)}'
+        'T${two(local.hour)}:${two(local.minute)}:${two(local.second)}';
+  }
+
+  /// A list nested one level inside `data`, as the report DTOs wrap theirs.
+  List<Map<String, dynamic>> _nestedList(
+    Map<String, dynamic> response,
+    String key,
+  ) {
+    final rows = _requiredDataMap(response)[key];
+    if (rows is! List) return const [];
+    return [
+      for (final row in rows)
+        if (row is Map<String, dynamic>) row,
+    ];
+  }
+
   Future<DashboardStats> dashboardStats() async {
     final response = await _request('GET', '/admin/dashboard/stats');
     return DashboardStats.fromJson(_requiredDataMap(response));
@@ -749,7 +870,21 @@ class ParkingIqApi {
 
   Future<List<TenantProfile>> fetchMyTenantProfiles() async {
     final response = await _request('GET', '/tenancy/my-profiles');
-    return _dataList(response).map(TenantProfile.fromJson).toList();
+    final items = _dataList(response);
+    if (_debug) {
+      // The generic response log truncates at 200 chars, which cuts off the
+      // vehicle fields. Print the shape of each tenant so a profile that shows
+      // no plates can be traced to the payload rather than the parser.
+      for (final item in items) {
+        dev.log(
+          'my-profiles tenant=${item['id']} keys=${item.keys.toList()} '
+          'plateNumbers=${jsonEncode(item['plateNumbers'])} '
+          'vehicles=${jsonEncode(item['vehicles'])}',
+          name: 'ParkingIQ',
+        );
+      }
+    }
+    return items.map(TenantProfile.fromJson).toList();
   }
 
   Future<List<TenantSubscription>> fetchTenantSubscriptions(
@@ -857,23 +992,21 @@ class ParkingIqApi {
     late final http.Response response;
     switch (method) {
       case 'GET':
-        response = await _client.get(uri, headers: headers);
+        response = await _client.get(uri, headers: headers).timeout(_timeout);
         break;
       case 'POST':
-        response = await _client.post(uri, headers: headers, body: encodedBody);
+        response = await _client.post(uri, headers: headers, body: encodedBody).timeout(_timeout);
         break;
       case 'PUT':
-        response = await _client.put(uri, headers: headers, body: encodedBody);
+        response = await _client.put(uri, headers: headers, body: encodedBody).timeout(_timeout);
         break;
       case 'PATCH':
-        response = await _client.patch(
-          uri,
-          headers: headers,
-          body: encodedBody,
-        );
+        response = await _client
+            .patch(uri, headers: headers, body: encodedBody)
+            .timeout(_timeout);
         break;
       case 'DELETE':
-        response = await _client.delete(uri, headers: headers);
+        response = await _client.delete(uri, headers: headers).timeout(_timeout);
         break;
       default:
         throw ApiException('Unsupported HTTP method: $method');

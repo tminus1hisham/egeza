@@ -451,9 +451,9 @@ class _SignInScreenState extends State<SignInScreen> {
     );
   }
 
+  /* Testing-only demo logins - disabled.
   /// Testing-only shortcut into either side of the app. No account, no OTP and
   /// no access token — the app runs on seeded figures until sign-out.
-  // ignore: unused_element
   Widget _demoLoginSection({required bool isBusy}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -507,6 +507,7 @@ class _SignInScreenState extends State<SignInScreen> {
     FocusScope.of(context).unfocus();
     context.read<AppBloc>().add(StartDemoSession(role));
   }
+  */
 
   void _onAuthStateChanged(BuildContext context, AppState state) {
     // Capture the action before clearing it — the statusMessage handling

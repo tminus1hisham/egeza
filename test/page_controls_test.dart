@@ -204,7 +204,7 @@ void main() {
           ),
           metrics: const [
             PageHeroMetric('AutoPay on', '3'),
-            PageHeroMetric('Manual', '1'),
+            PageHeroMetric('AutoPay off', '1'),
             PageHeroMetric('Parked now', '1'),
           ],
         );
@@ -216,7 +216,7 @@ void main() {
       expect(find.text('Registered fleet'), findsOneWidget);
       expect(find.text('4 vehicles'), findsOneWidget);
       expect(find.text('ANPR ready'), findsOneWidget);
-      for (final label in ['AutoPay on', 'Manual', 'Parked now']) {
+      for (final label in ['AutoPay on', 'AutoPay off', 'Parked now']) {
         expect(find.text(label), findsOneWidget);
       }
     });

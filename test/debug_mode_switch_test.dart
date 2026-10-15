@@ -35,7 +35,33 @@ void main() {
       expect(const AppState(userRole: 'MANAGER').isManager, isTrue);
       expect(const AppState(userRole: 'ADMIN').isManager, isTrue);
       expect(const AppState(userRole: 'CLIENT').isManager, isTrue);
+      expect(const AppState(userRole: ' patner ').isManager, isTrue);
       expect(const AppState(userRole: 'MANAGER').isDebugModeOverridden, isFalse);
+    });
+
+    test('recognises every spelling the backend sends for the site owner', () {
+      // The backend's own spelling of owner is PATNER; accounts have also come
+      // back corrected, prefixed by Spring Security, or separated.
+      for (final role in [
+        'PATNER',
+        'patner',
+        'PARTNER',
+        'ROLE_PATNER',
+        'role_partner',
+        'OWNER',
+        'SITE_OWNER',
+      ]) {
+        final state = AppState(userRole: role);
+        expect(state.hasManagerRole, isTrue, reason: 'role "$role"');
+        expect(state.isOwner, isTrue, reason: 'role "$role"');
+        expect(state.shouldShowReports, isTrue, reason: 'role "$role"');
+      }
+
+      // And still leaves a driver on the driver side.
+      for (final role in ['USER', 'user', 'TENANT', '']) {
+        expect(AppState(userRole: role).hasManagerRole, isFalse,
+            reason: 'role "$role"');
+      }
     });
 
     test('the override wins in both directions', () {
@@ -58,6 +84,41 @@ void main() {
       const agreeing = AppState(userRole: 'MANAGER', debugManagerMode: true);
       expect(agreeing.isManager, isTrue);
       expect(agreeing.isDebugModeOverridden, isFalse);
+    });
+  });
+
+  group('account role', () {
+    test('is restored at launch so an owner never opens as a driver', () async {
+      // The tab bar is built before /users/me can answer. Without the saved
+      // role the first frame after launch is the driver app.
+      final bloc = AppBloc(
+        api: _OfflineApi(),
+        initialAuthToken: 'token',
+        initialUserRole: 'PATNER',
+      );
+      expect(bloc.state.isOwner, isTrue);
+      await bloc.close();
+    });
+
+    test('is written to prefs whenever it changes, and cleared on sign out',
+        () async {
+      final bloc = AppBloc(api: _OfflineApi(), initialAuthToken: 'token');
+      expect(bloc.state.isOwner, isFalse);
+
+      bloc.emit(bloc.state.copyWith(userRole: 'PATNER'));
+      expect(bloc.state.isOwner, isTrue);
+      await Future<void>.delayed(Duration.zero);
+      expect((await UserPrefs.load()).role, 'PATNER');
+
+      bloc.add(SignOut());
+      await expectLater(
+        bloc.stream,
+        emitsThrough(
+          isA<AppState>().having((s) => s.authToken, 'authToken', isNull),
+        ),
+      );
+      expect((await UserPrefs.load()).role, isNull);
+      await bloc.close();
     });
   });
 

@@ -318,7 +318,10 @@ class _LogoMark extends StatelessWidget {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(size * 0.26),
-                  child: Image.asset('assets/icon2.png', fit: BoxFit.cover),
+                  child: Image.asset(
+                    isDark ? 'assets/iconblack.png' : 'assets/iconwhite.png',
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
             ],

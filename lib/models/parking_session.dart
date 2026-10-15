@@ -4,6 +4,11 @@ import 'api_models.dart';
 class ParkingSession {
   final String id;
   final String locationName;
+
+  /// The site this session belongs to, when the payload names it. Owner-scoped
+  /// endpoints return every site's sessions in one list, so the id is what
+  /// tells them apart; the driver-facing endpoints omit it and leave it null.
+  final String? locationId;
   final DateTime startTime;
   final DateTime? endTime;
   final DateTime? currentTime;
@@ -24,6 +29,7 @@ class ParkingSession {
   const ParkingSession({
     required this.id,
     required this.locationName,
+    this.locationId,
     required this.startTime,
     this.endTime,
     this.currentTime,
@@ -102,6 +108,7 @@ class ParkingSession {
           ])) ??
           '',
       locationName: _locationName(json),
+      locationId: _locationId(json),
       startTime: startTime,
       endTime: endTime,
       currentTime: currentTime,
@@ -144,6 +151,7 @@ class ParkingSession {
   ParkingSession copyWith({
     String? id,
     String? locationName,
+    String? locationId,
     DateTime? startTime,
     DateTime? endTime,
     DateTime? currentTime,
@@ -164,6 +172,7 @@ class ParkingSession {
     return ParkingSession(
       id: id ?? this.id,
       locationName: locationName ?? this.locationName,
+      locationId: locationId ?? this.locationId,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
       currentTime: currentTime ?? this.currentTime,
@@ -219,6 +228,25 @@ String _locationName(Map<String, dynamic> json) {
   }
 
   return jsonString(location) ?? 'Parking Location';
+}
+
+/// The gate DTOs carry the site id even when the session itself does not —
+/// `/client/sessions` names the location only by `entryGate.locationId`.
+String? _locationId(Map<String, dynamic> json) {
+  final direct = jsonString(_firstJsonValue(json, const [
+    'locationId',
+    'parkingLocationId',
+  ]));
+  if (direct != null && direct.isNotEmpty) return direct;
+
+  for (final key in const ['location', 'parkingLocation', 'entryGate', 'exitGate']) {
+    final nested = json[key];
+    if (nested is Map<String, dynamic>) {
+      final id = jsonString(_firstJsonValue(nested, const ['locationId', 'id']));
+      if (id != null && id.isNotEmpty) return id;
+    }
+  }
+  return null;
 }
 
 bool _isActiveSession(Map<String, dynamic> json, String status) {

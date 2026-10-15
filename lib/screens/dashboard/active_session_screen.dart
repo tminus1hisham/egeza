@@ -7,9 +7,11 @@ import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
 import '../../core/error_handler.dart';
 import '../../core/theme/app_colors.dart';
+import '../../models/api_models.dart';
 import '../../models/parking_session.dart';
 import '../../widgets/primary_button.dart';
 import '../../widgets/app_widgets.dart';
+import '../payment_success_screen.dart';
 import 'promo_qr_scanner_screen.dart';
 
 class ActiveSessionScreen extends StatefulWidget {
@@ -140,7 +142,40 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
 
     await _waitForRouteToSettle();
     if (!mounted) return;
+
+    final paid = state.selectedSession;
+    if (completedCheckout && paid != null) {
+      _showSuccess(paid, state.activePayment);
+      return;
+    }
     Navigator.of(context).pop();
+  }
+
+  /// Replaces this screen with the confirmation moment: the session is over,
+  /// so there is nothing left here to come back to.
+  void _showSuccess(ParkingSession session, PaymentStatusSnapshot? payment) {
+    final amount = session.amountPaid > 0 ? session.amountPaid : session.cost;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => PaymentSuccessScreen(
+          details: PaymentSuccessDetails(
+            amountPaid: amount,
+            // Anchored on now, not the session end the server reports:
+            // that timestamp arrives naive/UTC-skewed and would start the exit
+            // window in the past.
+            paidAt: DateTime.now(),
+            transactionId: payment?.paymentId ?? payment?.checkoutRequestId,
+            siteName: session.locationName,
+            plateNumber: session.vehicle.plateNumber.isEmpty
+                ? null
+                : session.vehicle.plateNumber,
+            discountAmount: session.discountAmount,
+            exitWindow: kExitGraceWindow,
+          ),
+        ),
+      ),
+    );
   }
 
   @override

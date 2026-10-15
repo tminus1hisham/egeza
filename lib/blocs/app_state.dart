@@ -91,13 +91,28 @@ class AppState extends Equatable {
 
   bool get isDemoTenant => demoRole == 'tenant';
 
-  String get normalizedUserRole => userRole.trim().toUpperCase();
+  /// The account's role reduced to bare letters so a comparison cannot be
+  /// thrown by casing, padding, a `ROLE_` prefix or a `SITE_OWNER`-style
+  /// separator — the backend has sent all of these spellings.
+  String get normalizedUserRole {
+    final letters =
+        userRole.toUpperCase().replaceAll(RegExp('[^A-Z]'), '');
+    return letters.startsWith('ROLE') ? letters.substring(4) : letters;
+  }
 
   /// Whether the signed-in account's own role puts it on the manager side.
+  ///
+  /// `PATNER` is the backend's spelling of the site owner (and `PARTNER` its
+  /// corrected one); both are listed because either may come back depending on
+  /// when the account was created.
   bool get hasManagerRole => const {
         'MANAGER',
         'ADMIN',
         'CLIENT',
+        'PATNER',
+        'PARTNER',
+        'OWNER',
+        'SITEOWNER',
       }.contains(normalizedUserRole);
 
   /// Whether to offer the manager view. Only a gate on the entry point — the
@@ -111,10 +126,11 @@ class AppState extends Equatable {
   /// Whether this account runs a property rather than only parking in one.
   ///
   /// The same set of roles as [hasManagerRole] — on this backend the site
-  /// owner is a `CLIENT` and the person running the gate is a `MANAGER`, and
-  /// both are entitled to the site's own figures. Named separately because the
-  /// reports tab is about ownership of the numbers, not about the manager
-  /// view, and the two would otherwise be impossible to tell apart later.
+  /// owner is returned as `PATNER` (the backend's spelling; older accounts may
+  /// still be `CLIENT`) and the person running the gate is a `MANAGER`. All are
+  /// entitled to the site's own figures. Named separately because the reports
+  /// tab is about ownership of the numbers, not about the manager view, and the
+  /// two would otherwise be impossible to tell apart later.
   bool get isOwner => isManager;
 
   /// Whether to give this account the Reports tab and turn the sessions list

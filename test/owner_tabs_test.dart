@@ -50,6 +50,7 @@ void main() {
 
   group('who gets the owner side', () {
     test('a site owner or manager does, a driver does not', () {
+      expect(const AppState(userRole: 'PATNER').shouldShowReports, isTrue);
       expect(const AppState(userRole: 'CLIENT').shouldShowReports, isTrue);
       expect(const AppState(userRole: 'MANAGER').shouldShowReports, isTrue);
       expect(const AppState(userRole: 'ADMIN').shouldShowReports, isTrue);
@@ -91,7 +92,7 @@ void main() {
 
   testWidgets('an owner gets Reports, in the middle of the bar',
       (tester) async {
-    await pumpNav(tester, const AppState(userRole: 'CLIENT'));
+    await pumpNav(tester, const AppState(userRole: 'PATNER'));
 
     expect(find.byKey(const ValueKey('nav-reports')), findsOneWidget);
     expect(find.byKey(const ValueKey('nav-sessions')), findsOneWidget);

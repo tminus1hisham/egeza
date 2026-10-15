@@ -69,10 +69,15 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
 
               return SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 22, 20, 34),
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 34),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Back stands on the page, not on the hero. Inside the
+                    // gradient it read as decoration next to the eyebrow;
+                    // out here it is the only control on its row.
+                    const PageBackButton(),
+                    const SizedBox(height: 4),
                     _hero(vehicle, sessions, settled),
                     if (active != null) ...[
                       const SizedBox(height: 18),
@@ -120,10 +125,9 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
           borderRadius: BorderRadius.circular(3),
         ),
       ),
-      onBack: () => Navigator.pop(context),
       pill: PageHeroPill(
         icon: autoPayOn ? Icons.bolt_rounded : Icons.account_balance_wallet_outlined,
-        label: autoPayOn ? 'AutoPay on' : 'Manual pay',
+        label: autoPayOn ? 'AutoPay on' : 'AutoPay off',
       ),
       metrics: [
         PageHeroMetric('Sessions', '${settled.length}'),

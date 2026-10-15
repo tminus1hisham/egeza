@@ -5,6 +5,12 @@ class UserPrefs {
   static const _keyPhone = 'user_phone';
   static const _keyToken = 'auth_token';
 
+  /// The account's backend role (`USER`, `TENANT`, `PATNER`, `MANAGER`, …).
+  /// Kept on disk because the tab bar is built from it at launch, long before
+  /// `/users/me` answers — without it an owner opens the app as a driver and
+  /// only becomes an owner once the dashboard load lands.
+  static const _keyRole = 'user_role';
+
   static const _keyTheme = 'app_theme_mode';
 
   /// Debug-only override of the driver/manager view mode. Absent means "follow
@@ -28,6 +34,7 @@ class UserPrefs {
         String? name,
         String? phone,
         String? token,
+        String? role,
         String? theme,
         bool? debugManagerMode,
         bool? debugSampleData,
@@ -37,6 +44,7 @@ class UserPrefs {
       name: prefs.getString(_keyName),
       phone: prefs.getString(_keyPhone),
       token: prefs.getString(_keyToken),
+      role: prefs.getString(_keyRole),
       theme: prefs.getString(_keyTheme),
       debugManagerMode: prefs.getBool(_keyDebugManagerMode),
       debugSampleData: prefs.getBool(_keyDebugSampleData),
@@ -61,6 +69,16 @@ class UserPrefs {
   static Future<void> saveTheme(String themeName) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyTheme, themeName);
+  }
+
+  static Future<void> saveRole(String role) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyRole, role);
+  }
+
+  static Future<void> clearRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyRole);
   }
 
   static Future<void> saveToken(String token) async {

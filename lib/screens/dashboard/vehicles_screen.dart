@@ -6,11 +6,13 @@ import '../../blocs/app_bloc.dart';
 import '../../blocs/app_event.dart';
 import '../../blocs/app_state.dart';
 import '../../core/theme/app_colors.dart';
+import '../../models/api_models.dart';
 import '../../models/parking_session.dart';
 import '../../models/vehicle.dart';
 import '../../widgets/add_vehicle_sheet.dart';
 import '../../widgets/app_widgets.dart';
 import '../../widgets/primary_button.dart';
+import 'history_screen.dart';
 import 'vehicle_detail_screen.dart';
 
 class VehiclesScreen extends StatefulWidget {
@@ -24,7 +26,7 @@ class VehiclesScreen extends StatefulWidget {
 
 class _VehiclesScreenState extends State<VehiclesScreen> {
   int _filterIndex = 0;
-  static const _filters = ['All', 'AutoPay', 'Manual'];
+  static const _filters = ['All', 'AutoPay', 'AutoPay off'];
 
   Future<void> _onRefresh() async {
     context.read<AppBloc>().add(LoadDashboardData());
@@ -41,6 +43,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
           child: BlocBuilder<AppBloc, AppState>(
             builder: (context, state) {
               final vehicles = _filteredVehicles(state.vehicles);
+              final tenantPlates = _tenantPlates(state);
 
               return RefreshIndicator(
                 color: context.colors.primary,
@@ -60,7 +63,19 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                         vehicles,
                         state.recentSessions,
                         noVehiclesAtAll: state.vehicles.isEmpty,
+                        hasTenantPlates: tenantPlates.isNotEmpty,
                       ),
+                      // AutoPay on/off is a property of a registered vehicle,
+                      // which a tenancy plate is not — it only ever belongs
+                      // under 'All'.
+                      if (_filterIndex == 0 && tenantPlates.isNotEmpty) ...[
+                        const SizedBox(height: 22),
+                        _tenantVehicleList(
+                          context,
+                          tenantPlates,
+                          state.recentSessions,
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -89,7 +104,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       trailing: _addVehicleButton(),
       metrics: [
         PageHeroMetric('AutoPay on', '$autoPayCount'),
-        PageHeroMetric('Manual', '${state.vehicles.length - autoPayCount}'),
+        PageHeroMetric('AutoPay off', '${state.vehicles.length - autoPayCount}'),
         PageHeroMetric('Parked now', '$activeCount'),
       ],
     );
@@ -120,6 +135,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 ),
                 child: Text(
                   _filters[index],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
                     color: selected ? Colors.white : context.colors.textSecondary,
                     fontSize: 13,
@@ -134,11 +151,167 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     );
   }
 
+  /// Plates that belong to the user's tenancies rather than to the user.
+  ///
+  /// A tenant's vehicles live on `TenantDto.plateNumbers` and are never part of
+  /// `GET /vehicles`, so a plate an admin attaches to the tenancy would show
+  /// nowhere in the app without this. Plates the account has also registered
+  /// itself are dropped — those already have a real card above.
+  List<_TenantPlate> _tenantPlates(AppState state) {
+    final seen = {
+      for (final vehicle in state.vehicles)
+        Vehicle.plateKey(vehicle.plateNumber),
+    }..remove('');
+    final plates = <_TenantPlate>[];
+
+    for (final profile in state.visibleTenantProfiles) {
+      for (final plate in profile.plateNumbers) {
+        final plateKey = Vehicle.plateKey(plate);
+        if (plateKey.isEmpty || !seen.add(plateKey)) continue;
+        plates.add(_TenantPlate(plateNumber: plate, profile: profile));
+      }
+    }
+
+    return plates;
+  }
+
+  Widget _tenantVehicleList(
+    BuildContext context,
+    List<_TenantPlate> plates,
+    List<ParkingSession> sessions,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Tenancy vehicles',
+                style: GoogleFonts.poppins(
+                  color: context.colors.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Text(
+              '${plates.length} shown',
+              style: GoogleFonts.poppins(
+                color: context.colors.textMuted,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Plates registered on your tenancy, not on this account.',
+          style: GoogleFonts.poppins(
+            color: context.colors.textMuted,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 10),
+        ...plates.map((plate) {
+          final plateKey = Vehicle.plateKey(plate.plateNumber);
+          final parkedNow = sessions.any(
+            (session) =>
+                session.isActive &&
+                Vehicle.plateKey(session.vehicle.plateNumber) == plateKey,
+          );
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _tenantVehicleCard(context, plate, parkedNow: parkedNow),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _tenantVehicleCard(
+    BuildContext context,
+    _TenantPlate plate, {
+    required bool parkedNow,
+  }) {
+    final location = plate.profile.locationName.trim();
+    final subtitle = location.isEmpty
+        ? plate.profile.name
+        : '${plate.profile.name} - $location';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 15),
+      decoration: BoxDecoration(
+        color: context.colors.cardSurface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: context.colors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: context.colors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: context.colors.primary.withValues(alpha: 0.1),
+                  ),
+                ),
+                child: Icon(
+                  Icons.domain_rounded,
+                  color: context.colors.primary,
+                  size: 23,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _plateTag(plate.plateNumber),
+                    const SizedBox(height: 6),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        color: context.colors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _statusChip('On your tenancy', true),
+              // Nothing is said when the plate is not parked — an absent chip
+              // reads as "not here" without another word to decode.
+              if (parkedNow) ...[
+                const SizedBox(width: 8),
+                _statusChip('Parked now', true, soft: true),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _vehicleList(
     BuildContext context,
     List<Vehicle> vehicles,
     List<ParkingSession> sessions, {
     required bool noVehiclesAtAll,
+    bool hasTenantPlates = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,7 +339,10 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
         ),
         const SizedBox(height: 10),
         if (vehicles.isEmpty)
-          _emptyVehicles(noVehiclesAtAll: noVehiclesAtAll)
+          _emptyVehicles(
+            noVehiclesAtAll: noVehiclesAtAll,
+            hasTenantPlates: hasTenantPlates,
+          )
         else
           ...vehicles.map((vehicle) {
             final plateKey = Vehicle.plateKey(vehicle.plateNumber);
@@ -190,6 +366,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   ) {
     final totalSpend = sessions.fold<double>(0, (sum, item) => sum + item.cost);
     final lastSeen = sessions.isEmpty ? 'No sessions' : _dateLabel(sessions.first.startTime);
+    final parkedNow = sessions.any((session) => session.isActive);
 
     return Container(
       decoration: BoxDecoration(
@@ -278,17 +455,13 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
               Row(
                 children: [
                   _statusChip(
-                    vehicle.autoPayEnabled ? 'AutoPay on' : 'Manual pay',
+                    vehicle.autoPayEnabled ? 'AutoPay on' : 'AutoPay off',
                     vehicle.autoPayEnabled,
                   ),
-                  const SizedBox(width: 8),
-                  _statusChip(
-                    sessions.any((session) => session.isActive)
-                        ? 'Parked now'
-                        : 'Clear',
-                    sessions.any((session) => session.isActive),
-                    soft: true,
-                  ),
+                  if (parkedNow) ...[
+                    const SizedBox(width: 8),
+                    _statusChip('Parked now', true, soft: true),
+                  ],
                 ],
               ),
               const SizedBox(height: 12),
@@ -299,6 +472,15 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                       'Sessions',
                       '${sessions.length}',
                       Icons.history_rounded,
+                      // The count is the summary; the history screen is the
+                      // detail behind it, so the tile is the way through.
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const HistoryScreen(showBackButton: true),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -326,7 +508,10 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     ));
   }
 
-  Widget _emptyVehicles({required bool noVehiclesAtAll}) {
+  Widget _emptyVehicles({
+    required bool noVehiclesAtAll,
+    bool hasTenantPlates = false,
+  }) {
     if (!noVehiclesAtAll) {
       // Filter returned no results, but user does have vehicles
       return Container(
@@ -370,7 +555,10 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Add your first vehicle to start parking',
+            hasTenantPlates
+                ? 'Your tenancy plates are listed below. Add your own '
+                    'vehicle to use AutoPay.'
+                : 'Add your first vehicle to start parking',
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
               fontSize: 13,
@@ -438,19 +626,43 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     );
   }
 
-  Widget _vehicleMetric(String label, String value, IconData icon) {
-    return Container(
+  Widget _vehicleMetric(
+    String label,
+    String value,
+    IconData icon, {
+    VoidCallback? onTap,
+  }) {
+    final tile = Container(
       height: 66,
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
       decoration: BoxDecoration(
-        color: context.colors.surfaceRaised,
+        color: onTap == null ? context.colors.surfaceRaised : null,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: context.colors.border.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: context.colors.textMuted, size: 13),
+          Row(
+            children: [
+              Icon(
+                icon,
+                color: onTap == null
+                    ? context.colors.textMuted
+                    : context.colors.primary,
+                size: 13,
+              ),
+              const Spacer(),
+              // A tappable tile needs to look tappable next to two that
+              // aren't — the chevron is the only thing separating them.
+              if (onTap != null)
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: context.colors.primary,
+                  size: 14,
+                ),
+            ],
+          ),
           const Spacer(),
           Text(
             value,
@@ -468,11 +680,29 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
-              color: context.colors.textSecondary,
+              color: onTap == null
+                  ? context.colors.textSecondary
+                  : context.colors.primary,
               fontSize: 9.5,
+              fontWeight: onTap == null ? FontWeight.w400 : FontWeight.w600,
             ),
           ),
         ],
+      ),
+    );
+
+    if (onTap == null) return tile;
+
+    // Sits inside the card's own InkWell; the nested one takes the tap first,
+    // so the tile routes to history while the rest of the card opens the car.
+    return Material(
+      color: context.colors.surfaceRaised,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: tile,
       ),
     );
   }
@@ -558,4 +788,13 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     return amount.toStringAsFixed(0);
   }
 
+}
+
+/// One plate carried by a tenancy the user belongs to, kept with the profile it
+/// came from so the card can name the site.
+class _TenantPlate {
+  final String plateNumber;
+  final TenantProfile profile;
+
+  const _TenantPlate({required this.plateNumber, required this.profile});
 }

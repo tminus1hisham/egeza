@@ -10,7 +10,6 @@ import '../../core/theme/app_colors.dart';
 import '../../widgets/app_widgets.dart';
 import '../auth/sign_in_screen.dart';
 import 'help_center_screen.dart';
-import 'manager_screen.dart';
 import 'settings_detail_screen.dart';
 import 'tenancy_screen.dart';
 import 'vehicles_screen.dart';
@@ -67,25 +66,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                       _profileCard(state),
                       const SizedBox(height: 16),
-                      if (state.isManager) ...[
-                        _settingsSection(
-                          title: 'Management',
-                          children: [
-                            _settingsRow(
-                              icon: Icons.insights_rounded,
-                              title: 'Manager view',
-                              subtitle: 'Live takings, vehicles and occupancy',
-                              onTap: () => _openPage(
-                                ManagerScreen(
-                                  api: context.read<AppBloc>().api,
-                                  useSampleData: state.debugSampleData,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                      ],
                       _settingsSection(
                         title: 'Account',
                         children: [
